@@ -5,10 +5,12 @@ import { Chat } from './pages/Chat';
 import { Settings } from './pages/Settings';
 import { MCP } from './pages/MCP';
 import { useInitializeSettings } from './hooks/useInitializeSettings';
+import { useInitializeMCP } from './hooks/useInitializeMCP';
 import './index.css';
 
 const App = () => {
   useInitializeSettings();
+  useInitializeMCP();
 
   return (
     <BrowserRouter>

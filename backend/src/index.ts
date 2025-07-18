@@ -8,6 +8,7 @@ import { OpenAIService } from '@/services/openai.service';
 import { ChatController } from '@/controllers/chat.controller';
 import { SettingsController } from '@/controllers/settings.controller';
 import { MCPController } from '@/controllers/mcp.controller';
+import { MCPService } from '@/services/mcp.service';
 import { createChatRoutes } from '@/routes/chat.routes';
 import { createSettingsRoutes } from '@/routes/settings.routes';
 import { createMCPRoutes } from '@/routes/mcp.routes';
@@ -26,11 +27,12 @@ const logger = winston.createLogger({
 // Initialize services
 const configService = new ConfigService();
 const openAIService = new OpenAIService(configService, logger);
+const mcpService = new MCPService();
 
 // Initialize controllers
 const chatController = new ChatController(openAIService, logger);
 const settingsController = new SettingsController(configService, openAIService, logger);
-const mcpController = new MCPController();
+const mcpController = new MCPController(mcpService);
 
 // Create Express app
 const app = express();

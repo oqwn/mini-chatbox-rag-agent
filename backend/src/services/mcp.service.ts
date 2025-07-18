@@ -358,11 +358,14 @@ export class MCPService extends EventEmitter {
 
   async getAllTools(): Promise<MCPTool[]> {
     const tools: MCPTool[] = [];
+    console.log('Getting all tools from servers:', this.servers.size, 'servers');
     for (const server of this.servers.values()) {
+      console.log(`Server ${server.id}: connected=${server.connected}, tools=${server.tools.length}`);
       if (server.connected) {
         tools.push(...server.tools);
       }
     }
+    console.log('Total tools found:', tools.length);
     return tools;
   }
 }

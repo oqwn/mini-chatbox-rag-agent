@@ -9,6 +9,8 @@ class MCPService {
   async loadConfiguration(config: MCPConfiguration): Promise<void> {
     this.configuration = config;
     await this.initializeServers();
+    // After initializing servers, sync tools from the global endpoint
+    await this.syncToolsFromBackend();
   }
 
   private async initializeServers(): Promise<void> {
@@ -158,6 +160,8 @@ class MCPService {
         tools.push(...status.tools);
       }
     }
+    console.log('Available MCP tools:', tools);
+    console.log('Server statuses:', Array.from(this.serverStatuses.values()));
     return tools;
   }
 
@@ -181,6 +185,39 @@ class MCPService {
     await apiService.disconnectMCPServer(serverId);
 
     this.serverStatuses.delete(serverId);
+  }
+
+  async syncToolsFromBackend(): Promise<void> {
+    try {
+      // Get all tools from the backend
+      const allTools = await apiService.getMCPTools();
+      
+      // Group tools by serverId
+      const toolsByServer = new Map<string, MCPTool[]>();
+      for (const tool of allTools) {
+        if (!toolsByServer.has(tool.serverId)) {
+          toolsByServer.set(tool.serverId, []);
+        }
+        toolsByServer.get(tool.serverId)!.push(tool);
+      }
+
+      // Update each server's tools
+      for (const [serverId, tools] of toolsByServer) {
+        const status = this.serverStatuses.get(serverId);
+        if (status) {
+          status.tools = tools;
+          console.log(`Updated server ${serverId} with ${tools.length} tools`);
+          this.notifyStatusChange(serverId, status);
+        }
+      }
+
+      // Also try to discover capabilities the traditional way for each server
+      for (const serverId of this.serverStatuses.keys()) {
+        await this.discoverCapabilities(serverId);
+      }
+    } catch (error) {
+      console.error('Failed to sync tools from backend:', error);
+    }
   }
 }
 

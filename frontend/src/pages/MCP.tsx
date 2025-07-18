@@ -114,8 +114,12 @@ export const MCP: React.FC = () => {
 
       setSuccessMessage('MCP configuration loaded successfully!');
 
-      // Refresh server statuses
-      setTimeout(loadServerStatuses, 1000);
+      // Refresh server statuses and sync tools
+      setTimeout(async () => {
+        loadServerStatuses();
+        // Sync tools again to ensure they're properly loaded
+        await mcpService.syncToolsFromBackend();
+      }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load configuration');
     } finally {

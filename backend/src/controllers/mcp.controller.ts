@@ -2,11 +2,7 @@ import { Request, Response } from 'express';
 import { MCPService } from '../services/mcp.service';
 
 export class MCPController {
-  private mcpService: MCPService;
-
-  constructor() {
-    this.mcpService = new MCPService();
-  }
+  constructor(private mcpService: MCPService) {}
 
   async createServer(req: Request, res: Response): Promise<void> {
     try {

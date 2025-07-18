@@ -69,6 +69,11 @@
   - [x] Handle 'servers' key (custom format)
   - [x] Auto-detect and normalize configuration formats
   - [x] Default values for missing properties
+- [x] Fix MCP tools synchronization
+  - [x] Auto-load MCP configuration on app startup
+  - [x] Sync tools from global API endpoint to server statuses
+  - [x] Add periodic sync to keep tools up to date
+  - [x] Fix MCPService singleton issue in backend
 
 ### 2.3 RAG (Retrieval-Augmented Generation) System
 - [ ] Design vector database schema
