@@ -1,16 +1,18 @@
 # Stage 1: Dependencies
 FROM node:18-alpine AS deps
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
 
 # Stage 2: Build
 FROM node:18-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 # Stage 3: Production
 FROM node:18-alpine AS runner
@@ -23,7 +25,8 @@ RUN adduser -S nodejs -u 1001
 # Copy dependencies and built application
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/pnpm-lock.yaml ./
 
 # Create necessary directories
 RUN mkdir -p uploads logs && chown -R nodejs:nodejs uploads logs
