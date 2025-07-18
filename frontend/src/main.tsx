@@ -3,9 +3,12 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Chat } from './pages/Chat';
 import { Settings } from './pages/Settings';
+import { useInitializeSettings } from './hooks/useInitializeSettings';
 import './index.css';
 
 const App = () => {
+  useInitializeSettings();
+  
   return (
     <BrowserRouter>
       <Routes>

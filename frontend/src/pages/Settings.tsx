@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiService, SettingsResponse } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { StorageService } from '../services/storage';
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +14,15 @@ export const Settings: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
+    // Load from local storage first
+    const storedApiKey = StorageService.getApiKey();
+    const storedBaseUrl = StorageService.getBaseUrl();
+    const storedModel = StorageService.getModel();
+    
+    if (storedApiKey) setApiKey(storedApiKey);
+    if (storedBaseUrl) setBaseUrl(storedBaseUrl);
+    if (storedModel) setModel(storedModel);
+    
     loadSettings();
   }, []);
 
@@ -20,8 +30,15 @@ export const Settings: React.FC = () => {
     try {
       const response = await apiService.getSettings();
       setSettings(response);
-      setBaseUrl(response.openai.baseUrl);
-      setModel(response.openai.model);
+      
+      // Only update from server if no local storage values
+      if (!StorageService.getBaseUrl()) {
+        setBaseUrl(response.openai.baseUrl);
+      }
+      if (!StorageService.getModel()) {
+        setModel(response.openai.model);
+      }
+      
       setLoading(false);
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to load settings' });
@@ -30,7 +47,7 @@ export const Settings: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!apiKey) {
+    if (!apiKey && !StorageService.getApiKey()) {
       setMessage({ type: 'error', text: 'API key is required' });
       return;
     }
@@ -39,16 +56,25 @@ export const Settings: React.FC = () => {
     setMessage(null);
 
     try {
+      // Use the entered API key or the stored one
+      const effectiveApiKey = apiKey || StorageService.getApiKey() || '';
+      
       const response = await apiService.updateSettings({
         openai: {
-          apiKey,
+          apiKey: effectiveApiKey,
           baseUrl: baseUrl || undefined,
           model: model || undefined,
         },
       });
 
+      // Save to local storage
+      if (apiKey) {
+        StorageService.setApiKey(apiKey);
+      }
+      StorageService.setBaseUrl(baseUrl);
+      StorageService.setModel(model);
+      
       setMessage({ type: 'success', text: response.message });
-      setApiKey(''); // Clear API key for security
       await loadSettings(); // Reload settings to get new model list
     } catch (error) {
       setMessage({
@@ -99,7 +125,11 @@ export const Settings: React.FC = () => {
               id="apiKey"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={settings?.openai.isConfigured ? '••••••••• (configured)' : 'sk-...'}
+              placeholder={
+                settings?.openai.isConfigured || StorageService.getApiKey()
+                  ? '••••••••• (configured)'
+                  : 'sk-...'
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="mt-1 text-sm text-gray-500">
@@ -167,17 +197,32 @@ export const Settings: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-6">
+        <div className="mt-6 flex gap-3">
           <button
             onClick={handleSave}
-            disabled={saving || !apiKey}
+            disabled={saving || (!apiKey && !StorageService.getApiKey())}
             className={`px-4 py-2 rounded-md font-medium ${
-              saving || !apiKey
+              saving || (!apiKey && !StorageService.getApiKey())
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
             {saving ? 'Saving...' : 'Save Settings'}
+          </button>
+          
+          <button
+            onClick={() => {
+              if (confirm('Are you sure you want to clear all stored settings?')) {
+                StorageService.clearAll();
+                setApiKey('');
+                setBaseUrl('');
+                setModel('');
+                setMessage({ type: 'success', text: 'Settings cleared from local storage' });
+              }
+            }}
+            className="px-4 py-2 text-red-600 hover:text-red-800 border border-red-300 rounded-md hover:bg-red-50"
+          >
+            Clear Stored Settings
           </button>
         </div>
       </div>
