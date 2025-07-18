@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { apiService, SettingsResponse } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 export const Settings: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
@@ -68,7 +70,15 @@ export const Settings: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-8">Settings</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <button
+          onClick={() => navigate('/')}
+          className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50"
+        >
+          ← Back to Chat
+        </button>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold mb-4">AI Configuration</h2>
