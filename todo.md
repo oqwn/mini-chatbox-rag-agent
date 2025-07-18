@@ -24,20 +24,20 @@
 
 ## Phase 2: Core Components
 
-### 2.0 Basic Chat Functionality (MVP)
-- [ ] Implement basic chat with AI
-  - [ ] Create settings page for API configuration
-    - [ ] OpenAI API key input field
-    - [ ] API base URL configuration
-    - [ ] Model selection dropdown
-  - [ ] Build simple chat interface
-    - [ ] Message input and send functionality
-    - [ ] Display chat messages
-    - [ ] Basic error handling
-  - [ ] Connect to OpenAI API
-    - [ ] Implement API client
-    - [ ] Handle streaming responses
-    - [ ] Error handling and retry logic
+### 2.0 Basic Chat Functionality (MVP) ✅
+- [x] Implement basic chat with AI
+  - [x] Create settings page for API configuration
+    - [x] OpenAI API key input field
+    - [x] API base URL configuration
+    - [x] Model selection dropdown
+  - [x] Build simple chat interface
+    - [x] Message input and send functionality
+    - [x] Display chat messages
+    - [x] Basic error handling
+  - [x] Connect to OpenAI API
+    - [x] Implement API client
+    - [x] Handle streaming responses
+    - [x] Error handling and retry logic
 
 ### 2.1 Task Division System
 - [ ] Design task parsing and decomposition logic
