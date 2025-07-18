@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import { OpenAIService } from '@/services/openai.service';
+import { MCPService } from '@/services/mcp.service';
 import { Logger } from 'winston';
 
 export class ChatController {
   constructor(
     private openAIService: OpenAIService,
+    private mcpService: MCPService,
     private logger: Logger
   ) {}
 
@@ -24,7 +26,22 @@ export class ChatController {
         return;
       }
 
-      const response = await this.openAIService.chat(messages, options);
+      // Get available MCP tools
+      const mcpTools = await this.mcpService.getAllTools();
+      
+      const response = await this.openAIService.chat(messages, {
+        ...options,
+        tools: mcpTools,
+        onToolCall: async (toolName: string, parameters: any) => {
+          // Find the tool and invoke it
+          const tool = mcpTools.find(t => t.name === toolName);
+          if (tool) {
+            return await this.mcpService.invokeTool(tool.serverId, toolName, parameters);
+          }
+          throw new Error(`Tool ${toolName} not found`);
+        }
+      });
+      
       res.json({ message: response });
     } catch (error) {
       this.logger.error('Chat error:', error);
@@ -58,9 +75,23 @@ export class ChatController {
 
       res.flushHeaders();
 
+      // Get available MCP tools
+      const mcpTools = await this.mcpService.getAllTools();
+      
       try {
         let chunkCount = 0;
-        for await (const chunk of this.openAIService.chatStream(messages, options)) {
+        for await (const chunk of this.openAIService.chatStream(messages, {
+          ...options,
+          tools: mcpTools,
+          onToolCall: async (toolName: string, parameters: any) => {
+            // Find the tool and invoke it
+            const tool = mcpTools.find(t => t.name === toolName);
+            if (tool) {
+              return await this.mcpService.invokeTool(tool.serverId, toolName, parameters);
+            }
+            throw new Error(`Tool ${toolName} not found`);
+          }
+        })) {
           chunkCount++;
           this.logger.debug(`Sending chunk ${chunkCount}: ${chunk}`);
           res.write(chunk);

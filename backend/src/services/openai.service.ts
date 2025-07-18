@@ -13,6 +13,8 @@ export interface ChatCompletionOptions {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  tools?: any[];
+  onToolCall?: (toolName: string, parameters: any) => Promise<any>;
 }
 
 interface ModelResponse {
@@ -73,17 +75,86 @@ export class OpenAIService {
       model = this.configService.get('OPENAI_MODEL') || 'gpt-4o-mini',
       temperature = 0.7,
       maxTokens = 1000,
+      tools,
+      onToolCall,
     } = options;
 
     try {
-      const completion = await this.client.chat.completions.create({
+      // Convert MCP tools to OpenAI function format
+      const functions = tools?.map(tool => ({
+        type: 'function' as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.inputSchema || {
+            type: 'object',
+            properties: {},
+          },
+        },
+      }));
+
+      const requestParams: any = {
         model,
         messages,
         temperature,
         max_tokens: maxTokens,
-      });
+      };
 
-      return completion.choices[0]?.message?.content || '';
+      if (functions && functions.length > 0) {
+        requestParams.tools = functions;
+        requestParams.tool_choice = 'auto';
+      }
+
+      const completion = await this.client.chat.completions.create(requestParams);
+      const message = completion.choices[0]?.message;
+
+      if (!message) {
+        return '';
+      }
+
+      // Handle tool calls
+      if (message.tool_calls && message.tool_calls.length > 0 && onToolCall) {
+        const toolResults = await Promise.all(
+          message.tool_calls.map(async (toolCall) => {
+            try {
+              const result = await onToolCall(
+                toolCall.function.name,
+                JSON.parse(toolCall.function.arguments)
+              );
+              return {
+                tool_call_id: toolCall.id,
+                role: 'tool' as const,
+                content: JSON.stringify(result),
+              };
+            } catch (error) {
+              return {
+                tool_call_id: toolCall.id,
+                role: 'tool' as const,
+                content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              };
+            }
+          })
+        );
+
+        // Add the assistant's message with tool calls
+        const updatedMessages = [
+          ...messages,
+          { role: 'assistant' as const, content: message.content || '', tool_calls: message.tool_calls },
+          ...toolResults,
+        ];
+
+        // Get the final response after tool execution
+        const finalCompletion = await this.client.chat.completions.create({
+          model,
+          messages: updatedMessages as any,
+          temperature,
+          max_tokens: maxTokens,
+        });
+
+        return finalCompletion.choices[0]?.message?.content || '';
+      }
+
+      return message.content || '';
     } catch (error) {
       this.logger.error('AI chat error:', error);
       throw new Error(
@@ -104,9 +175,18 @@ export class OpenAIService {
       model = this.configService.get('OPENAI_MODEL') || 'gpt-4o-mini',
       temperature = 0.7,
       maxTokens = 1000,
+      tools,
     } = options;
 
     try {
+      // For now, if tools are provided, use non-streaming approach
+      // TODO: Implement proper streaming with tool support
+      if (tools && tools.length > 0) {
+        const result = await this.chat(messages, options);
+        yield result;
+        return;
+      }
+
       const stream = await this.client.chat.completions.create({
         model,
         messages,

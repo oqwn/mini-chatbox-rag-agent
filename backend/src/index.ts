@@ -30,7 +30,7 @@ const openAIService = new OpenAIService(configService, logger);
 const mcpService = new MCPService();
 
 // Initialize controllers
-const chatController = new ChatController(openAIService, logger);
+const chatController = new ChatController(openAIService, mcpService, logger);
 const settingsController = new SettingsController(configService, openAIService, logger);
 const mcpController = new MCPController(mcpService);
 
