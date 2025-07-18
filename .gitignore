@@ -68,3 +68,4 @@ venv/
 # Agent Scripts (keep examples)
 agent-scripts/*
 !agent-scripts/examples/
+CLAUDE.md
