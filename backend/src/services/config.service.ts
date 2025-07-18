@@ -24,7 +24,7 @@ export class ConfigService {
       // OpenAI config
       OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
       OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || '',
-      OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+      OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini',
 
       // Security
       JWT_SECRET: process.env.JWT_SECRET || 'change-this-secret',

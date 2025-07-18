@@ -59,7 +59,7 @@ export class OpenAIService {
     }
 
     const {
-      model = this.configService.get('OPENAI_MODEL') || 'gpt-3.5-turbo',
+      model = this.configService.get('OPENAI_MODEL') || 'gpt-4o-mini',
       temperature = 0.7,
       maxTokens = 1000,
     } = options;
@@ -90,7 +90,7 @@ export class OpenAIService {
     }
 
     const {
-      model = this.configService.get('OPENAI_MODEL') || 'gpt-3.5-turbo',
+      model = this.configService.get('OPENAI_MODEL') || 'gpt-4o-mini',
       temperature = 0.7,
       maxTokens = 1000,
     } = options;
@@ -118,8 +118,45 @@ export class OpenAIService {
     }
   }
 
-  public getAvailableModels(): string[] {
-    return ['gpt-4', 'gpt-4-turbo-preview', 'gpt-3.5-turbo', 'gpt-3.5-turbo-16k'];
+  public async getAvailableModels(): Promise<string[]> {
+    // Static list as fallback
+    const fallbackModels = [
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gpt-4-turbo',
+      'gpt-4-turbo-preview',
+      'gpt-4',
+      'gpt-3.5-turbo',
+      'gpt-3.5-turbo-16k',
+      'gpt-3.5-turbo-0125',
+    ];
+
+    if (!this.client) {
+      this.logger.warn('Cannot fetch models - OpenAI client not initialized');
+      return fallbackModels;
+    }
+
+    try {
+      const models = await this.client.models.list();
+      const chatModels = models.data
+        .filter(model => model.id.includes('gpt') && !model.id.includes('instruct'))
+        .map(model => model.id)
+        .sort((a, b) => {
+          // Sort models to put newer/better ones first
+          const priority = ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
+          const aIndex = priority.findIndex(p => a.startsWith(p));
+          const bIndex = priority.findIndex(p => b.startsWith(p));
+          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+          if (aIndex !== -1) return -1;
+          if (bIndex !== -1) return 1;
+          return a.localeCompare(b);
+        });
+
+      return chatModels.length > 0 ? chatModels : fallbackModels;
+    } catch (error) {
+      this.logger.error('Failed to fetch models from OpenAI:', error);
+      return fallbackModels;
+    }
   }
 
   public isConfigured(): boolean {

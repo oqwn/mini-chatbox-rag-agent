@@ -13,7 +13,7 @@ export class SettingsController {
   public async getSettings(_req: Request, res: Response): Promise<void> {
     try {
       const config = this.configService.getOpenAIConfig();
-      const models = this.openAIService.getAvailableModels();
+      const models = await this.openAIService.getAvailableModels();
 
       // Don't send the actual API key to frontend, just indicate if it's set
       res.json({
