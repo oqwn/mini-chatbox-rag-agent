@@ -18,12 +18,15 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 COPY package.json ./
 COPY pnpm-lock.yaml* ./
+# Install all dependencies including devDependencies for build
 RUN if [ -f pnpm-lock.yaml ]; then \
       pnpm install --no-frozen-lockfile; \
     else \
       pnpm install; \
     fi
 COPY . .
+# Debug: List files to ensure tsconfig.json is present
+RUN ls -la && pnpm list typescript && which tsc && tsc --version
 RUN pnpm run build
 
 FROM node:21-alpine AS runner
