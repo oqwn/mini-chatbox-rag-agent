@@ -1,26 +1,36 @@
-# Build from root directory with: docker build -f backend/Dockerfile .
+# Production Dockerfile
+# For local build: docker build .
+# For CI: Use Dockerfile.ci instead OR copy pnpm-lock.yaml first
 FROM node:21-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY backend/package.json ./backend/
-RUN pnpm install --filter=mini-chatbox-rag-backend --prod --frozen-lockfile
+COPY package.json ./
+# Try to copy pnpm-lock.yaml if it exists, otherwise install without lock
+COPY pnpm-lock.yaml* ./
+RUN if [ -f pnpm-lock.yaml ]; then \
+      pnpm install --prod --frozen-lockfile; \
+    else \
+      pnpm install --prod; \
+    fi
 
 FROM node:21-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY backend/package.json ./backend/
-RUN pnpm install --filter=mini-chatbox-rag-backend --frozen-lockfile
-COPY backend/ ./backend/
-WORKDIR /app/backend
+COPY package.json ./
+COPY pnpm-lock.yaml* ./
+RUN if [ -f pnpm-lock.yaml ]; then \
+      pnpm install --frozen-lockfile; \
+    else \
+      pnpm install; \
+    fi
+COPY . .
 RUN pnpm run build
 
 FROM node:21-alpine AS runner
 WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-COPY --from=builder --chown=nodejs:nodejs /app/backend/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/backend/package.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 RUN mkdir -p uploads logs && chown -R nodejs:nodejs uploads logs
 USER nodejs
