@@ -216,7 +216,7 @@ export class MCPService extends EventEmitter {
     }
   }
 
-  private async sendMCPRequest(serverId: string, method: string, params: any): Promise<any> {
+  private async sendMCPRequest(serverId: string, method: string, params: any, timeoutMs: number = 10000): Promise<any> {
     const server = this.servers.get(serverId);
     if (!server || !server.connected || !server.process) {
       throw new Error(`Server ${serverId} is not connected`);
@@ -232,8 +232,8 @@ export class MCPService extends EventEmitter {
       };
 
       const timeout = setTimeout(() => {
-        reject(new Error(`MCP request timeout for ${method}`));
-      }, 10000);
+        reject(new Error(`MCP request timeout for ${method} (timeout: ${timeoutMs}ms)`));
+      }, timeoutMs);
 
       let responseBuffer = '';
 
@@ -287,7 +287,8 @@ export class MCPService extends EventEmitter {
   async invokeTool(
     serverId: string,
     toolName: string,
-    parameters: Record<string, any>
+    parameters: Record<string, any>,
+    timeoutMs?: number
   ): Promise<any> {
     const server = this.servers.get(serverId);
     if (!server || !server.connected) {
@@ -299,10 +300,25 @@ export class MCPService extends EventEmitter {
       throw new Error(`Tool ${toolName} not found in server ${serverId}`);
     }
 
+    // Use tool-specific timeout if available, otherwise use provided timeout, otherwise use 5 minutes
+    const toolTimeout = this.getToolTimeout(tool, timeoutMs);
+
     return this.sendMCPRequest(serverId, 'tools/call', {
       name: toolName,
       arguments: parameters,
-    });
+    }, toolTimeout);
+  }
+
+  private getToolTimeout(tool: MCPTool, defaultTimeout?: number): number {
+    // Check if tool has timeout in inputSchema or other properties
+    const toolTimeout = tool.inputSchema?.properties?.timeout?.default;
+    
+    if (typeof toolTimeout === 'number' && toolTimeout > 0) {
+      return toolTimeout * 1000; // Convert to milliseconds
+    }
+    
+    // Use provided timeout or default to 5 minutes
+    return defaultTimeout || 5 * 60 * 1000;
   }
 
   async disconnectServer(serverId: string): Promise<void> {

@@ -53,17 +53,21 @@ export class OpenAIService {
     this.client = new OpenAI({
       apiKey,
       baseURL: baseURL || undefined,
+      timeout: 10 * 60 * 1000, // 10 minutes timeout for long-running tool calls
+      maxRetries: 0, // Don't retry on timeout
     });
 
-    this.logger.info('AI client initialized');
+    this.logger.info('AI client initialized with 10 minute timeout');
   }
 
   public updateConfiguration(apiKey: string, baseURL?: string): void {
     this.client = new OpenAI({
       apiKey,
       baseURL: baseURL || undefined,
+      timeout: 10 * 60 * 1000, // 10 minutes timeout for long-running tool calls
+      maxRetries: 0, // Don't retry on timeout
     });
-    this.logger.info('AI client configuration updated');
+    this.logger.info('AI client configuration updated with 10 minute timeout');
   }
 
   public async chat(messages: ChatMessage[], options: ChatCompletionOptions = {}): Promise<string> {

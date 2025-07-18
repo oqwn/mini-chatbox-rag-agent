@@ -54,7 +54,15 @@ export class ChatController {
           // Find the tool and invoke it
           const tool = mcpTools.find(t => t.name === toolName);
           if (tool) {
-            return await this.mcpService.invokeTool(tool.serverId, toolName, parameters);
+            this.logger.info(`Invoking MCP tool ${toolName} with parameters:`, parameters);
+            try {
+              const result = await this.mcpService.invokeTool(tool.serverId, toolName, parameters);
+              this.logger.info(`MCP tool ${toolName} completed successfully`);
+              return result;
+            } catch (error) {
+              this.logger.error(`MCP tool ${toolName} failed:`, error);
+              throw error;
+            }
           }
           throw new Error(`Tool ${toolName} not found`);
         }
@@ -123,7 +131,15 @@ export class ChatController {
             // Find the tool and invoke it
             const tool = mcpTools.find(t => t.name === toolName);
             if (tool) {
-              return await this.mcpService.invokeTool(tool.serverId, toolName, parameters);
+              this.logger.info(`Invoking MCP tool ${toolName} with parameters:`, parameters);
+              try {
+                const result = await this.mcpService.invokeTool(tool.serverId, toolName, parameters);
+                this.logger.info(`MCP tool ${toolName} completed successfully`);
+                return result;
+              } catch (error) {
+                this.logger.error(`MCP tool ${toolName} failed:`, error);
+                throw error;
+              }
             }
             throw new Error(`Tool ${toolName} not found`);
           }
