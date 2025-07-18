@@ -129,9 +129,9 @@ export const MCP: React.FC = () => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h2 className="font-semibold text-blue-900 mb-2">Model Context Protocol (MCP)</h2>
             <p className="text-blue-700 text-sm">
-              Configure MCP servers to extend the chat with external tools and capabilities. Similar
-              to Claude Desktop, you can connect to filesystem tools, GitHub integration, custom
-              APIs, and more.
+              Configure MCP servers to extend the chat with external tools and capabilities. 
+              Uses the same configuration format as Claude Desktop. Connect to filesystem tools, 
+              databases, APIs, and more.
             </p>
           </div>
 
@@ -245,81 +245,6 @@ export const MCP: React.FC = () => {
             </div>
           )}
 
-          {/* Configuration Examples */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Configuration Examples (Claude Desktop Format)</h3>
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium mb-2">Filesystem Server</h4>
-                <pre className="text-sm text-gray-700 overflow-x-auto">
-                  {`{
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/directory"]
-    }
-  }
-}`}
-                </pre>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium mb-2">GitHub Integration</h4>
-                <pre className="text-sm text-gray-700 overflow-x-auto">
-                  {`{
-  "mcpServers": {
-    "github": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "your-github-token"
-      }
-    }
-  }
-}`}
-                </pre>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium mb-2">SQLite Database</h4>
-                <pre className="text-sm text-gray-700 overflow-x-auto">
-                  {`{
-  "mcpServers": {
-    "sqlite": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/path/to/database.db"]
-    }
-  }
-}`}
-                </pre>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium mb-2">Multiple Servers</h4>
-                <pre className="text-sm text-gray-700 overflow-x-auto">
-                  {`{
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/documents"]
-    },
-    "postgres": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/db"]
-    },
-    "github": {
-      "command": "node",
-      "args": ["/path/to/github-server/index.js"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "your-token"
-      }
-    }
-  }
-}`}
-                </pre>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
