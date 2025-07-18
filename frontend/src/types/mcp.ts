@@ -1,11 +1,7 @@
 export interface MCPServerConfig {
-  name: string;
-  type: 'stdio' | 'sse';
-  command?: string;
+  command: string;
   args?: string[];
-  url?: string;
   env?: Record<string, string>;
-  enabled: boolean;
 }
 
 export interface MCPInput {
@@ -18,9 +14,7 @@ export interface MCPInput {
 }
 
 export interface MCPConfiguration {
-  inputs?: MCPInput[];
-  servers?: Record<string, MCPServerConfig>;
-  mcpServers?: Record<string, MCPServerConfig>;
+  mcpServers: Record<string, MCPServerConfig>;
 }
 
 export interface MCPTool {

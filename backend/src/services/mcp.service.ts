@@ -2,13 +2,9 @@ import { spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 
 export interface MCPServerConfig {
-  name: string;
-  type: 'stdio' | 'sse';
-  command?: string;
+  command: string;
   args?: string[];
-  url?: string;
   env?: Record<string, string>;
-  enabled: boolean;
 }
 
 export interface MCPTool {
@@ -59,7 +55,7 @@ export class MCPService extends EventEmitter {
   async connectToServer(serverId: string, config: MCPServerConfig): Promise<void> {
     const status: MCPServerStatus = {
       id: serverId,
-      name: config.name,
+      name: serverId, // Use serverId as name (Claude Desktop style)
       connected: false,
       tools: [],
       resources: [],
@@ -67,11 +63,8 @@ export class MCPService extends EventEmitter {
     };
 
     try {
-      if (config.type === 'stdio') {
-        await this.connectStdio(serverId, config, status);
-      } else if (config.type === 'sse') {
-        await this.connectSSE(serverId, config, status);
-      }
+      // Claude Desktop only uses stdio connections
+      await this.connectStdio(serverId, config, status);
 
       status.connected = true;
       this.servers.set(serverId, status);
@@ -94,10 +87,6 @@ export class MCPService extends EventEmitter {
     config: MCPServerConfig,
     status: MCPServerStatus
   ): Promise<void> {
-    if (!config.command) {
-      throw new Error('Command is required for stdio connection');
-    }
-
     const childProcess = spawn(config.command, config.args || [], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, ...config.env },
@@ -125,23 +114,6 @@ export class MCPService extends EventEmitter {
     await this.initializeMCPHandshake(serverId, childProcess);
   }
 
-  private async connectSSE(
-    _serverId: string,
-    config: MCPServerConfig,
-    status: MCPServerStatus
-  ): Promise<void> {
-    if (!config.url) {
-      throw new Error('URL is required for SSE connection');
-    }
-
-    // For SSE connections, we would implement EventSource handling here
-    // This is a placeholder for the actual SSE implementation
-    console.log(`Connecting to SSE server at ${config.url}`);
-
-    // TODO: Implement actual SSE connection
-    // For now, we'll just mark it as connected
-    status.connected = true;
-  }
 
   private async initializeMCPHandshake(_serverId: string, process: ChildProcess): Promise<void> {
     return new Promise((resolve, reject) => {

@@ -11,28 +11,23 @@ export const MCP: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Example configuration template
+  // Example configuration template (Claude Desktop format)
   const exampleConfig = {
-    servers: {
+    mcpServers: {
       filesystem: {
-        name: 'Filesystem Tools',
-        type: 'stdio' as const,
         command: 'npx',
-        args: ['@modelcontextprotocol/server-filesystem', '/path/to/allowed/directory'],
-        enabled: true,
+        args: ['-y', '@modelcontextprotocol/server-filesystem', '/path/to/allowed/directory'],
       },
       github: {
-        name: 'GitHub Integration',
-        type: 'stdio' as const,
         command: 'npx',
-        args: ['@modelcontextprotocol/server-github', '--token', 'your-github-token'],
-        enabled: false,
+        args: ['-y', '@modelcontextprotocol/server-github'],
+        env: {
+          GITHUB_PERSONAL_ACCESS_TOKEN: 'your-github-token',
+        },
       },
-      'custom-sse': {
-        name: 'Custom SSE Server',
-        type: 'sse' as const,
-        url: 'http://localhost:8080/mcp',
-        enabled: false,
+      sqlite: {
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-sqlite', '--db-path', '/path/to/database.db'],
       },
     },
   };
@@ -63,51 +58,23 @@ export const MCP: React.FC = () => {
 
     try {
       // Validate JSON
-      const parsedConfig: any = JSON.parse(configuration);
+      const config: MCPConfiguration = JSON.parse(configuration);
 
-      // Support both 'servers' and 'mcpServers' formats
-      let servers: Record<string, any> = {};
-      if (parsedConfig.servers && typeof parsedConfig.servers === 'object') {
-        servers = parsedConfig.servers;
-      } else if (parsedConfig.mcpServers && typeof parsedConfig.mcpServers === 'object') {
-        servers = parsedConfig.mcpServers;
-      } else {
-        throw new Error('Configuration must have either a "servers" or "mcpServers" object');
+      // Basic validation
+      if (!config.mcpServers || typeof config.mcpServers !== 'object') {
+        throw new Error('Configuration must have an "mcpServers" object');
       }
-
-      // Normalize configuration to use 'servers' key
-      const config: MCPConfiguration = {
-        ...parsedConfig,
-        servers,
-      };
 
       // Validate server configurations
-      for (const [serverId, serverConfig] of Object.entries(servers)) {
-        // For Claude Desktop format, type defaults to 'stdio' if not specified
-        if (!serverConfig.type) {
-          serverConfig.type = 'stdio';
-        }
-
-        // For Claude Desktop format, name defaults to serverId if not specified
-        if (!serverConfig.name) {
-          serverConfig.name = serverId;
-        }
-
-        // For our format, enabled defaults to true if not specified
-        if (serverConfig.enabled === undefined) {
-          serverConfig.enabled = true;
-        }
-
-        if (serverConfig.type === 'stdio' && !serverConfig.command) {
-          throw new Error(`Stdio server "${serverId}" must have a "command" property`);
-        }
-        if (serverConfig.type === 'sse' && !serverConfig.url) {
-          throw new Error(`SSE server "${serverId}" must have a "url" property`);
+      for (const [serverId, serverConfig] of Object.entries(config.mcpServers)) {
+        // Claude Desktop format defaults
+        if (!serverConfig.command) {
+          throw new Error(`Server "${serverId}" must have a "command" property`);
         }
       }
 
-      // Save configuration
-      localStorage.setItem('mcp-configuration', JSON.stringify(config, null, 2));
+      // Save configuration exactly as provided (no normalization)
+      localStorage.setItem('mcp-configuration', configuration);
 
       // Load configuration into MCP service
       await mcpService.loadConfiguration(config);
@@ -280,19 +247,16 @@ export const MCP: React.FC = () => {
 
           {/* Configuration Examples */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Configuration Examples</h3>
+            <h3 className="text-lg font-semibold mb-4">Configuration Examples (Claude Desktop Format)</h3>
             <div className="space-y-4">
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-medium mb-2">Filesystem Server</h4>
                 <pre className="text-sm text-gray-700 overflow-x-auto">
                   {`{
-  "servers": {
+  "mcpServers": {
     "filesystem": {
-      "name": "Filesystem Tools",
-      "type": "stdio",
       "command": "npx",
-      "args": ["@modelcontextprotocol/server-filesystem", "/path/to/directory"],
-      "enabled": true
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/directory"]
     }
   }
 }`}
@@ -303,13 +267,13 @@ export const MCP: React.FC = () => {
                 <h4 className="font-medium mb-2">GitHub Integration</h4>
                 <pre className="text-sm text-gray-700 overflow-x-auto">
                   {`{
-  "servers": {
+  "mcpServers": {
     "github": {
-      "name": "GitHub Integration",
-      "type": "stdio",
       "command": "npx",
-      "args": ["@modelcontextprotocol/server-github", "--token", "your-token"],
-      "enabled": true
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your-github-token"
+      }
     }
   }
 }`}
@@ -317,15 +281,13 @@ export const MCP: React.FC = () => {
               </div>
 
               <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium mb-2">Custom SSE Server</h4>
+                <h4 className="font-medium mb-2">SQLite Database</h4>
                 <pre className="text-sm text-gray-700 overflow-x-auto">
                   {`{
-  "servers": {
-    "custom": {
-      "name": "Custom Server",
-      "type": "sse",
-      "url": "http://localhost:8080/mcp",
-      "enabled": true
+  "mcpServers": {
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/path/to/database.db"]
     }
   }
 }`}
@@ -333,13 +295,17 @@ export const MCP: React.FC = () => {
               </div>
 
               <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium mb-2">Claude Desktop Format</h4>
+                <h4 className="font-medium mb-2">Multiple Servers</h4>
                 <pre className="text-sm text-gray-700 overflow-x-auto">
                   {`{
   "mcpServers": {
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/documents"]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/db"]
     },
     "github": {
       "command": "node",

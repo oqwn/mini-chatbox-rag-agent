@@ -124,41 +124,35 @@ MCP Integration Layer
 - Bidirectional streaming support
 - Tool discovery and registration
 - Automatic retry with exponential backoff
-- Support for multiple configuration formats:
-  - Claude Desktop format (`mcpServers` key)
-  - Custom format (`servers` key)
-  - Auto-detection and normalization
+- Claude Desktop compatible configuration format
+- Automatic tool synchronization from backend
+- Periodic refresh to keep tools up to date
 
-**Configuration Formats**:
+**Configuration Format** (Claude Desktop Compatible):
 ```json
-// Claude Desktop Format
 {
   "mcpServers": {
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]
-    }
-  }
-}
-
-// Custom Format
-{
-  "servers": {
-    "filesystem": {
-      "name": "Filesystem Tools",
-      "type": "stdio",
+    },
+    "github": {
       "command": "npx",
-      "args": ["@modelcontextprotocol/server-filesystem", "/path"],
-      "enabled": true
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your-token"
+      }
     }
   }
 }
 ```
 
-**Transport Types**:
-- **stdio**: Communication through standard input/output streams
-- **sse**: Server-Sent Events for HTTP-based streaming
-- **http**: Standard HTTP requests (future support)
+**Key Features**:
+- Uses official Claude Desktop configuration format
+- All servers use stdio transport (standard input/output)
+- Server ID becomes the server name
+- Environment variables supported via `env` field
+- No custom properties needed (type, name, enabled are automatic)
 
 ### 3. RAG (Retrieval-Augmented Generation) System
 

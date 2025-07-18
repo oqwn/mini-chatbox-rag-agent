@@ -14,23 +14,25 @@ class MCPService {
   }
 
   private async initializeServers(): Promise<void> {
-    if (!this.configuration) return;
+    if (!this.configuration || !this.configuration.mcpServers) return;
 
-    // Support both 'servers' and 'mcpServers' keys
-    const servers = this.configuration.servers || this.configuration.mcpServers || {};
-
-    for (const [serverId, serverConfig] of Object.entries(servers)) {
-      if (serverConfig.enabled !== false) {
-        // Default to enabled if not specified
-        await this.connectToServer(serverId, serverConfig);
-      }
+    for (const [serverId, serverConfig] of Object.entries(this.configuration.mcpServers)) {
+      await this.connectToServer(serverId, serverConfig);
     }
   }
 
   private async connectToServer(serverId: string, config: MCPServerConfig): Promise<void> {
+    // Apply Claude Desktop defaults
+    const serverConfig = {
+      ...config,
+      type: 'stdio' as const, // Claude Desktop default
+      name: serverId, // Use serverId as name
+      enabled: true, // Always enabled in Claude Desktop
+    };
+
     const status: MCPServerStatus = {
       id: serverId,
-      name: config.name,
+      name: serverConfig.name,
       connected: false,
       tools: [],
       resources: [],
@@ -38,14 +40,8 @@ class MCPService {
     };
 
     try {
-      // For SSE connections
-      if (config.type === 'sse' && config.url) {
-        await this.connectSSE(serverId, config);
-      } else {
-        // For stdio connections, we'll send the config to the backend
-        await this.connectStdio(serverId, config);
-      }
-
+      // Send the config to the backend
+      await this.connectStdio(serverId, serverConfig);
       status.connected = true;
       await this.discoverCapabilities(serverId);
     } catch (error) {
@@ -57,30 +53,6 @@ class MCPService {
     this.notifyStatusChange(serverId, status);
   }
 
-  private async connectSSE(serverId: string, config: MCPServerConfig): Promise<void> {
-    if (!config.url) throw new Error('SSE URL is required');
-
-    // Create SSE connection
-    const eventSource = new EventSource(config.url);
-
-    eventSource.onopen = () => {
-      console.log(`MCP SSE connection established for ${serverId}`);
-    };
-
-    eventSource.onerror = (error) => {
-      console.error(`MCP SSE error for ${serverId}:`, error);
-      const status = this.serverStatuses.get(serverId);
-      if (status) {
-        status.connected = false;
-        status.error = 'SSE connection failed';
-        this.notifyStatusChange(serverId, status);
-      }
-    };
-
-    eventSource.onmessage = (event) => {
-      this.handleMCPMessage(serverId, JSON.parse(event.data));
-    };
-  }
 
   private async connectStdio(serverId: string, config: MCPServerConfig): Promise<void> {
     // Send configuration to backend to handle stdio connections
@@ -129,10 +101,6 @@ class MCPService {
     }
   }
 
-  private handleMCPMessage(serverId: string, message: any): void {
-    // Handle incoming MCP messages
-    console.log(`MCP message from ${serverId}:`, message);
-  }
 
   private notifyStatusChange(serverId: string, status: MCPServerStatus): void {
     const listener = this.eventListeners.get(serverId);
