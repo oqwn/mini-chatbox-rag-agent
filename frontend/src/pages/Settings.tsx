@@ -71,11 +71,11 @@ export const Settings: React.FC = () => {
       <h1 className="text-3xl font-bold mb-8">Settings</h1>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">OpenAI Configuration</h2>
+        <h2 className="text-xl font-semibold mb-4">AI Configuration</h2>
 
         {settings?.openai.isConfigured && (
           <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-            ✓ OpenAI is configured and ready to use
+            ✓ AI service is configured and ready to use
           </div>
         )}
 
@@ -93,15 +93,7 @@ export const Settings: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="mt-1 text-sm text-gray-500">
-              Your OpenAI API key. Get one from{' '}
-              <a
-                href="https://platform.openai.com/api-keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                OpenAI Platform
-              </a>
+              Your API key for OpenAI-compatible services (OpenAI, OpenRouter, etc.)
             </p>
           </div>
 
@@ -118,7 +110,7 @@ export const Settings: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="mt-1 text-sm text-gray-500">
-              Custom API endpoint (leave empty for default OpenAI endpoint)
+              API endpoint URL (e.g., https://api.openai.com/v1, https://openrouter.ai/api/v1)
             </p>
           </div>
 

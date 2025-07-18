@@ -75,5 +75,5 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 const PORT = configService.get('PORT');
 app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
-  logger.info(`OpenAI configured: ${openAIService.isConfigured()}`);
+  logger.info(`AI service configured: ${openAIService.isConfigured()}`);
 });

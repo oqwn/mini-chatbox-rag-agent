@@ -52,7 +52,7 @@ export const Chat: React.FC = () => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       if (errorMessage.includes('not configured')) {
-        setError('OpenAI is not configured. Please set up your API key in settings.');
+        setError('AI service is not configured. Please set up your API key in settings.');
         setMessages((prev) => prev.slice(0, -1)); // Remove empty assistant message
       } else {
         setError(errorMessage);

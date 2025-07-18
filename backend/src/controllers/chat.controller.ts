@@ -20,7 +20,7 @@ export class ChatController {
       if (!this.openAIService.isConfigured()) {
         res
           .status(503)
-          .json({ error: 'OpenAI service not configured. Please set up API key in settings.' });
+          .json({ error: 'AI service not configured. Please set up API key in settings.' });
         return;
       }
 
@@ -44,7 +44,7 @@ export class ChatController {
       if (!this.openAIService.isConfigured()) {
         res
           .status(503)
-          .json({ error: 'OpenAI service not configured. Please set up API key in settings.' });
+          .json({ error: 'AI service not configured. Please set up API key in settings.' });
         return;
       }
 

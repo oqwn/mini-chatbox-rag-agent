@@ -33,7 +33,7 @@ export class OpenAIService {
     const baseURL = this.configService.get('OPENAI_BASE_URL');
 
     if (!apiKey) {
-      this.logger.warn('OpenAI API key not configured');
+      this.logger.warn('API key not configured');
       return;
     }
 
@@ -42,7 +42,7 @@ export class OpenAIService {
       baseURL: baseURL || undefined,
     });
 
-    this.logger.info('OpenAI client initialized');
+    this.logger.info('AI client initialized');
   }
 
   public updateConfiguration(apiKey: string, baseURL?: string): void {
@@ -50,12 +50,12 @@ export class OpenAIService {
       apiKey,
       baseURL: baseURL || undefined,
     });
-    this.logger.info('OpenAI client configuration updated');
+    this.logger.info('AI client configuration updated');
   }
 
   public async chat(messages: ChatMessage[], options: ChatCompletionOptions = {}): Promise<string> {
     if (!this.client) {
-      throw new Error('OpenAI client not initialized. Please configure API key.');
+      throw new Error('AI client not initialized. Please configure API key.');
     }
 
     const {
@@ -74,7 +74,7 @@ export class OpenAIService {
 
       return completion.choices[0]?.message?.content || '';
     } catch (error) {
-      this.logger.error('OpenAI chat error:', error);
+      this.logger.error('AI chat error:', error);
       throw new Error(
         `Failed to get chat completion: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -86,7 +86,7 @@ export class OpenAIService {
     options: ChatCompletionOptions = {}
   ): AsyncGenerator<string, void, unknown> {
     if (!this.client) {
-      throw new Error('OpenAI client not initialized. Please configure API key.');
+      throw new Error('AI client not initialized. Please configure API key.');
     }
 
     const {
@@ -111,7 +111,7 @@ export class OpenAIService {
         }
       }
     } catch (error) {
-      this.logger.error('OpenAI stream error:', error);
+      this.logger.error('AI stream error:', error);
       throw new Error(
         `Failed to get chat stream: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -132,7 +132,7 @@ export class OpenAIService {
     ];
 
     if (!this.client) {
-      this.logger.warn('Cannot fetch models - OpenAI client not initialized');
+      this.logger.warn('Cannot fetch models - AI client not initialized');
       return fallbackModels;
     }
 
@@ -154,7 +154,7 @@ export class OpenAIService {
 
       return chatModels.length > 0 ? chatModels : fallbackModels;
     } catch (error) {
-      this.logger.error('Failed to fetch models from OpenAI:', error);
+      this.logger.error('Failed to fetch models from API:', error);
       return fallbackModels;
     }
   }
