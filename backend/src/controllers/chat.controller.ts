@@ -64,7 +64,9 @@ export class ChatController {
         for await (const chunk of this.openAIService.chatStream(messages, options)) {
           chunkCount++;
           this.logger.debug(`Sending chunk ${chunkCount}: ${chunk}`);
-          res.write(`data: {"type":"content","content":${JSON.stringify(chunk)}}\n\n`);
+          res.write(
+            `data: {"type":"content","content":${JSON.stringify(chunk)},"id":${chunkCount}}\n\n`
+          );
           // Force flush to send data immediately
           if (res.flush) res.flush();
         }

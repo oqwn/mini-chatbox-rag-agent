@@ -72,6 +72,7 @@ class ApiService {
     onError: (error: string) => void,
     onDone: () => void
   ): Promise<void> {
+    const processedChunks = new Set<number>();
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: 'POST',
       headers: {
@@ -92,33 +93,52 @@ class ApiService {
       throw new Error('No response body');
     }
 
+    let buffer = '';
+
     try {
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        // Accumulate chunks in buffer to handle partial messages
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process complete lines
+        const lines = buffer.split('\n');
+        // Keep the last line (which might be incomplete) in the buffer
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const jsonString = trimmedLine.slice(6);
+              if (jsonString.trim()) {
+                const data = JSON.parse(jsonString);
 
-              switch (data.type) {
-                case 'content':
-                  onMessage(data.content);
-                  break;
-                case 'error':
-                  onError(data.error);
-                  break;
-                case 'done':
-                  onDone();
-                  break;
+                switch (data.type) {
+                  case 'content':
+                    // Check for duplicate chunks using ID
+                    if (data.id && processedChunks.has(data.id)) {
+                      console.warn('Duplicate chunk detected:', data.id);
+                      break;
+                    }
+                    if (data.id) {
+                      processedChunks.add(data.id);
+                    }
+                    onMessage(data.content);
+                    break;
+                  case 'error':
+                    onError(data.error);
+                    break;
+                  case 'done':
+                    onDone();
+                    break;
+                }
               }
             } catch (e) {
-              // Ignore parse errors
+              console.warn('Failed to parse SSE data:', trimmedLine, e);
             }
           }
         }
