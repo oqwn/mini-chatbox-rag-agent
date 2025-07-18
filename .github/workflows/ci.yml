@@ -42,12 +42,10 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: backend/package.json
     
     - name: Install backend dependencies
       working-directory: ./backend
-      run: npm ci
+      run: npm install
     
     - name: Run backend linter
       working-directory: ./backend
@@ -82,12 +80,10 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: frontend/package.json
     
     - name: Install frontend dependencies
       working-directory: ./frontend
-      run: npm ci
+      run: npm install
     
     - name: Run frontend linter
       working-directory: ./frontend
