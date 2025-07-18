@@ -48,8 +48,10 @@ export class ConfigService {
 
   public updateOpenAIConfig(apiKey: string, baseUrl?: string, model?: string): void {
     if (apiKey) this.config.OPENAI_API_KEY = apiKey;
-    if (baseUrl) this.config.OPENAI_BASE_URL = baseUrl;
-    if (model) this.config.OPENAI_MODEL = model;
+    // Allow empty string to clear the base URL
+    if (baseUrl !== undefined) this.config.OPENAI_BASE_URL = baseUrl;
+    // Allow empty string to clear the model
+    if (model !== undefined) this.config.OPENAI_MODEL = model;
   }
 
   public getOpenAIConfig(): {

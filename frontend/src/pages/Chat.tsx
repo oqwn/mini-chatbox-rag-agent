@@ -7,12 +7,26 @@ export const Chat: React.FC = () => {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentModel, setCurrentModel] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Load current model from settings
+    const loadModel = async () => {
+      try {
+        const settings = await apiService.getSettings();
+        setCurrentModel(settings.openai.model);
+      } catch (err) {
+        console.error('Failed to load model:', err);
+      }
+    };
+    loadModel();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,7 +47,7 @@ export const Chat: React.FC = () => {
     try {
       await apiService.streamMessage(
         [...messages, userMessage],
-        undefined,
+        currentModel ? { model: currentModel } : undefined,
         (content) => {
           setMessages((prev) => {
             const newMessages = [...prev];

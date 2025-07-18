@@ -15,6 +15,17 @@ export interface ChatCompletionOptions {
   stream?: boolean;
 }
 
+interface ModelResponse {
+  id: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+interface ModelsListResponse {
+  data?: ModelResponse[];
+  models?: ModelResponse[];
+}
+
 @Injectable()
 export class OpenAIService {
   private client: OpenAI | null = null;
@@ -119,43 +130,113 @@ export class OpenAIService {
   }
 
   public async getAvailableModels(): Promise<string[]> {
-    // Static list as fallback
-    const fallbackModels = [
-      'gpt-4o',
-      'gpt-4o-mini',
-      'gpt-4-turbo',
-      'gpt-4-turbo-preview',
-      'gpt-4',
-      'gpt-3.5-turbo',
-      'gpt-3.5-turbo-16k',
-      'gpt-3.5-turbo-0125',
-    ];
-
     if (!this.client) {
       this.logger.warn('Cannot fetch models - AI client not initialized');
-      return fallbackModels;
+      return [];
     }
 
+    const baseURL = this.configService.get('OPENAI_BASE_URL') || '';
+
+    // Handle OpenRouter specifically
+    if (baseURL.includes('openrouter.ai')) {
+      try {
+        const apiKey = this.configService.get('OPENAI_API_KEY');
+        const response = await fetch('https://openrouter.ai/api/v1/models', {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as ModelsListResponse;
+          const models = data.data || [];
+
+          // Extract model IDs and sort by popularity/capability
+          const openRouterModels = models
+            .map((model: ModelResponse) => model.id)
+            .filter((id: string) => {
+              // Filter out non-chat models
+              const lowerId = id.toLowerCase();
+              return (
+                !lowerId.includes('embed') &&
+                !lowerId.includes('whisper') &&
+                !lowerId.includes('tts') &&
+                !lowerId.includes('dall-e')
+              );
+            })
+            .sort((a: string, b: string) => {
+              // Prioritize popular models
+              const priorities = ['claude-3', 'gpt-4', 'gpt-3.5', 'mixtral', 'llama'];
+              for (const priority of priorities) {
+                const aHas = a.toLowerCase().includes(priority);
+                const bHas = b.toLowerCase().includes(priority);
+                if (aHas && !bHas) return -1;
+                if (!aHas && bHas) return 1;
+              }
+              return a.localeCompare(b);
+            });
+
+          return openRouterModels.length > 0 ? openRouterModels : [];
+        }
+      } catch (error) {
+        this.logger.error('Failed to fetch OpenRouter models:', error);
+      }
+    }
+
+    // Handle local/custom endpoints
+    else if (baseURL && !baseURL.includes('api.openai.com')) {
+      try {
+        const apiKey = this.configService.get('OPENAI_API_KEY');
+        // Try OpenAI-compatible models endpoint
+        const modelsUrl = baseURL.endsWith('/') ? `${baseURL}models` : `${baseURL}/models`;
+        const response = await fetch(modelsUrl, {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as ModelsListResponse;
+          const models = data.data || data.models || [];
+
+          if (Array.isArray(models)) {
+            const modelIds = models
+              .map((model: ModelResponse | string) =>
+                typeof model === 'string' ? model : model.id || model.name
+              )
+              .filter((id): id is string => Boolean(id));
+
+            return modelIds.length > 0 ? modelIds : [];
+          }
+        }
+      } catch (error) {
+        this.logger.error('Failed to fetch models from custom endpoint:', error);
+      }
+    }
+
+    // Default OpenAI handling
     try {
       const models = await this.client.models.list();
       const chatModels = models.data
-        .filter(model => model.id.includes('gpt') && !model.id.includes('instruct'))
-        .map(model => model.id)
+        .filter((model) => model.id.includes('gpt') && !model.id.includes('instruct'))
+        .map((model) => model.id)
         .sort((a, b) => {
           // Sort models to put newer/better ones first
           const priority = ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
-          const aIndex = priority.findIndex(p => a.startsWith(p));
-          const bIndex = priority.findIndex(p => b.startsWith(p));
+          const aIndex = priority.findIndex((p) => a.startsWith(p));
+          const bIndex = priority.findIndex((p) => b.startsWith(p));
           if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
           if (aIndex !== -1) return -1;
           if (bIndex !== -1) return 1;
           return a.localeCompare(b);
         });
 
-      return chatModels.length > 0 ? chatModels : fallbackModels;
+      return chatModels.length > 0 ? chatModels : [];
     } catch (error) {
       this.logger.error('Failed to fetch models from API:', error);
-      return fallbackModels;
+      return [];
     }
   }
 

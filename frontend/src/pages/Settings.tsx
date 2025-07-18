@@ -47,7 +47,7 @@ export const Settings: React.FC = () => {
 
       setMessage({ type: 'success', text: response.message });
       setApiKey(''); // Clear API key for security
-      await loadSettings(); // Reload settings
+      await loadSettings(); // Reload settings to get new model list
     } catch (error) {
       setMessage({
         type: 'error',
@@ -118,18 +118,29 @@ export const Settings: React.FC = () => {
             <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-1">
               Model
             </label>
-            <select
-              id="model"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {settings?.openai.availableModels.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            {settings?.openai.availableModels.length ? (
+              <select
+                id="model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {settings.openai.availableModels.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                id="model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="Enter model name (e.g., gpt-4, claude-3-opus)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            )}
             <p className="mt-1 text-sm text-gray-500">Select the AI model to use for chat</p>
           </div>
         </div>
