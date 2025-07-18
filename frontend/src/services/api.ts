@@ -70,7 +70,8 @@ class ApiService {
     options: ChatOptions | undefined,
     onMessage: (content: string) => void,
     onError: (error: string) => void,
-    onDone: () => void
+    onDone: () => void,
+    signal?: AbortSignal
   ): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: 'POST',
@@ -78,6 +79,7 @@ class ApiService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ messages, options }),
+      signal,
     });
 
     if (!response.ok) {
@@ -95,6 +97,11 @@ class ApiService {
     try {
       // eslint-disable-next-line no-constant-condition
       while (true) {
+        // Check if the request was aborted
+        if (signal?.aborted) {
+          throw new Error('Request aborted');
+        }
+
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -111,13 +118,21 @@ class ApiService {
         }
 
         // Send the chunk directly to the message handler
-        if (chunk) {
+        if (chunk && !signal?.aborted) {
           onMessage(chunk);
         }
       }
 
       // Stream completed successfully
-      onDone();
+      if (!signal?.aborted) {
+        onDone();
+      }
+    } catch (error) {
+      if (signal?.aborted) {
+        // Request was aborted, don't call error handler
+        return;
+      }
+      throw error;
     } finally {
       reader.releaseLock();
     }

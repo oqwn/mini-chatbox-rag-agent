@@ -9,6 +9,9 @@ export const Chat: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const streamingContentRef = useRef<string>('');
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,6 +39,16 @@ export const Chat: React.FC = () => {
       }
     };
     loadModel();
+
+    // Cleanup function to abort ongoing streams
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
   }, []);
 
   const scrollToBottom = () => {
@@ -45,7 +58,18 @@ export const Chat: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim() || isStreaming) return;
 
+    // Abort any existing stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     const userMessage: ChatMessage = { role: 'user', content: input.trim() };
+    const messagesToSend = [...messages, userMessage];
+
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setError(null);
@@ -54,26 +78,69 @@ export const Chat: React.FC = () => {
     const assistantMessage: ChatMessage = { role: 'assistant', content: '' };
     setMessages((prev) => [...prev, assistantMessage]);
 
+    // Reset streaming content ref
+    streamingContentRef.current = '';
+
     try {
       await apiService.streamMessage(
-        [...messages, userMessage],
+        messagesToSend,
         currentModel ? { model: currentModel } : undefined,
         (content) => {
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1].content += content;
-            return newMessages;
-          });
+          // Check if this stream was aborted
+          if (abortController.signal.aborted) return;
+
+          // Accumulate content in ref to avoid state race conditions
+          streamingContentRef.current += content;
+
+          // Throttle UI updates to prevent excessive re-renders
+          if (updateTimeoutRef.current) {
+            clearTimeout(updateTimeoutRef.current);
+          }
+
+          updateTimeoutRef.current = setTimeout(() => {
+            if (abortController.signal.aborted) return;
+
+            // Update UI with accumulated content
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1] = {
+                ...newMessages[newMessages.length - 1],
+                content: streamingContentRef.current,
+              };
+              return newMessages;
+            });
+          }, 16); // ~60fps throttling
         },
         (error) => {
+          if (abortController.signal.aborted) return;
           setError(error);
           setIsStreaming(false);
         },
         () => {
+          if (abortController.signal.aborted) return;
+
+          // Clear any pending timeout
+          if (updateTimeoutRef.current) {
+            clearTimeout(updateTimeoutRef.current);
+          }
+
+          // Final update with complete content
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: streamingContentRef.current,
+            };
+            return newMessages;
+          });
+
           setIsStreaming(false);
-        }
+        },
+        abortController.signal
       );
     } catch (err) {
+      if (abortController.signal.aborted) return;
+
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       if (errorMessage.includes('not configured')) {
         setError('AI service is not configured. Please set up your API key in settings.');
