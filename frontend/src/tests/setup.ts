@@ -1,0 +1,2 @@
+// Frontend test setup
+export {};
