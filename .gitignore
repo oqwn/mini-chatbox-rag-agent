@@ -11,13 +11,10 @@ coverage/
 dist/
 build/
 
-# Misc
-.DS_Store
+# Environment files
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
 
 # Logs
 logs/
@@ -25,47 +22,30 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 lerna-debug.log*
 
 # Editor directories and files
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
+.vscode/*
+\!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# TypeScript
-*.tsbuildinfo
-
-# Docker
-docker/data/
-
-# Uploads
-uploads/
-temp/
-
-# Database
-*.sqlite
-*.sqlite3
-
-# Redis
-dump.rdb
-
-# OS
+# OS files
+.DS_Store
 Thumbs.db
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-venv/
-.venv/
+# Temporary files
+*.tmp
+*.temp
+.cache/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Agent Scripts (keep examples)
-agent-scripts/*
-!agent-scripts/examples/
-CLAUDE.md
+# Upload directories
+uploads/
+public/uploads/
+EOF < /dev/null

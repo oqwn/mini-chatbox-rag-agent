@@ -1,7 +1,9 @@
 import { Injectable } from '@/utils/decorators';
 import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-dotenv.config();
+// Load .env from root directory
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 @Injectable()
 export class ConfigService {
