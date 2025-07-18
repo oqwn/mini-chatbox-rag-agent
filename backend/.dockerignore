@@ -7,10 +7,6 @@ coverage
 .git
 .gitignore
 README.md
-.eslintrc
-.prettierrc
-jest.config.js
-tsconfig.json
 Dockerfile*
 .dockerignore
 docker-*.sh
