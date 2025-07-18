@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiService, ChatMessage } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { MCPToolsPanel } from '../components/MCPToolsPanel';
 
 export const Chat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -8,6 +9,7 @@ export const Chat: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<string>('');
+  const [showMCPTools, setShowMCPTools] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingContentRef = useRef<string>('');
@@ -159,14 +161,62 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const handleMCPToolInvoke = async (
+    toolName: string,
+    serverId: string,
+    parameters: Record<string, any>
+  ) => {
+    try {
+      // Show the tool invocation as a system message
+      const toolMessage: ChatMessage = {
+        role: 'system',
+        content: `Invoking tool: ${toolName} with parameters: ${JSON.stringify(parameters, null, 2)}`,
+      };
+      setMessages((prev) => [...prev, toolMessage]);
+
+      // Invoke the tool
+      const result = await apiService.invokeMCPTool(serverId, toolName, parameters);
+
+      // Show the result as a system message
+      const resultMessage: ChatMessage = {
+        role: 'system',
+        content: `Tool result: ${JSON.stringify(result, null, 2)}`,
+      };
+      setMessages((prev) => [...prev, resultMessage]);
+
+      // Auto-scroll to bottom
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      const errorMessage: ChatMessage = {
+        role: 'system',
+        content: `Tool invocation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
       <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-semibold">Chat</h1>
-        <button onClick={() => navigate('/settings')} className="text-gray-600 hover:text-gray-900">
-          Settings
-        </button>
+        <div className="space-x-4">
+          <button
+            onClick={() => setShowMCPTools(true)}
+            className="text-gray-600 hover:text-gray-900"
+          >
+            Tools
+          </button>
+          <button onClick={() => navigate('/mcp')} className="text-gray-600 hover:text-gray-900">
+            MCP
+          </button>
+          <button
+            onClick={() => navigate('/settings')}
+            className="text-gray-600 hover:text-gray-900"
+          >
+            Settings
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -189,7 +239,11 @@ export const Chat: React.FC = () => {
             >
               <div
                 className={`inline-block px-4 py-2 rounded-lg max-w-2xl ${
-                  message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'
+                  message.role === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : message.role === 'system'
+                      ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                      : 'bg-gray-100 text-gray-800'
                 }`}
               >
                 <div className="whitespace-pre-wrap break-words">
@@ -251,6 +305,13 @@ export const Chat: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* MCP Tools Panel */}
+      <MCPToolsPanel
+        isOpen={showMCPTools}
+        onClose={() => setShowMCPTools(false)}
+        onToolInvoke={handleMCPToolInvoke}
+      />
     </div>
   );
 };

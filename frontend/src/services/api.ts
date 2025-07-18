@@ -26,6 +26,17 @@ export interface SettingsResponse {
   };
 }
 
+export interface MCPTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, any>;
+    required?: string[];
+  };
+  serverId: string;
+}
+
 class ApiService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
@@ -136,6 +147,51 @@ class ApiService {
     } finally {
       reader.releaseLock();
     }
+  }
+
+  // MCP API methods
+  async getMCPTools(): Promise<MCPTool[]> {
+    return this.request('/mcp/tools');
+  }
+
+  async invokeMCPTool(
+    serverId: string,
+    toolName: string,
+    parameters: Record<string, any>
+  ): Promise<any> {
+    return this.request(`/mcp/tools/${serverId}/${toolName}`, {
+      method: 'POST',
+      body: JSON.stringify({ parameters }),
+    });
+  }
+
+  async getMCPServers(): Promise<any[]> {
+    return this.request('/mcp/servers');
+  }
+
+  async createMCPServer(serverId: string, config: any): Promise<any> {
+    return this.request('/mcp/servers', {
+      method: 'POST',
+      body: JSON.stringify({ serverId, config }),
+    });
+  }
+
+  async getMCPServerTools(serverId: string): Promise<any[]> {
+    return this.request(`/mcp/servers/${serverId}/tools`);
+  }
+
+  async getMCPServerResources(serverId: string): Promise<any[]> {
+    return this.request(`/mcp/servers/${serverId}/resources`);
+  }
+
+  async getMCPServerPrompts(serverId: string): Promise<any[]> {
+    return this.request(`/mcp/servers/${serverId}/prompts`);
+  }
+
+  async disconnectMCPServer(serverId: string): Promise<any> {
+    return this.request(`/mcp/servers/${serverId}`, {
+      method: 'DELETE',
+    });
   }
 }
 

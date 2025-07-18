@@ -7,8 +7,10 @@ import { ConfigService } from '@/services/config.service';
 import { OpenAIService } from '@/services/openai.service';
 import { ChatController } from '@/controllers/chat.controller';
 import { SettingsController } from '@/controllers/settings.controller';
+import { MCPController } from '@/controllers/mcp.controller';
 import { createChatRoutes } from '@/routes/chat.routes';
 import { createSettingsRoutes } from '@/routes/settings.routes';
+import { createMCPRoutes } from '@/routes/mcp.routes';
 
 // Configure logger
 const logger = winston.createLogger({
@@ -28,6 +30,7 @@ const openAIService = new OpenAIService(configService, logger);
 // Initialize controllers
 const chatController = new ChatController(openAIService, logger);
 const settingsController = new SettingsController(configService, openAIService, logger);
+const mcpController = new MCPController();
 
 // Create Express app
 const app = express();
@@ -72,6 +75,7 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/api', createChatRoutes(chatController));
 app.use('/api', createSettingsRoutes(settingsController));
+app.use('/api', createMCPRoutes(mcpController));
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

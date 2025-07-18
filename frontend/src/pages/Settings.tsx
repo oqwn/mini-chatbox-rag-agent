@@ -110,12 +110,20 @@ export const Settings: React.FC = () => {
     <div className="max-w-2xl mx-auto p-6">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Settings</h1>
-        <button
-          onClick={() => navigate('/')}
-          className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50"
-        >
-          ← Back to Chat
-        </button>
+        <div className="space-x-2">
+          <button
+            onClick={() => navigate('/mcp')}
+            className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            MCP
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            ← Back to Chat
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
