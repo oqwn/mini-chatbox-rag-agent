@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { apiService, ChatMessage } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { MCPToolsPanel } from '../components/MCPToolsPanel';
-import { MarkdownMessage } from '../components/MarkdownMessage';
+import { StreamingMarkdown } from '../components/StreamingMarkdown';
 import '../styles/markdown.css';
 
 export const Chat: React.FC = () => {
@@ -249,11 +249,13 @@ export const Chat: React.FC = () => {
                 }`}
               >
                 {message.role === 'assistant' ? (
-                  <MarkdownMessage content={message.content} />
+                  <StreamingMarkdown 
+                    content={message.content} 
+                    isStreaming={isStreamingMessage}
+                  />
                 ) : (
                   <div className="whitespace-pre-wrap break-words">{message.content}</div>
                 )}
-                {isStreamingMessage && <span className="animate-pulse ml-1">▊</span>}
               </div>
             </div>
           );
