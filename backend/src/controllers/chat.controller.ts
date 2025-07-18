@@ -53,15 +53,24 @@ export class ChatController {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable Nginx buffering
 
       // Send initial connection message
       res.write('data: {"type":"connected"}\n\n');
+      res.flushHeaders();
 
       try {
+        let chunkCount = 0;
         for await (const chunk of this.openAIService.chatStream(messages, options)) {
+          chunkCount++;
+          this.logger.debug(`Sending chunk ${chunkCount}: ${chunk}`);
           res.write(`data: {"type":"content","content":${JSON.stringify(chunk)}}\n\n`);
+          // Force flush to send data immediately
+          if (res.flush) res.flush();
         }
+        this.logger.info(`Stream completed with ${chunkCount} chunks`);
         res.write('data: {"type":"done"}\n\n');
+        if (res.flush) res.flush();
       } catch (streamError) {
         const errorMessage = streamError instanceof Error ? streamError.message : 'Stream error';
         res.write(`data: {"type":"error","error":${JSON.stringify(errorMessage)}}\n\n`);
