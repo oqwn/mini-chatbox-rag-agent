@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+*.log
+coverage
+.nyc_output
+.git
+.gitignore
+README.md
+.eslintrc
+.prettierrc
+jest.config.js
+tsconfig.json
+Dockerfile*
+.dockerignore
+docker-*.sh
+prepare-*.sh

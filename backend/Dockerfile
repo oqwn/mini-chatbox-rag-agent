@@ -2,16 +2,22 @@
 FROM node:18-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --frozen-lockfile
+# Copy package files - these should be prepared by prepare-docker.sh
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Install only production dependencies
+RUN pnpm install --production --frozen-lockfile
 
 # Stage 2: Build
 FROM node:18-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Install all dependencies
 RUN pnpm install --frozen-lockfile
+# Copy source code
 COPY . .
+# Build the application
 RUN pnpm run build
 
 # Stage 3: Production
@@ -22,11 +28,10 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001
 
-# Copy dependencies and built application
-COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+# Copy built application and dependencies
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
-COPY --from=builder --chown=nodejs:nodejs /app/pnpm-lock.yaml ./
+COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 
 # Create necessary directories
 RUN mkdir -p uploads logs && chown -R nodejs:nodejs uploads logs
