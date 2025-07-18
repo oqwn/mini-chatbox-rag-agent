@@ -12,17 +12,22 @@ export const Settings: React.FC = () => {
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
   const [hasStoredApiKey, setHasStoredApiKey] = useState(false);
+  const [showStoredKey, setShowStoredKey] = useState(false);
+  const [storedApiKey, setStoredApiKey] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     // Load from local storage first
-    const storedApiKey = StorageService.getApiKey();
+    const savedApiKey = StorageService.getApiKey();
     const storedBaseUrl = StorageService.getBaseUrl();
     const storedModel = StorageService.getModel();
 
     // Don't show the actual API key in the input field for security
     // Just keep track that we have one stored
-    if (storedApiKey) setHasStoredApiKey(true);
+    if (savedApiKey) {
+      setHasStoredApiKey(true);
+      setStoredApiKey(savedApiKey);
+    }
     if (storedBaseUrl) setBaseUrl(storedBaseUrl);
     if (storedModel) setModel(storedModel);
 
@@ -74,12 +79,14 @@ export const Settings: React.FC = () => {
       if (apiKey) {
         StorageService.setApiKey(apiKey);
         setHasStoredApiKey(true);
+        setStoredApiKey(apiKey);
       }
       StorageService.setBaseUrl(baseUrl);
       StorageService.setModel(model);
 
       setMessage({ type: 'success', text: response.message });
       setApiKey(''); // Clear the input field after saving
+      setShowStoredKey(false); // Hide the key after saving
       await loadSettings(); // Reload settings to get new model list
     } catch (error) {
       setMessage({
@@ -125,21 +132,36 @@ export const Settings: React.FC = () => {
             <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-1">
               API Key <span className="text-red-500">*</span>
             </label>
-            <input
-              type="password"
-              id="apiKey"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={
-                settings?.openai.isConfigured || hasStoredApiKey
-                  ? '••••••••• (configured)'
-                  : 'sk-...'
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="relative">
+              <input
+                type={showStoredKey ? 'text' : 'password'}
+                id="apiKey"
+                value={showStoredKey && hasStoredApiKey && !apiKey ? storedApiKey : apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={
+                  settings?.openai.isConfigured || hasStoredApiKey
+                    ? '••••••••• (configured)'
+                    : 'sk-...'
+                }
+                className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {hasStoredApiKey && (
+                <button
+                  type="button"
+                  onClick={() => setShowStoredKey(!showStoredKey)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+                >
+                  {showStoredKey ? 'Hide' : 'Show'}
+                </button>
+              )}
+            </div>
             <p className="mt-1 text-sm text-gray-500">
               Your API key for OpenAI-compatible services (OpenAI, OpenRouter, etc.)
               {hasStoredApiKey && ' Leave empty to keep existing key.'}
+              <br />
+              <span className="text-xs">
+                API keys are encrypted and stored locally in your browser.
+              </span>
             </p>
           </div>
 
@@ -224,6 +246,8 @@ export const Settings: React.FC = () => {
                 setBaseUrl('');
                 setModel('');
                 setHasStoredApiKey(false);
+                setStoredApiKey('');
+                setShowStoredKey(false);
                 setMessage({ type: 'success', text: 'Settings cleared from local storage' });
               }
             }}
