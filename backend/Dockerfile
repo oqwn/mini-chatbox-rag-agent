@@ -1,12 +1,12 @@
 # Build from root directory with: docker build -f backend/Dockerfile .
-FROM node:18-alpine AS deps
+FROM node:21-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY backend/package.json ./backend/
 RUN pnpm install --filter=mini-chatbox-rag-backend --prod --frozen-lockfile
 
-FROM node:18-alpine AS builder
+FROM node:21-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
@@ -16,7 +16,7 @@ COPY backend/ ./backend/
 WORKDIR /app/backend
 RUN pnpm run build
 
-FROM node:18-alpine AS runner
+FROM node:21-alpine AS runner
 WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 COPY --from=builder --chown=nodejs:nodejs /app/backend/dist ./dist
