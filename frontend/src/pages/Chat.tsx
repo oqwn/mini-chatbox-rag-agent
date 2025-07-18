@@ -15,6 +15,16 @@ export const Chat: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Scroll to bottom while streaming
+  useEffect(() => {
+    if (isStreaming) {
+      const interval = setInterval(() => {
+        scrollToBottom();
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [isStreaming]);
+
   useEffect(() => {
     // Load current model from settings
     const loadModel = async () => {
@@ -101,38 +111,28 @@ export const Chat: React.FC = () => {
           </div>
         )}
 
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}
-          >
-            <div
-              className={`inline-block px-4 py-2 rounded-lg max-w-2xl ${
-                message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              <div className="whitespace-pre-wrap break-words">{message.content}</div>
-            </div>
-          </div>
-        ))}
+        {messages.map((message, index) => {
+          const isLastMessage = index === messages.length - 1;
+          const isStreamingMessage = isLastMessage && message.role === 'assistant' && isStreaming;
 
-        {isStreaming && (
-          <div className="text-left mb-4">
-            <div className="inline-block px-4 py-2">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                  style={{ animationDelay: '0.1s' }}
-                ></div>
-                <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                  style={{ animationDelay: '0.2s' }}
-                ></div>
+          return (
+            <div
+              key={index}
+              className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}
+            >
+              <div
+                className={`inline-block px-4 py-2 rounded-lg max-w-2xl ${
+                  message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                <div className="whitespace-pre-wrap break-words">
+                  {message.content}
+                  {isStreamingMessage && <span className="animate-pulse">▊</span>}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })}
 
         {error && (
           <div className="mb-4">
