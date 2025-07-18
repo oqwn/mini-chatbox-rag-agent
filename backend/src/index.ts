@@ -35,10 +35,12 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(compression());
-app.use(cors({
-  origin: configService.get('CORS_ORIGIN'),
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: configService.get('CORS_ORIGIN'),
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

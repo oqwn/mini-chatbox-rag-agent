@@ -16,16 +16,16 @@ export class ConfigService {
       // Server config
       PORT: process.env.PORT || '3000',
       NODE_ENV: process.env.NODE_ENV || 'development',
-      
+
       // Database config
       DATABASE_URL: process.env.DATABASE_URL || '',
       REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
-      
+
       // OpenAI config
       OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
       OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || '',
       OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
-      
+
       // Security
       JWT_SECRET: process.env.JWT_SECRET || 'change-this-secret',
       CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',

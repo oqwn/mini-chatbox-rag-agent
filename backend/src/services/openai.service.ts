@@ -53,10 +53,7 @@ export class OpenAIService {
     this.logger.info('OpenAI client configuration updated');
   }
 
-  public async chat(
-    messages: ChatMessage[],
-    options: ChatCompletionOptions = {}
-  ): Promise<string> {
+  public async chat(messages: ChatMessage[], options: ChatCompletionOptions = {}): Promise<string> {
     if (!this.client) {
       throw new Error('OpenAI client not initialized. Please configure API key.');
     }
@@ -78,7 +75,9 @@ export class OpenAIService {
       return completion.choices[0]?.message?.content || '';
     } catch (error) {
       this.logger.error('OpenAI chat error:', error);
-      throw new Error(`Failed to get chat completion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get chat completion: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -113,17 +112,14 @@ export class OpenAIService {
       }
     } catch (error) {
       this.logger.error('OpenAI stream error:', error);
-      throw new Error(`Failed to get chat stream: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get chat stream: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   public getAvailableModels(): string[] {
-    return [
-      'gpt-4',
-      'gpt-4-turbo-preview',
-      'gpt-3.5-turbo',
-      'gpt-3.5-turbo-16k',
-    ];
+    return ['gpt-4', 'gpt-4-turbo-preview', 'gpt-3.5-turbo', 'gpt-3.5-turbo-16k'];
   }
 
   public isConfigured(): boolean {

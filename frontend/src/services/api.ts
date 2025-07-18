@@ -27,6 +27,7 @@ export interface SettingsResponse {
 }
 
 class ApiService {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
@@ -48,7 +49,9 @@ class ApiService {
     return this.request('/settings');
   }
 
-  async updateSettings(settings: { openai: OpenAISettings }): Promise<{ success: boolean; message: string }> {
+  async updateSettings(settings: {
+    openai: OpenAISettings;
+  }): Promise<{ success: boolean; message: string }> {
     return this.request('/settings', {
       method: 'PUT',
       body: JSON.stringify(settings),
@@ -90,6 +93,7 @@ class ApiService {
     }
 
     try {
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -101,7 +105,7 @@ class ApiService {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               switch (data.type) {
                 case 'content':
                   onMessage(data.content);

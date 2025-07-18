@@ -49,7 +49,10 @@ export const Settings: React.FC = () => {
       setApiKey(''); // Clear API key for security
       await loadSettings(); // Reload settings
     } catch (error) {
-      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to update settings' });
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to update settings',
+      });
     } finally {
       setSaving(false);
     }
@@ -91,7 +94,12 @@ export const Settings: React.FC = () => {
             />
             <p className="mt-1 text-sm text-gray-500">
               Your OpenAI API key. Get one from{' '}
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a
+                href="https://platform.openai.com/api-keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
                 OpenAI Platform
               </a>
             </p>
@@ -130,18 +138,18 @@ export const Settings: React.FC = () => {
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-sm text-gray-500">
-              Select the AI model to use for chat
-            </p>
+            <p className="mt-1 text-sm text-gray-500">Select the AI model to use for chat</p>
           </div>
         </div>
 
         {message && (
-          <div className={`mt-4 p-3 rounded ${
-            message.type === 'success' 
-              ? 'bg-green-100 border border-green-400 text-green-700' 
-              : 'bg-red-100 border border-red-400 text-red-700'
-          }`}>
+          <div
+            className={`mt-4 p-3 rounded ${
+              message.type === 'success'
+                ? 'bg-green-100 border border-green-400 text-green-700'
+                : 'bg-red-100 border border-red-400 text-red-700'
+            }`}
+          >
             {message.text}
           </div>
         )}

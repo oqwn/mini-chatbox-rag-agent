@@ -14,7 +14,7 @@ export class SettingsController {
     try {
       const config = this.configService.getOpenAIConfig();
       const models = this.openAIService.getAvailableModels();
-      
+
       // Don't send the actual API key to frontend, just indicate if it's set
       res.json({
         openai: {
@@ -48,11 +48,11 @@ export class SettingsController {
 
       // Update configuration
       this.configService.updateOpenAIConfig(apiKey, baseUrl, model);
-      
+
       // Reinitialize OpenAI client with new settings
       this.openAIService.updateConfiguration(apiKey, baseUrl);
 
-      res.json({ 
+      res.json({
         success: true,
         message: 'Settings updated successfully',
       });
