@@ -206,9 +206,9 @@ export const Settings: React.FC = () => {
         <div className="mt-6 flex gap-3">
           <button
             onClick={handleSave}
-            disabled={saving || (!apiKey && !hasStoredApiKey)}
+            disabled={saving}
             className={`px-4 py-2 rounded-md font-medium ${
-              saving || (!apiKey && !hasStoredApiKey)
+              saving
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
