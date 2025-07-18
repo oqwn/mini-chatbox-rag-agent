@@ -23,17 +23,20 @@ A sophisticated conversational AI system that combines task decomposition, retri
 ### Local Development
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/your-org/mini-chatbox-rag-agent
 cd mini-chatbox-rag-agent
 ```
 
 2. Run the setup script (recommended):
+
 ```bash
 ./scripts/setup.sh
 ```
 
 Or manually install dependencies:
+
 ```bash
 # Using npm workspaces
 npm install
@@ -43,12 +46,14 @@ make install
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp backend/.env.example backend/.env
 # Edit .env with your configuration
 ```
 
 4. Start development servers:
+
 ```bash
 # Using Make (recommended)
 make dev
@@ -58,13 +63,14 @@ docker-compose -f docker-compose.dev.yml up -d
 
 # Or manually (without Docker)
 # Terminal 1 - Backend
-cd backend && npm run dev
+cd backend && pnpm run dev
 
 # Terminal 2 - Frontend
-cd frontend && npm run dev
+cd frontend && pnpm run dev
 ```
 
 5. Access the application:
+
 - Frontend: http://localhost:3001
 - Backend API: http://localhost:3000
 - pgAdmin: http://localhost:5050 (admin@chatbox.local / admin)
@@ -134,18 +140,18 @@ spec:
         app: chatbox-backend
     spec:
       containers:
-      - name: backend
-        image: your-registry/chatbox-backend:latest
-        ports:
-        - containerPort: 3000
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: chatbox-secrets
-              key: database-url
+        - name: backend
+          image: your-registry/chatbox-backend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: chatbox-secrets
+                  key: database-url
 ```
 
 Deploy to Kubernetes:
@@ -179,6 +185,7 @@ kubectl expose deployment chatbox-backend \
 #### AWS ECS Deployment
 
 1. Build and push images to ECR:
+
 ```bash
 # Build images
 docker-compose build
@@ -319,6 +326,7 @@ The application includes health check endpoints:
 #### Logging
 
 View logs:
+
 ```bash
 # All services
 docker-compose logs -f
@@ -333,12 +341,15 @@ docker-compose logs > logs_$(date +%Y%m%d).txt
 #### Performance Monitoring
 
 1. **Prometheus + Grafana** (included in docker-compose.monitoring.yml):
+
 ```bash
 docker-compose -f docker-compose.monitoring.yml up -d
 ```
+
 Access Grafana at http://localhost:3000
 
 2. **Application Metrics**:
+
 - Response time tracking
 - Error rate monitoring
 - Resource usage (CPU, Memory)
@@ -359,6 +370,7 @@ kubectl scale deployment chatbox-backend --replicas=5
 #### Load Balancing
 
 The included nginx configuration handles load balancing automatically. For cloud deployments, use:
+
 - AWS: Application Load Balancer (ALB)
 - GCP: Cloud Load Balancing
 - Azure: Application Gateway
@@ -374,12 +386,14 @@ The included nginx configuration handles load balancing automatically. For cloud
 #### Common Issues
 
 1. **Container won't start**:
+
 ```bash
 docker-compose logs backend
 # Check for missing environment variables or connection issues
 ```
 
 2. **Database connection failed**:
+
 ```bash
 # Test connection
 docker exec -it postgres psql -U chatbox -d chatbox
@@ -389,6 +403,7 @@ docker exec backend npm run migration:show
 ```
 
 3. **Out of memory**:
+
 ```bash
 # Increase Docker memory limit
 # Docker Desktop: Preferences > Resources > Memory
