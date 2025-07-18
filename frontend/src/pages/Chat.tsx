@@ -15,7 +15,6 @@ export const Chat: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingContentRef = useRef<string>('');
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,9 +47,6 @@ export const Chat: React.FC = () => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
-      }
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
       }
     };
   }, []);
@@ -93,27 +89,18 @@ export const Chat: React.FC = () => {
           // Check if this stream was aborted
           if (abortController.signal.aborted) return;
 
-          // Accumulate content in ref to avoid state race conditions
+          // Accumulate content in ref
           streamingContentRef.current += content;
 
-          // Throttle UI updates to prevent excessive re-renders
-          if (updateTimeoutRef.current) {
-            clearTimeout(updateTimeoutRef.current);
-          }
-
-          updateTimeoutRef.current = setTimeout(() => {
-            if (abortController.signal.aborted) return;
-
-            // Update UI with accumulated content
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              newMessages[newMessages.length - 1] = {
-                ...newMessages[newMessages.length - 1],
-                content: streamingContentRef.current,
-              };
-              return newMessages;
-            });
-          }, 16); // ~60fps throttling
+          // Update UI immediately for better streaming experience
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: streamingContentRef.current,
+            };
+            return newMessages;
+          });
         },
         (error) => {
           if (abortController.signal.aborted) return;
@@ -122,11 +109,6 @@ export const Chat: React.FC = () => {
         },
         () => {
           if (abortController.signal.aborted) return;
-
-          // Clear any pending timeout
-          if (updateTimeoutRef.current) {
-            clearTimeout(updateTimeoutRef.current);
-          }
 
           // Final update with complete content
           setMessages((prev) => {
@@ -156,7 +138,7 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -286,7 +268,7 @@ export const Chat: React.FC = () => {
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Type your message..."
             disabled={isStreaming}
             rows={1}

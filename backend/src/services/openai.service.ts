@@ -85,7 +85,7 @@ export class OpenAIService {
 
     try {
       // Convert MCP tools to OpenAI function format
-      const functions = tools?.map(tool => ({
+      const functions = tools?.map((tool) => ({
         type: 'function' as const,
         function: {
           name: tool.name,
@@ -96,9 +96,12 @@ export class OpenAIService {
           },
         },
       }));
-      
+
       if (functions && functions.length > 0) {
-        this.logger.info(`Sending ${functions.length} tools to AI:`, functions.map(f => f.function.name));
+        this.logger.info(
+          `Sending ${functions.length} tools to AI:`,
+          functions.map((f) => f.function.name)
+        );
       }
 
       const requestParams: any = {
@@ -122,7 +125,10 @@ export class OpenAIService {
 
       // Handle tool calls
       if (message.tool_calls && message.tool_calls.length > 0 && onToolCall) {
-        this.logger.info(`AI requested ${message.tool_calls.length} tool calls:`, message.tool_calls.map(tc => tc.function.name));
+        this.logger.info(
+          `AI requested ${message.tool_calls.length} tool calls:`,
+          message.tool_calls.map((tc) => tc.function.name)
+        );
         const toolResults = await Promise.all(
           message.tool_calls.map(async (toolCall) => {
             try {
@@ -148,7 +154,11 @@ export class OpenAIService {
         // Add the assistant's message with tool calls
         const updatedMessages = [
           ...messages,
-          { role: 'assistant' as const, content: message.content || '', tool_calls: message.tool_calls },
+          {
+            role: 'assistant' as const,
+            content: message.content || '',
+            tool_calls: message.tool_calls,
+          },
           ...toolResults,
         ];
 

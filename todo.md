@@ -38,6 +38,14 @@
     - [x] Implement API client
     - [x] Handle streaming responses
     - [x] Error handling and retry logic
+  - [x] Add beautiful markdown rendering for AI responses
+    - [x] Implement StreamingMarkdown component
+    - [x] Support syntax highlighting for code blocks
+    - [x] Handle tables, lists, and other markdown elements
+  - [x] Fix HTTP streaming buffering issue
+    - [x] Remove throttling mechanism that was causing buffering
+    - [x] Optimize real-time streaming performance
+    - [x] Add React.memo to prevent unnecessary re-renders
 
 ### 2.1 Task Division System
 - [ ] Design task parsing and decomposition logic

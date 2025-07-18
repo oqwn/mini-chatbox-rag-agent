@@ -10,7 +10,7 @@ interface StreamingMarkdownProps {
   className?: string;
 }
 
-export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = ({ 
+export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(({ 
   content, 
   isStreaming = false,
   className = '' 
@@ -29,7 +29,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = ({
       {isStreaming && <span className="animate-pulse ml-1">▊</span>}
     </div>
   );
-};
+});
 
 // Markdown component customizations
 const markdownComponents = {

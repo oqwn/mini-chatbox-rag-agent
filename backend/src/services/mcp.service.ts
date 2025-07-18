@@ -114,7 +114,6 @@ export class MCPService extends EventEmitter {
     await this.initializeMCPHandshake(serverId, childProcess);
   }
 
-
   private async initializeMCPHandshake(_serverId: string, process: ChildProcess): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -216,7 +215,12 @@ export class MCPService extends EventEmitter {
     }
   }
 
-  private async sendMCPRequest(serverId: string, method: string, params: any, timeoutMs: number = 10000): Promise<any> {
+  private async sendMCPRequest(
+    serverId: string,
+    method: string,
+    params: any,
+    timeoutMs: number = 10000
+  ): Promise<any> {
     const server = this.servers.get(serverId);
     if (!server || !server.connected || !server.process) {
       throw new Error(`Server ${serverId} is not connected`);
@@ -303,20 +307,25 @@ export class MCPService extends EventEmitter {
     // Use tool-specific timeout if available, otherwise use provided timeout, otherwise use 5 minutes
     const toolTimeout = this.getToolTimeout(tool, timeoutMs);
 
-    return this.sendMCPRequest(serverId, 'tools/call', {
-      name: toolName,
-      arguments: parameters,
-    }, toolTimeout);
+    return this.sendMCPRequest(
+      serverId,
+      'tools/call',
+      {
+        name: toolName,
+        arguments: parameters,
+      },
+      toolTimeout
+    );
   }
 
   private getToolTimeout(tool: MCPTool, defaultTimeout?: number): number {
     // Check if tool has timeout in inputSchema or other properties
     const toolTimeout = tool.inputSchema?.properties?.timeout?.default;
-    
+
     if (typeof toolTimeout === 'number' && toolTimeout > 0) {
       return toolTimeout * 1000; // Convert to milliseconds
     }
-    
+
     // Use provided timeout or default to 5 minutes
     return defaultTimeout || 5 * 60 * 1000;
   }
@@ -348,7 +357,9 @@ export class MCPService extends EventEmitter {
     const tools: MCPTool[] = [];
     console.log('Getting all tools from servers:', this.servers.size, 'servers');
     for (const server of this.servers.values()) {
-      console.log(`Server ${server.id}: connected=${server.connected}, tools=${server.tools.length}`);
+      console.log(
+        `Server ${server.id}: connected=${server.connected}, tools=${server.tools.length}`
+      );
       if (server.connected) {
         tools.push(...server.tools);
       }

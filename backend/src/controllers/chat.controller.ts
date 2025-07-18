@@ -28,16 +28,16 @@ export class ChatController {
 
       // Get available MCP tools
       const mcpTools = await this.mcpService.getAllTools();
-      
+
       // Add system message if tools are available
       let enhancedMessages = [...messages];
       if (mcpTools.length > 0) {
-        const toolNames = mcpTools.map(t => `- ${t.name}: ${t.description}`).join('\n');
+        const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
         const systemMessage = {
           role: 'system' as const,
-          content: `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`
+          content: `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`,
         };
-        
+
         // Add system message at the beginning if not already present
         if (enhancedMessages.length === 0 || enhancedMessages[0].role !== 'system') {
           enhancedMessages = [systemMessage, ...enhancedMessages];
@@ -46,13 +46,13 @@ export class ChatController {
           enhancedMessages[0].content += '\n\n' + systemMessage.content;
         }
       }
-      
+
       const response = await this.openAIService.chat(enhancedMessages, {
         ...options,
         tools: mcpTools,
         onToolCall: async (toolName: string, parameters: any) => {
           // Find the tool and invoke it
-          const tool = mcpTools.find(t => t.name === toolName);
+          const tool = mcpTools.find((t) => t.name === toolName);
           if (tool) {
             this.logger.info(`Invoking MCP tool ${toolName} with parameters:`, parameters);
             try {
@@ -65,9 +65,9 @@ export class ChatController {
             }
           }
           throw new Error(`Tool ${toolName} not found`);
-        }
+        },
       });
-      
+
       res.json({ message: response });
     } catch (error) {
       this.logger.error('Chat error:', error);
@@ -103,16 +103,16 @@ export class ChatController {
 
       // Get available MCP tools
       const mcpTools = await this.mcpService.getAllTools();
-      
+
       // Add system message if tools are available
       let enhancedMessages = [...messages];
       if (mcpTools.length > 0) {
-        const toolNames = mcpTools.map(t => `- ${t.name}: ${t.description}`).join('\n');
+        const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
         const systemMessage = {
           role: 'system' as const,
-          content: `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`
+          content: `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`,
         };
-        
+
         // Add system message at the beginning if not already present
         if (enhancedMessages.length === 0 || enhancedMessages[0].role !== 'system') {
           enhancedMessages = [systemMessage, ...enhancedMessages];
@@ -121,7 +121,7 @@ export class ChatController {
           enhancedMessages[0].content += '\n\n' + systemMessage.content;
         }
       }
-      
+
       try {
         let chunkCount = 0;
         for await (const chunk of this.openAIService.chatStream(enhancedMessages, {
@@ -129,11 +129,15 @@ export class ChatController {
           tools: mcpTools,
           onToolCall: async (toolName: string, parameters: any) => {
             // Find the tool and invoke it
-            const tool = mcpTools.find(t => t.name === toolName);
+            const tool = mcpTools.find((t) => t.name === toolName);
             if (tool) {
               this.logger.info(`Invoking MCP tool ${toolName} with parameters:`, parameters);
               try {
-                const result = await this.mcpService.invokeTool(tool.serverId, toolName, parameters);
+                const result = await this.mcpService.invokeTool(
+                  tool.serverId,
+                  toolName,
+                  parameters
+                );
                 this.logger.info(`MCP tool ${toolName} completed successfully`);
                 return result;
               } catch (error) {
@@ -142,7 +146,7 @@ export class ChatController {
               }
             }
             throw new Error(`Tool ${toolName} not found`);
-          }
+          },
         })) {
           chunkCount++;
           this.logger.debug(`Sending chunk ${chunkCount}: ${chunk}`);
