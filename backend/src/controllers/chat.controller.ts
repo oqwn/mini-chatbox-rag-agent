@@ -29,7 +29,25 @@ export class ChatController {
       // Get available MCP tools
       const mcpTools = await this.mcpService.getAllTools();
       
-      const response = await this.openAIService.chat(messages, {
+      // Add system message if tools are available
+      let enhancedMessages = [...messages];
+      if (mcpTools.length > 0) {
+        const toolNames = mcpTools.map(t => `- ${t.name}: ${t.description}`).join('\n');
+        const systemMessage = {
+          role: 'system' as const,
+          content: `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`
+        };
+        
+        // Add system message at the beginning if not already present
+        if (enhancedMessages.length === 0 || enhancedMessages[0].role !== 'system') {
+          enhancedMessages = [systemMessage, ...enhancedMessages];
+        } else {
+          // Append to existing system message
+          enhancedMessages[0].content += '\n\n' + systemMessage.content;
+        }
+      }
+      
+      const response = await this.openAIService.chat(enhancedMessages, {
         ...options,
         tools: mcpTools,
         onToolCall: async (toolName: string, parameters: any) => {
@@ -78,9 +96,27 @@ export class ChatController {
       // Get available MCP tools
       const mcpTools = await this.mcpService.getAllTools();
       
+      // Add system message if tools are available
+      let enhancedMessages = [...messages];
+      if (mcpTools.length > 0) {
+        const toolNames = mcpTools.map(t => `- ${t.name}: ${t.description}`).join('\n');
+        const systemMessage = {
+          role: 'system' as const,
+          content: `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`
+        };
+        
+        // Add system message at the beginning if not already present
+        if (enhancedMessages.length === 0 || enhancedMessages[0].role !== 'system') {
+          enhancedMessages = [systemMessage, ...enhancedMessages];
+        } else {
+          // Append to existing system message
+          enhancedMessages[0].content += '\n\n' + systemMessage.content;
+        }
+      }
+      
       try {
         let chunkCount = 0;
-        for await (const chunk of this.openAIService.chatStream(messages, {
+        for await (const chunk of this.openAIService.chatStream(enhancedMessages, {
           ...options,
           tools: mcpTools,
           onToolCall: async (toolName: string, parameters: any) => {

@@ -92,6 +92,10 @@ export class OpenAIService {
           },
         },
       }));
+      
+      if (functions && functions.length > 0) {
+        this.logger.info(`Sending ${functions.length} tools to AI:`, functions.map(f => f.function.name));
+      }
 
       const requestParams: any = {
         model,
@@ -114,6 +118,7 @@ export class OpenAIService {
 
       // Handle tool calls
       if (message.tool_calls && message.tool_calls.length > 0 && onToolCall) {
+        this.logger.info(`AI requested ${message.tool_calls.length} tool calls:`, message.tool_calls.map(tc => tc.function.name));
         const toolResults = await Promise.all(
           message.tool_calls.map(async (toolCall) => {
             try {
