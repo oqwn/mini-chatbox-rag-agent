@@ -1,0 +1,44 @@
+{
+  "name": "mini-chatbox-rag-agent",
+  "version": "1.0.0",
+  "description": "A sophisticated conversational AI system with RAG, multimodal support, and agent scripting",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "install": "npm install --workspaces",
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "setup": "./scripts/setup.sh",
+    "docker:dev": "docker-compose -f docker/docker-compose.dev.yml up",
+    "docker:prod": "docker-compose -f docker/docker-compose.yml up",
+    "docker:build": "docker-compose -f docker/docker-compose.yml build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/mini-chatbox-rag-agent.git"
+  },
+  "keywords": [
+    "chatbot",
+    "rag",
+    "ai",
+    "agent",
+    "mcp",
+    "multimodal"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-org/mini-chatbox-rag-agent/issues"
+  },
+  "homepage": "https://github.com/your-org/mini-chatbox-rag-agent#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

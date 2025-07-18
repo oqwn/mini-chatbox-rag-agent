@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - chatbox-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://chatbox:secret@postgres:5432/chatbox
+      - REDIS_URL=redis://redis:6379
+      - VECTOR_DB_URL=http://qdrant:6333
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    networks:
+      - chatbox-network
+    volumes:
+      - ./agent-scripts:/app/agent-scripts
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    networks:
+      - chatbox-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=chatbox
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=chatbox
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - chatbox-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass secret
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - chatbox-network
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - chatbox-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  qdrant-data:
+  uploads:
+
+networks:
+  chatbox-network:
+    driver: bridge

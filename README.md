@@ -28,14 +28,18 @@ git clone https://github.com/your-org/mini-chatbox-rag-agent
 cd mini-chatbox-rag-agent
 ```
 
-2. Install dependencies:
+2. Run the setup script (recommended):
 ```bash
-# Using Make (recommended)
-make install
+./scripts/setup.sh
+```
 
-# Or manually
-cd backend && npm install
-cd ../frontend && npm install
+Or manually install dependencies:
+```bash
+# Using npm workspaces
+npm install
+
+# Or using Make
+make install
 ```
 
 3. Set up environment variables:
