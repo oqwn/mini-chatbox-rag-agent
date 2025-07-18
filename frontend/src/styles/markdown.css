@@ -1,0 +1,78 @@
+/* Markdown content styling */
+.markdown-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Code blocks */
+.markdown-content pre {
+  position: relative;
+}
+
+.markdown-content pre code {
+  display: block;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Inline code */
+.markdown-content :not(pre) > code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875em;
+}
+
+/* Tables */
+.markdown-content table {
+  width: 100%;
+  border-spacing: 0;
+}
+
+/* Lists */
+.markdown-content ul ul,
+.markdown-content ol ol,
+.markdown-content ul ol,
+.markdown-content ol ul {
+  margin-top: 0.5rem;
+}
+
+/* Links */
+.markdown-content a {
+  word-break: break-word;
+}
+
+/* Images */
+.markdown-content img {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Scrollbars for code blocks */
+.markdown-content pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.markdown-content pre::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Task lists (GitHub Flavored Markdown) */
+.markdown-content input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+/* Highlight.js overrides for better visibility */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}

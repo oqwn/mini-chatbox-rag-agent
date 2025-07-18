@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { apiService, ChatMessage } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { MCPToolsPanel } from '../components/MCPToolsPanel';
+import { MarkdownMessage } from '../components/MarkdownMessage';
+import '../styles/markdown.css';
 
 export const Chat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -246,10 +248,12 @@ export const Chat: React.FC = () => {
                       : 'bg-gray-100 text-gray-800'
                 }`}
               >
-                <div className="whitespace-pre-wrap break-words">
-                  {message.content}
-                  {isStreamingMessage && <span className="animate-pulse">▊</span>}
-                </div>
+                {message.role === 'assistant' ? (
+                  <MarkdownMessage content={message.content} />
+                ) : (
+                  <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                )}
+                {isStreamingMessage && <span className="animate-pulse ml-1">▊</span>}
               </div>
             </div>
           );
