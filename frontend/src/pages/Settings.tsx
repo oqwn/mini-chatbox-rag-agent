@@ -11,6 +11,7 @@ export const Settings: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
+  const [hasStoredApiKey, setHasStoredApiKey] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -19,7 +20,9 @@ export const Settings: React.FC = () => {
     const storedBaseUrl = StorageService.getBaseUrl();
     const storedModel = StorageService.getModel();
     
-    if (storedApiKey) setApiKey(storedApiKey);
+    // Don't show the actual API key in the input field for security
+    // Just keep track that we have one stored
+    if (storedApiKey) setHasStoredApiKey(true);
     if (storedBaseUrl) setBaseUrl(storedBaseUrl);
     if (storedModel) setModel(storedModel);
     
@@ -47,7 +50,7 @@ export const Settings: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!apiKey && !StorageService.getApiKey()) {
+    if (!apiKey && !hasStoredApiKey) {
       setMessage({ type: 'error', text: 'API key is required' });
       return;
     }
@@ -70,11 +73,13 @@ export const Settings: React.FC = () => {
       // Save to local storage
       if (apiKey) {
         StorageService.setApiKey(apiKey);
+        setHasStoredApiKey(true);
       }
       StorageService.setBaseUrl(baseUrl);
       StorageService.setModel(model);
       
       setMessage({ type: 'success', text: response.message });
+      setApiKey(''); // Clear the input field after saving
       await loadSettings(); // Reload settings to get new model list
     } catch (error) {
       setMessage({
@@ -109,7 +114,7 @@ export const Settings: React.FC = () => {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold mb-4">AI Configuration</h2>
 
-        {settings?.openai.isConfigured && (
+        {(settings?.openai.isConfigured || hasStoredApiKey) && (
           <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
             ✓ AI service is configured and ready to use
           </div>
@@ -126,7 +131,7 @@ export const Settings: React.FC = () => {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={
-                settings?.openai.isConfigured || StorageService.getApiKey()
+                settings?.openai.isConfigured || hasStoredApiKey
                   ? '••••••••• (configured)'
                   : 'sk-...'
               }
@@ -134,6 +139,7 @@ export const Settings: React.FC = () => {
             />
             <p className="mt-1 text-sm text-gray-500">
               Your API key for OpenAI-compatible services (OpenAI, OpenRouter, etc.)
+              {hasStoredApiKey && ' Leave empty to keep existing key.'}
             </p>
           </div>
 
@@ -200,9 +206,9 @@ export const Settings: React.FC = () => {
         <div className="mt-6 flex gap-3">
           <button
             onClick={handleSave}
-            disabled={saving || (!apiKey && !StorageService.getApiKey())}
+            disabled={saving || (!apiKey && !hasStoredApiKey)}
             className={`px-4 py-2 rounded-md font-medium ${
-              saving || (!apiKey && !StorageService.getApiKey())
+              saving || (!apiKey && !hasStoredApiKey)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
@@ -217,6 +223,7 @@ export const Settings: React.FC = () => {
                 setApiKey('');
                 setBaseUrl('');
                 setModel('');
+                setHasStoredApiKey(false);
                 setMessage({ type: 'success', text: 'Settings cleared from local storage' });
               }
             }}
