@@ -28,8 +28,7 @@ export class ConfigService {
       OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || '',
       OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini',
 
-      // Security
-      JWT_SECRET: process.env.JWT_SECRET || 'change-this-secret',
+      // CORS
       CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
     };
   }
