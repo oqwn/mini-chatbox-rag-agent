@@ -8,7 +8,7 @@ COPY package.json ./
 # Try to copy pnpm-lock.yaml if it exists, otherwise install without lock
 COPY pnpm-lock.yaml* ./
 RUN if [ -f pnpm-lock.yaml ]; then \
-      pnpm install --prod --frozen-lockfile; \
+      pnpm install --prod --no-frozen-lockfile; \
     else \
       pnpm install --prod; \
     fi
@@ -19,7 +19,7 @@ WORKDIR /app
 COPY package.json ./
 COPY pnpm-lock.yaml* ./
 RUN if [ -f pnpm-lock.yaml ]; then \
-      pnpm install --frozen-lockfile; \
+      pnpm install --no-frozen-lockfile; \
     else \
       pnpm install; \
     fi
