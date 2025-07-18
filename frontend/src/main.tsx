@@ -8,7 +8,7 @@ import './index.css';
 
 const App = () => {
   useInitializeSettings();
-  
+
   return (
     <BrowserRouter>
       <Routes>

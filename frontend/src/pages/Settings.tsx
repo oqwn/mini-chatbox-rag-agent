@@ -19,13 +19,13 @@ export const Settings: React.FC = () => {
     const storedApiKey = StorageService.getApiKey();
     const storedBaseUrl = StorageService.getBaseUrl();
     const storedModel = StorageService.getModel();
-    
+
     // Don't show the actual API key in the input field for security
     // Just keep track that we have one stored
     if (storedApiKey) setHasStoredApiKey(true);
     if (storedBaseUrl) setBaseUrl(storedBaseUrl);
     if (storedModel) setModel(storedModel);
-    
+
     loadSettings();
   }, []);
 
@@ -33,7 +33,7 @@ export const Settings: React.FC = () => {
     try {
       const response = await apiService.getSettings();
       setSettings(response);
-      
+
       // Only update from server if no local storage values
       if (!StorageService.getBaseUrl()) {
         setBaseUrl(response.openai.baseUrl);
@@ -41,7 +41,7 @@ export const Settings: React.FC = () => {
       if (!StorageService.getModel()) {
         setModel(response.openai.model);
       }
-      
+
       setLoading(false);
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to load settings' });
@@ -61,7 +61,7 @@ export const Settings: React.FC = () => {
     try {
       // Use the entered API key or the stored one
       const effectiveApiKey = apiKey || StorageService.getApiKey() || '';
-      
+
       const response = await apiService.updateSettings({
         openai: {
           apiKey: effectiveApiKey,
@@ -77,7 +77,7 @@ export const Settings: React.FC = () => {
       }
       StorageService.setBaseUrl(baseUrl);
       StorageService.setModel(model);
-      
+
       setMessage({ type: 'success', text: response.message });
       setApiKey(''); // Clear the input field after saving
       await loadSettings(); // Reload settings to get new model list
@@ -215,7 +215,7 @@ export const Settings: React.FC = () => {
           >
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
-          
+
           <button
             onClick={() => {
               if (confirm('Are you sure you want to clear all stored settings?')) {
