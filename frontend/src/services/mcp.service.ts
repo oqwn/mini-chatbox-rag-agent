@@ -14,8 +14,12 @@ class MCPService {
   private async initializeServers(): Promise<void> {
     if (!this.configuration) return;
 
-    for (const [serverId, serverConfig] of Object.entries(this.configuration.servers)) {
-      if (serverConfig.enabled) {
+    // Support both 'servers' and 'mcpServers' keys
+    const servers = this.configuration.servers || this.configuration.mcpServers || {};
+
+    for (const [serverId, serverConfig] of Object.entries(servers)) {
+      if (serverConfig.enabled !== false) {
+        // Default to enabled if not specified
         await this.connectToServer(serverId, serverConfig);
       }
     }

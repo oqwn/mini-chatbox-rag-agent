@@ -19,7 +19,8 @@ export interface MCPInput {
 
 export interface MCPConfiguration {
   inputs?: MCPInput[];
-  servers: Record<string, MCPServerConfig>;
+  servers?: Record<string, MCPServerConfig>;
+  mcpServers?: Record<string, MCPServerConfig>;
 }
 
 export interface MCPTool {

@@ -59,11 +59,16 @@
   - [ ] Create subtask templates
 
 ### 2.2 MCP (Model Context Protocol) Integration
-- [ ] Research and understand MCP specifications
-- [ ] Implement MCP server setup
-- [ ] Create MCP client connections
-- [ ] Build tool registration system
-- [ ] Develop MCP message handling
+- [x] Research and understand MCP specifications
+- [x] Implement MCP server setup
+- [x] Create MCP client connections
+- [x] Build tool registration system
+- [x] Develop MCP message handling
+- [x] Support both Claude Desktop and custom MCP JSON formats
+  - [x] Handle 'mcpServers' key (Claude Desktop format)
+  - [x] Handle 'servers' key (custom format)
+  - [x] Auto-detect and normalize configuration formats
+  - [x] Default values for missing properties
 
 ### 2.3 RAG (Retrieval-Augmented Generation) System
 - [ ] Design vector database schema

@@ -63,18 +63,41 @@ export const MCP: React.FC = () => {
 
     try {
       // Validate JSON
-      const config: MCPConfiguration = JSON.parse(configuration);
+      const parsedConfig: any = JSON.parse(configuration);
 
-      // Basic validation
-      if (!config.servers || typeof config.servers !== 'object') {
-        throw new Error('Configuration must have a "servers" object');
+      // Support both 'servers' and 'mcpServers' formats
+      let servers: Record<string, any> = {};
+      if (parsedConfig.servers && typeof parsedConfig.servers === 'object') {
+        servers = parsedConfig.servers;
+      } else if (parsedConfig.mcpServers && typeof parsedConfig.mcpServers === 'object') {
+        servers = parsedConfig.mcpServers;
+      } else {
+        throw new Error('Configuration must have either a "servers" or "mcpServers" object');
       }
 
+      // Normalize configuration to use 'servers' key
+      const config: MCPConfiguration = {
+        ...parsedConfig,
+        servers,
+      };
+
       // Validate server configurations
-      for (const [serverId, serverConfig] of Object.entries(config.servers)) {
-        if (!serverConfig.name || !serverConfig.type) {
-          throw new Error(`Server "${serverId}" must have "name" and "type" properties`);
+      for (const [serverId, serverConfig] of Object.entries(servers)) {
+        // For Claude Desktop format, type defaults to 'stdio' if not specified
+        if (!serverConfig.type) {
+          serverConfig.type = 'stdio';
         }
+
+        // For Claude Desktop format, name defaults to serverId if not specified
+        if (!serverConfig.name) {
+          serverConfig.name = serverId;
+        }
+
+        // For our format, enabled defaults to true if not specified
+        if (serverConfig.enabled === undefined) {
+          serverConfig.enabled = true;
+        }
+
         if (serverConfig.type === 'stdio' && !serverConfig.command) {
           throw new Error(`Stdio server "${serverId}" must have a "command" property`);
         }
@@ -84,7 +107,7 @@ export const MCP: React.FC = () => {
       }
 
       // Save configuration
-      localStorage.setItem('mcp-configuration', configuration);
+      localStorage.setItem('mcp-configuration', JSON.stringify(config, null, 2));
 
       // Load configuration into MCP service
       await mcpService.loadConfiguration(config);
@@ -299,6 +322,27 @@ export const MCP: React.FC = () => {
       "type": "sse",
       "url": "http://localhost:8080/mcp",
       "enabled": true
+    }
+  }
+}`}
+                </pre>
+              </div>
+
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium mb-2">Claude Desktop Format</h4>
+                <pre className="text-sm text-gray-700 overflow-x-auto">
+                  {`{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/documents"]
+    },
+    "github": {
+      "command": "node",
+      "args": ["/path/to/github-server/index.js"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your-token"
+      }
     }
   }
 }`}

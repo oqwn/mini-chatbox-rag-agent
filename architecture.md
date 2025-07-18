@@ -124,6 +124,41 @@ MCP Integration Layer
 - Bidirectional streaming support
 - Tool discovery and registration
 - Automatic retry with exponential backoff
+- Support for multiple configuration formats:
+  - Claude Desktop format (`mcpServers` key)
+  - Custom format (`servers` key)
+  - Auto-detection and normalization
+
+**Configuration Formats**:
+```json
+// Claude Desktop Format
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]
+    }
+  }
+}
+
+// Custom Format
+{
+  "servers": {
+    "filesystem": {
+      "name": "Filesystem Tools",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/path"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**Transport Types**:
+- **stdio**: Communication through standard input/output streams
+- **sse**: Server-Sent Events for HTTP-based streaming
+- **http**: Standard HTTP requests (future support)
 
 ### 3. RAG (Retrieval-Augmented Generation) System
 
