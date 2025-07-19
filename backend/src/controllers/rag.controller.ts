@@ -18,13 +18,13 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     const allowedTypes = getAllSupportedExtensions();
     const ext = getFileExtension(file.originalname);
-    
+
     // Handle files without extension
     if (!ext) {
       cb(new Error('File must have an extension'));
       return;
     }
-    
+
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {

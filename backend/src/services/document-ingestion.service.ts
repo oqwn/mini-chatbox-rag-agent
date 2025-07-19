@@ -29,7 +29,24 @@ export class DocumentIngestionService {
   private defaultChunkingOptions: ChunkingOptions = {
     chunkSize: 800, // Increased for better performance, tokens
     chunkOverlap: 80, // tokens
-    separators: ['\n\n', '\n', '. ', '! ', '? ', '; ', ': ', ', ', ' '],
+    // Added Chinese punctuation marks for better text chunking
+    separators: [
+      '\n\n',
+      '\n',
+      '。',
+      '！',
+      '？',
+      '；',
+      '：',
+      '. ',
+      '! ',
+      '? ',
+      '; ',
+      ': ',
+      '，',
+      ', ',
+      ' ',
+    ],
   };
 
   constructor(
@@ -374,9 +391,19 @@ export class DocumentIngestionService {
 
   /**
    * Estimate token count (rough approximation)
+   * Improved for international characters including Chinese
    */
   private estimateTokenCount(text: string): number {
-    return Math.ceil(text.length / 4);
+    // More accurate estimation for mixed language content
+    // Chinese characters: ~1 char = 1.5-2 tokens
+    // English words: ~4 chars = 1 token
+    const chineseCharCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    const otherCharCount = text.length - chineseCharCount;
+
+    const chineseTokens = Math.ceil(chineseCharCount * 1.8);
+    const englishTokens = Math.ceil(otherCharCount / 4);
+
+    return chineseTokens + englishTokens;
   }
 
   /**

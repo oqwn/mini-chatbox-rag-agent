@@ -229,13 +229,29 @@ export class RagRetrievalService {
       }
     }
 
-    // Keyword matching boost
+    // Keyword matching boost - improved for Chinese text
     const queryLower = query.query.toLowerCase();
     const chunkLower = result.chunkText.toLowerCase();
-    const keywordMatches = queryLower
-      .split(' ')
-      .filter((word) => word.length > 3 && chunkLower.includes(word)).length;
-    score += (keywordMatches / Math.max(queryLower.split(' ').length, 1)) * 0.1;
+
+    // Handle both space-separated words (English) and character-based matching (Chinese)
+    const hasChineseChars = /[\u4e00-\u9fff]/.test(queryLower);
+
+    let keywordMatches = 0;
+    let totalTerms = 0;
+
+    if (hasChineseChars) {
+      // For Chinese text, use character-based matching
+      const chineseChars = queryLower.match(/[\u4e00-\u9fff]/g) || [];
+      totalTerms = chineseChars.length;
+      keywordMatches = chineseChars.filter((char) => chunkLower.includes(char)).length;
+    } else {
+      // For English text, use word-based matching
+      const words = queryLower.split(' ').filter((word) => word.length > 2);
+      totalTerms = words.length;
+      keywordMatches = words.filter((word) => chunkLower.includes(word)).length;
+    }
+
+    score += (keywordMatches / Math.max(totalTerms, 1)) * 0.1;
 
     return Math.min(Math.max(score, 0), 1); // Clamp between 0 and 1
   }

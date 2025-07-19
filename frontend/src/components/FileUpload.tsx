@@ -37,8 +37,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const supportedTypes = getAllSupportedExtensions();
 
   const updateProgress = (fileName: string, updates: Partial<UploadProgress>) => {
-    setUploadProgress(prev =>
-      prev.map(p => p.fileName === fileName ? { ...p, ...updates } : p)
+    setUploadProgress((prev) =>
+      prev.map((p) => (p.fileName === fileName ? { ...p, ...updates } : p))
     );
   };
 
@@ -57,22 +57,25 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       fileSize: file.size,
     };
 
-    setUploadProgress(prev => [...prev, initialProgress]);
+    setUploadProgress((prev) => [...prev, initialProgress]);
 
     try {
       // Create FormData for upload with progress tracking
       const formData = new FormData();
       formData.append('file', file);
-      
+
       if (selectedKnowledgeSource) {
         formData.append('knowledgeSourceId', selectedKnowledgeSource.toString());
       }
-      
-      formData.append('metadata', JSON.stringify({
-        originalFileName: file.name,
-        fileSize: file.size,
-        uploadedAt: new Date().toISOString(),
-      }));
+
+      formData.append(
+        'metadata',
+        JSON.stringify({
+          originalFileName: file.name,
+          fileSize: file.size,
+          uploadedAt: new Date().toISOString(),
+        })
+      );
 
       // Use XMLHttpRequest for upload progress tracking
       const result = await new Promise<IngestionResult>((resolve, reject) => {
@@ -104,17 +107,17 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const response = JSON.parse(xhr.responseText);
-              
+
               // Simulate processing stages for better UX
               updateProgress(fileName, { stage: 'chunking', progress: 60 });
               setTimeout(() => {
                 updateProgress(fileName, { stage: 'embedding', progress: 80 });
                 setTimeout(() => {
-                  updateProgress(fileName, { 
-                    stage: 'storing', 
+                  updateProgress(fileName, {
+                    stage: 'storing',
                     progress: 95,
                     chunksCreated: response.chunksCreated,
-                    tokensProcessed: response.totalTokens
+                    tokensProcessed: response.totalTokens,
                   });
                   setTimeout(() => {
                     updateProgress(fileName, { stage: 'completed', progress: 100 });
@@ -143,7 +146,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           reject(new Error('Upload timeout'));
         });
 
-        xhr.open('POST', `${import.meta.env.VITE_API_URL || 'http://localhost:20001'}/api/rag/ingest/file`);
+        xhr.open(
+          'POST',
+          `${import.meta.env.VITE_API_URL || 'http://localhost:20001'}/api/rag/ingest/file`
+        );
         xhr.timeout = 300000; // 5 minutes timeout for large files
         xhr.send(formData);
       });
@@ -153,7 +159,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       updateProgress(fileName, {
         stage: 'error',
         progress: 0,
-        error: error instanceof Error ? error.message : 'Upload failed'
+        error: error instanceof Error ? error.message : 'Upload failed',
       });
       throw error;
     }
@@ -169,12 +175,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       // Validate all files first
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        
+
         // Check if file has an extension
         if (!file.name.includes('.')) {
           throw new Error(`File ${file.name} must have an extension`);
         }
-        
+
         // Check file type using shared config
         if (!isFileTypeSupported(file.name)) {
           const extension = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -185,7 +191,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
         // Check file size using shared config
         if (file.size > FILE_CONFIG.limits.maxFileSize) {
-          throw new Error(`File too large: ${file.name}. Maximum size is ${FILE_CONFIG.limits.maxFileSizeDisplay}.`);
+          throw new Error(
+            `File too large: ${file.name}. Maximum size is ${FILE_CONFIG.limits.maxFileSizeDisplay}.`
+          );
         }
       }
 
@@ -194,15 +202,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       // Process files in parallel for better performance (max 3 concurrent uploads)
       const concurrency = Math.min(3, files.length);
       const batches: File[][] = [];
-      
+
       for (let i = 0; i < files.length; i += concurrency) {
         batches.push(Array.from(files).slice(i, i + concurrency));
       }
 
       for (const batch of batches) {
-        const batchResults = await Promise.all(
-          batch.map(file => uploadFileWithProgress(file))
-        );
+        const batchResults = await Promise.all(batch.map((file) => uploadFileWithProgress(file)));
         results.push(...batchResults);
       }
 
@@ -272,22 +278,33 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   const getStageLabel = (stage: UploadProgress['stage']): string => {
     switch (stage) {
-      case 'uploading': return 'Uploading...';
-      case 'parsing': return 'Parsing content...';
-      case 'chunking': return 'Creating chunks...';
-      case 'embedding': return 'Generating embeddings...';
-      case 'storing': return 'Storing in database...';
-      case 'completed': return 'Completed!';
-      case 'error': return 'Error';
-      default: return 'Processing...';
+      case 'uploading':
+        return 'Uploading...';
+      case 'parsing':
+        return 'Parsing content...';
+      case 'chunking':
+        return 'Creating chunks...';
+      case 'embedding':
+        return 'Generating embeddings...';
+      case 'storing':
+        return 'Storing in database...';
+      case 'completed':
+        return 'Completed!';
+      case 'error':
+        return 'Error';
+      default:
+        return 'Processing...';
     }
   };
 
   const getStageColor = (stage: UploadProgress['stage']): string => {
     switch (stage) {
-      case 'completed': return 'text-green-600';
-      case 'error': return 'text-red-600';
-      default: return 'text-blue-600';
+      case 'completed':
+        return 'text-green-600';
+      case 'error':
+        return 'text-red-600';
+      default:
+        return 'text-blue-600';
     }
   };
 
@@ -319,9 +336,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       {/* File Drop Zone */}
       <div
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          dragActive
-            ? 'border-blue-400 bg-blue-50'
-            : 'border-gray-300 hover:border-gray-400'
+          dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
         } ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -338,7 +353,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           accept={supportedTypes.join(',')}
           disabled={isUploading}
         />
-        
+
         <div className="space-y-2">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"
@@ -354,13 +369,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             />
           </svg>
           <div className="text-gray-600">
-            <span className="font-medium text-blue-600 hover:text-blue-500">
-              Click to upload
-            </span>{' '}
+            <span className="font-medium text-blue-600 hover:text-blue-500">Click to upload</span>{' '}
             or drag and drop
           </div>
           <p className="text-xs text-gray-500">
-            Supports documents, code files, and text formats (Max {FILE_CONFIG.limits.maxFileSizeDisplay} per file)
+            Supports documents, code files, and text formats (Max{' '}
+            {FILE_CONFIG.limits.maxFileSizeDisplay} per file)
           </p>
         </div>
       </div>
@@ -373,11 +387,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             <div key={index} className="border rounded-lg p-4 bg-gray-50">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {progress.fileName}
-                  </p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{progress.fileName}</p>
                   <p className="text-xs text-gray-500">
-                    {formatFileSize(progress.fileSize)} • {formatDuration(Date.now() - progress.startTime)}
+                    {formatFileSize(progress.fileSize)} •{' '}
+                    {formatDuration(Date.now() - progress.startTime)}
                   </p>
                 </div>
                 <div className="ml-4 flex-shrink-0">
@@ -391,11 +404,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ${
-                    progress.stage === 'completed' 
-                      ? 'bg-green-500' 
+                    progress.stage === 'completed'
+                      ? 'bg-green-500'
                       : progress.stage === 'error'
-                      ? 'bg-red-500'
-                      : 'bg-blue-500'
+                        ? 'bg-red-500'
+                        : 'bg-blue-500'
                   }`}
                   style={{ width: `${progress.progress}%` }}
                 />
@@ -406,7 +419,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 <span>{progress.progress}% complete</span>
                 {progress.chunksCreated && progress.tokensProcessed && (
                   <span>
-                    {progress.chunksCreated} chunks • {progress.tokensProcessed.toLocaleString()} tokens
+                    {progress.chunksCreated} chunks • {progress.tokensProcessed.toLocaleString()}{' '}
+                    tokens
                   </span>
                 )}
               </div>

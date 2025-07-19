@@ -195,22 +195,35 @@ export class EmbeddingService {
 
   /**
    * Estimate token count for text (rough approximation)
+   * Improved for international characters including Chinese
    */
   private estimateTokenCount(text: string): number {
-    // Rough approximation: 1 token ≈ 4 characters for English text
-    return Math.ceil(text.length / 4);
+    // More accurate estimation for mixed language content
+    // Chinese characters: ~1 char = 1.5-2 tokens
+    // English words: ~4 chars = 1 token
+    const chineseCharCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    const otherCharCount = text.length - chineseCharCount;
+
+    const chineseTokens = Math.ceil(chineseCharCount * 1.8);
+    const englishTokens = Math.ceil(otherCharCount / 4);
+
+    return chineseTokens + englishTokens;
   }
 
   /**
    * Preprocess query text for better retrieval
+   * Fixed to preserve Chinese characters and other Unicode text
    */
   private preprocessQuery(query: string): string {
-    // Basic preprocessing - can be enhanced based on needs
-    return query
-      .trim()
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ') // Remove special characters
-      .replace(/\s+/g, ' '); // Normalize whitespace
+    // Basic preprocessing - preserve Chinese and other Unicode characters
+    return (
+      query
+        .trim()
+        .toLowerCase()
+        // Only remove specific punctuation, preserve Chinese and other Unicode characters
+        .replace(/[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/g, ' ')
+        .replace(/\s+/g, ' ')
+    ); // Normalize whitespace
   }
 
   /**

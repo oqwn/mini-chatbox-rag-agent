@@ -5,6 +5,7 @@ import { Chat } from './pages/Chat';
 import { Settings } from './pages/Settings';
 import { MCP } from './pages/MCP';
 import { RagManagement } from './pages/RagManagement';
+import { DocumentDetail } from './pages/DocumentDetail';
 import { useInitializeSettings } from './hooks/useInitializeSettings';
 import { useInitializeMCP } from './hooks/useInitializeMCP';
 import './index.css';
@@ -21,6 +22,7 @@ const App = () => {
         <Route path="/settings" element={<Settings />} />
         <Route path="/mcp" element={<MCP />} />
         <Route path="/rag" element={<RagManagement />} />
+        <Route path="/rag/documents/:id" element={<DocumentDetail />} />
       </Routes>
     </BrowserRouter>
   );

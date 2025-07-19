@@ -21,32 +21,62 @@ export interface SupportedFileTypesConfig {
 export const FILE_CONFIG: SupportedFileTypesConfig = {
   supportedFileTypes: {
     documents: {
-      extensions: [".pdf", ".docx", ".doc", ".txt", ".md", ".rtf"],
-      description: "Document files"
+      extensions: ['.pdf', '.docx', '.doc', '.txt', '.md', '.rtf'],
+      description: 'Document files',
     },
     data: {
-      extensions: [".json", ".csv", ".tsv", ".xml", ".yaml", ".yml", ".ini", ".conf", ".toml"],
-      description: "Data and configuration files"
+      extensions: ['.json', '.csv', '.tsv', '.xml', '.yaml', '.yml', '.ini', '.conf', '.toml'],
+      description: 'Data and configuration files',
     },
     code: {
       extensions: [
-        ".js", ".ts", ".jsx", ".tsx", ".py", ".java", ".cpp", ".c", ".h", ".hpp",
-        ".css", ".scss", ".sass", ".less", ".html", ".htm", ".php", ".rb", ".go",
-        ".rs", ".swift", ".kt", ".scala", ".pl", ".r", ".m", ".tex", ".vue",
-        ".sql", ".sh", ".bat", ".ps1", ".dockerfile", ".makefile"
+        '.js',
+        '.ts',
+        '.jsx',
+        '.tsx',
+        '.py',
+        '.java',
+        '.cpp',
+        '.c',
+        '.h',
+        '.hpp',
+        '.css',
+        '.scss',
+        '.sass',
+        '.less',
+        '.html',
+        '.htm',
+        '.php',
+        '.rb',
+        '.go',
+        '.rs',
+        '.swift',
+        '.kt',
+        '.scala',
+        '.pl',
+        '.r',
+        '.m',
+        '.tex',
+        '.vue',
+        '.sql',
+        '.sh',
+        '.bat',
+        '.ps1',
+        '.dockerfile',
+        '.makefile',
       ],
-      description: "Source code files"
+      description: 'Source code files',
     },
     other: {
-      extensions: [".log", ".gitignore", ".env", ".properties", ".cfg"],
-      description: "Other text files"
-    }
+      extensions: ['.log', '.gitignore', '.env', '.properties', '.cfg'],
+      description: 'Other text files',
+    },
   },
   limits: {
     maxFileSize: 52428800,
     maxFileSizeMB: 50,
-    maxFileSizeDisplay: "50MB"
-  }
+    maxFileSizeDisplay: '50MB',
+  },
 };
 
 // Helper function to get all supported extensions
@@ -56,7 +86,7 @@ export function getAllSupportedExtensions(): string[] {
     ...supportedFileTypes.documents.extensions,
     ...supportedFileTypes.data.extensions,
     ...supportedFileTypes.code.extensions,
-    ...supportedFileTypes.other.extensions
+    ...supportedFileTypes.other.extensions,
   ];
 }
 

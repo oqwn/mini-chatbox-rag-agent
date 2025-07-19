@@ -236,7 +236,7 @@ export class VectorDbService {
 
     try {
       const result = await this.pool.query(query, values);
-      return result.rows.map(row => row.id);
+      return result.rows.map((row) => row.id);
     } catch (error) {
       this.logger.error('Batch insert failed, falling back to individual inserts:', error);
       // Fallback to individual inserts if batch fails
@@ -268,9 +268,9 @@ export class VectorDbService {
 
     try {
       // Use CASE statement for batch update
-      const caseStatements = chunkIds.map((_, index) => 
-        `WHEN id = $${index * 2 + 1} THEN $${index * 2 + 2}`
-      ).join(' ');
+      const caseStatements = chunkIds
+        .map((_, index) => `WHEN id = $${index * 2 + 1} THEN $${index * 2 + 2}`)
+        .join(' ');
 
       const values: any[] = [];
       for (let i = 0; i < chunkIds.length; i++) {
@@ -288,7 +288,10 @@ export class VectorDbService {
 
       await this.pool.query(query, values);
     } catch (error) {
-      this.logger.error('Batch embedding update failed, falling back to individual updates:', error);
+      this.logger.error(
+        'Batch embedding update failed, falling back to individual updates:',
+        error
+      );
       // Fallback to individual updates
       for (let i = 0; i < chunkIds.length; i++) {
         await this.updateChunkEmbedding(chunkIds[i], embeddings[i]);

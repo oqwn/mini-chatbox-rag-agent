@@ -20,7 +20,7 @@ export interface ParsedFile {
 export class FileParserService {
   async parseFile(filePath: string, originalFileName: string): Promise<ParsedFile> {
     const extension = getFileExtension(originalFileName);
-    
+
     if (!extension) {
       throw new Error('File must have an extension');
     }
@@ -177,10 +177,17 @@ export class FileParserService {
   }
 
   private countWords(text: string): number {
-    return text
-      .trim()
-      .split(/\s+/)
-      .filter((word) => word.length > 0).length;
+    const trimmedText = text.trim();
+    if (!trimmedText) return 0;
+
+    // Count Chinese characters as individual words
+    const chineseCharCount = (trimmedText.match(/[\u4e00-\u9fff]/g) || []).length;
+
+    // Count non-Chinese words (space-separated)
+    const nonChineseText = trimmedText.replace(/[\u4e00-\u9fff]/g, '');
+    const nonChineseWords = nonChineseText.split(/\s+/).filter((word) => word.length > 0).length;
+
+    return chineseCharCount + nonChineseWords;
   }
 
   async validateFile(
