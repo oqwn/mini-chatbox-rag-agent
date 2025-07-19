@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { KnowledgeSource, IngestionResult } from '../services/rag-api';
+import { FILE_CONFIG, getAllSupportedExtensions, isFileTypeSupported } from '../config/file-types';
 
 interface FileUploadProps {
   knowledgeSources: KnowledgeSource[];
@@ -33,66 +34,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const supportedTypes = [
-    // Documents
-    '.pdf',
-    '.docx',
-    '.doc',
-    '.txt',
-    '.md',
-    '.rtf',
-    // Data & Config
-    '.json',
-    '.csv',
-    '.tsv',
-    '.xml',
-    '.yaml',
-    '.yml',
-    '.ini',
-    '.conf',
-    '.toml',
-    // Code files
-    '.js',
-    '.ts',
-    '.jsx',
-    '.tsx',
-    '.py',
-    '.java',
-    '.cpp',
-    '.c',
-    '.h',
-    '.hpp',
-    '.css',
-    '.scss',
-    '.sass',
-    '.less',
-    '.html',
-    '.htm',
-    '.php',
-    '.rb',
-    '.go',
-    '.rs',
-    '.swift',
-    '.kt',
-    '.scala',
-    '.pl',
-    '.r',
-    '.m',
-    '.tex',
-    '.vue',
-    '.sql',
-    '.sh',
-    '.bat',
-    '.ps1',
-    '.dockerfile',
-    '.makefile',
-    // Other text files
-    '.log',
-    '.gitignore',
-    '.env',
-    '.properties',
-    '.cfg',
-  ];
+  const supportedTypes = getAllSupportedExtensions();
 
   const updateProgress = (fileName: string, updates: Partial<UploadProgress>) => {
     setUploadProgress(prev =>
@@ -228,17 +170,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // Check file type
-        const extension = '.' + file.name.split('.').pop()?.toLowerCase();
-        if (!supportedTypes.includes(extension)) {
+        // Check if file has an extension
+        if (!file.name.includes('.')) {
+          throw new Error(`File ${file.name} must have an extension`);
+        }
+        
+        // Check file type using shared config
+        if (!isFileTypeSupported(file.name)) {
+          const extension = '.' + file.name.split('.').pop()?.toLowerCase();
           throw new Error(
             `Unsupported file type: ${extension}. Supported types: ${supportedTypes.join(', ')}`
           );
         }
 
-        // Check file size (increased to 50MB for better large file support)
-        if (file.size > 50 * 1024 * 1024) {
-          throw new Error(`File too large: ${file.name}. Maximum size is 50MB.`);
+        // Check file size using shared config
+        if (file.size > FILE_CONFIG.limits.maxFileSize) {
+          throw new Error(`File too large: ${file.name}. Maximum size is ${FILE_CONFIG.limits.maxFileSizeDisplay}.`);
         }
       }
 
@@ -413,7 +360,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             or drag and drop
           </div>
           <p className="text-xs text-gray-500">
-            Supports documents, code files, and text formats (Max 50MB per file)
+            Supports documents, code files, and text formats (Max {FILE_CONFIG.limits.maxFileSizeDisplay} per file)
           </p>
         </div>
       </div>
