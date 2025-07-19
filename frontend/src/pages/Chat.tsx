@@ -244,7 +244,7 @@ export const Chat: React.FC = () => {
                     ? 'bg-blue-600 text-white'
                     : message.role === 'system'
                       ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                      : 'bg-gray-100 text-gray-800'
+                      : 'bg-gray-100 text-black'
                 }`}
               >
                 {message.role === 'assistant' ? (
