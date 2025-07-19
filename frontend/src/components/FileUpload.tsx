@@ -21,16 +21,63 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   const supportedTypes = [
     // Documents
-    '.pdf', '.docx', '.doc', '.txt', '.md', '.rtf',
+    '.pdf',
+    '.docx',
+    '.doc',
+    '.txt',
+    '.md',
+    '.rtf',
     // Data & Config
-    '.json', '.csv', '.tsv', '.xml', '.yaml', '.yml', '.ini', '.conf', '.toml',
+    '.json',
+    '.csv',
+    '.tsv',
+    '.xml',
+    '.yaml',
+    '.yml',
+    '.ini',
+    '.conf',
+    '.toml',
     // Code files
-    '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.h', '.hpp',
-    '.css', '.scss', '.sass', '.less', '.html', '.htm', '.php', '.rb', '.go',
-    '.rs', '.swift', '.kt', '.scala', '.pl', '.r', '.m', '.tex', '.vue',
-    '.sql', '.sh', '.bat', '.ps1', '.dockerfile', '.makefile',
+    '.js',
+    '.ts',
+    '.jsx',
+    '.tsx',
+    '.py',
+    '.java',
+    '.cpp',
+    '.c',
+    '.h',
+    '.hpp',
+    '.css',
+    '.scss',
+    '.sass',
+    '.less',
+    '.html',
+    '.htm',
+    '.php',
+    '.rb',
+    '.go',
+    '.rs',
+    '.swift',
+    '.kt',
+    '.scala',
+    '.pl',
+    '.r',
+    '.m',
+    '.tex',
+    '.vue',
+    '.sql',
+    '.sh',
+    '.bat',
+    '.ps1',
+    '.dockerfile',
+    '.makefile',
     // Other text files
-    '.log', '.gitignore', '.env', '.properties', '.cfg'
+    '.log',
+    '.gitignore',
+    '.env',
+    '.properties',
+    '.cfg',
   ];
 
   const handleFiles = async (files: FileList) => {
@@ -43,11 +90,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        
+
         // Check file type
         const extension = '.' + file.name.split('.').pop()?.toLowerCase();
         if (!supportedTypes.includes(extension)) {
-          throw new Error(`Unsupported file type: ${extension}. Supported types: ${supportedTypes.join(', ')}`);
+          throw new Error(
+            `Unsupported file type: ${extension}. Supported types: ${supportedTypes.join(', ')}`
+          );
         }
 
         // Check file size (10MB limit)
@@ -71,7 +120,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       // Report success
       const totalChunks = results.reduce((sum, r) => sum + r.chunksCreated, 0);
       const totalTokens = results.reduce((sum, r) => sum + r.totalTokens, 0);
-      
+
       if (onUploadSuccess) {
         onUploadSuccess({
           success: true,
@@ -81,7 +130,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           processingTime: results.reduce((sum, r) => sum + r.processingTime, 0),
         });
       }
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Upload failed';
       if (onUploadError) {
@@ -135,7 +183,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         <select
           id="knowledge-source"
           value={selectedKnowledgeSource}
-          onChange={(e) => setSelectedKnowledgeSource(e.target.value === '' ? '' : Number(e.target.value))}
+          onChange={(e) =>
+            setSelectedKnowledgeSource(e.target.value === '' ? '' : Number(e.target.value))
+          }
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={isUploading}
         >

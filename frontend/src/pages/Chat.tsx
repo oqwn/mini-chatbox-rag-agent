@@ -32,29 +32,32 @@ export const Chat: React.FC = () => {
     const handlePermission = async (event: Event) => {
       const customEvent = event as CustomEvent;
       const decision = customEvent.detail;
-      
+
       // Continue the existing assistant message instead of creating a new conversation
       if (!isStreaming && messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
-        
+
         // Only proceed if the last message is from assistant and contains permission request
-        if (lastMessage.role === 'assistant' && lastMessage.content.includes('[MCP_PERMISSION_REQUEST]')) {
+        if (
+          lastMessage.role === 'assistant' &&
+          lastMessage.content.includes('[MCP_PERMISSION_REQUEST]')
+        ) {
           setError(null);
           setIsStreaming(true);
-          
+
           // Create a hidden user message for the backend to understand the approval
           // but don't show it in the UI
           const hiddenUserMessage: ChatMessage = { role: 'user', content: decision };
           const messagesToSend = [...messages, hiddenUserMessage];
-          
+
           // Continue streaming to the existing assistant message
           const abortController = new AbortController();
           abortControllerRef.current = abortController;
-          
+
           // Keep the permission request in the message - the PermissionCard will show decision state
           // Add a line break after the permission request for the continued response
           const currentContent = lastMessage.content;
-          
+
           // Update the message to add space for the continued response
           setMessages((prev) => {
             const newMessages = [...prev];
@@ -64,10 +67,10 @@ export const Chat: React.FC = () => {
             };
             return newMessages;
           });
-          
+
           // Set the streaming content to start after the current content
           streamingContentRef.current = currentContent + '\n\n';
-          
+
           try {
             const model = currentModel || (await apiService.getSettings()).openai.model;
             await apiService.streamMessage(
@@ -130,7 +133,7 @@ export const Chat: React.FC = () => {
         console.error('Failed to load model:', err);
       }
     };
-    
+
     // Load knowledge sources for RAG
     const loadKnowledgeSources = async () => {
       try {
@@ -140,7 +143,7 @@ export const Chat: React.FC = () => {
         console.error('Failed to load knowledge sources:', err);
       }
     };
-    
+
     loadModel();
     loadKnowledgeSources();
 
@@ -169,7 +172,7 @@ export const Chat: React.FC = () => {
     abortControllerRef.current = abortController;
 
     let userMessageContent = input.trim();
-    
+
     // If RAG is enabled, retrieve relevant context
     if (ragEnabled) {
       try {
@@ -230,7 +233,7 @@ export const Chat: React.FC = () => {
           if (abortController.signal.aborted) return;
           setError(error);
           setIsStreaming(false);
-          
+
           // Check if error indicates no function calling support
           if (error.includes('404 No endpoints found that support tool use')) {
             // Store that this model doesn't support function calling
@@ -253,7 +256,7 @@ export const Chat: React.FC = () => {
           });
 
           setIsStreaming(false);
-          
+
           // If we got here successfully, the model supports function calling
           // (or at least didn't throw the specific error)
           if (currentModel && !error) {
@@ -275,7 +278,7 @@ export const Chat: React.FC = () => {
         setMessages((prev) => prev.slice(0, -1)); // Remove empty assistant message
       } else {
         setError(errorMessage);
-        
+
         // Check if error indicates no function calling support
         if (errorMessage.includes('404 No endpoints found that support tool use')) {
           // Store that this model doesn't support function calling
@@ -366,7 +369,7 @@ export const Chat: React.FC = () => {
             </button>
           </div>
         </div>
-        
+
         {/* RAG Controls */}
         <div className="mt-3 flex items-center space-x-4">
           <label className="flex items-center">
@@ -378,11 +381,13 @@ export const Chat: React.FC = () => {
             />
             <span className="text-sm text-gray-700">Enable RAG</span>
           </label>
-          
+
           {ragEnabled && knowledgeSources.length > 0 && (
             <select
               value={selectedKnowledgeSource || ''}
-              onChange={(e) => setSelectedKnowledgeSource(e.target.value ? Number(e.target.value) : null)}
+              onChange={(e) =>
+                setSelectedKnowledgeSource(e.target.value ? Number(e.target.value) : null)
+              }
               className="text-sm border border-gray-300 rounded px-2 py-1"
             >
               <option value="">All sources</option>
@@ -393,7 +398,7 @@ export const Chat: React.FC = () => {
               ))}
             </select>
           )}
-          
+
           {ragEnabled && (
             <span className="text-xs text-green-600">
               ✓ RAG enabled - using knowledge base for context

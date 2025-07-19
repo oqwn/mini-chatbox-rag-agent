@@ -22,7 +22,8 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
     };
 
     // Check if content contains permission request
-    const permissionRegex = /\[MCP_PERMISSION_REQUEST\]\s*TOOL:\s*(.+?)\s*DESCRIPTION:\s*(.+?)\s*PURPOSE:\s*(.+?)\s*\[\/MCP_PERMISSION_REQUEST\]/s;
+    const permissionRegex =
+      /\[MCP_PERMISSION_REQUEST\]\s*TOOL:\s*(.+?)\s*DESCRIPTION:\s*(.+?)\s*PURPOSE:\s*(.+?)\s*\[\/MCP_PERMISSION_REQUEST\]/s;
     const permissionMatch = content.match(permissionRegex);
 
     if (permissionMatch) {
@@ -42,10 +43,10 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
               {beforePermission}
             </ReactMarkdown>
           )}
-          <PermissionCard 
-            toolName={tool.trim()} 
-            description={description.trim()} 
-            purpose={purpose.trim()} 
+          <PermissionCard
+            toolName={tool.trim()}
+            description={description.trim()}
+            purpose={purpose.trim()}
           />
           {afterPermission && (
             <ReactMarkdown

@@ -3,7 +3,6 @@ import { apiService, SettingsResponse } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { StorageService } from '../services/storage';
 
-
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -58,7 +57,7 @@ export const Settings: React.FC = () => {
       }
 
       setLoading(false);
-      
+
       // Auto-check capabilities for available models
       await checkAvailableModelsCapabilities(response.openai.availableModels);
     } catch (error) {
@@ -70,7 +69,7 @@ export const Settings: React.FC = () => {
   const checkAvailableModelsCapabilities = async (models: string[]) => {
     // Only check models we haven't tested recently (within last 24 hours)
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    
+
     for (const modelName of models) {
       const capability = StorageService.getModelCapability(modelName);
       if (!capability || capability.lastChecked < oneDayAgo) {
@@ -88,7 +87,7 @@ export const Settings: React.FC = () => {
 
   const testModelCapability = async (modelName: string) => {
     if (!modelName || checkingModel) return;
-    
+
     setCheckingModel(true);
     try {
       const result = await apiService.testModelCapabilities(modelName);
@@ -340,7 +339,6 @@ export const Settings: React.FC = () => {
                 </span>
               </div>
             )}
-
           </div>
         </div>
 

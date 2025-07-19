@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:20001';
 
 export interface KnowledgeSource {
   id?: number;
@@ -85,7 +85,7 @@ export interface SystemInfo {
 class RagApiService {
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${API_BASE_URL}/api/rag${endpoint}`;
-    
+
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -103,7 +103,9 @@ class RagApiService {
   }
 
   // Knowledge Sources
-  async createKnowledgeSource(source: Omit<KnowledgeSource, 'id'>): Promise<{ id: number; message: string }> {
+  async createKnowledgeSource(
+    source: Omit<KnowledgeSource, 'id'>
+  ): Promise<{ id: number; message: string }> {
     return this.request('/knowledge-sources', {
       method: 'POST',
       body: JSON.stringify(source),
@@ -139,11 +141,11 @@ class RagApiService {
   ): Promise<IngestionResult> {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     if (knowledgeSourceId) {
       formData.append('knowledgeSourceId', knowledgeSourceId.toString());
     }
-    
+
     if (metadata) {
       formData.append('metadata', JSON.stringify(metadata));
     }

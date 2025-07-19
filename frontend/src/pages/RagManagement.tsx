@@ -5,7 +5,9 @@ import { FileUpload } from '../components/FileUpload';
 
 export const RagManagement: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'upload' | 'documents' | 'sources' | 'system'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'documents' | 'sources' | 'system'>(
+    'upload'
+  );
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
@@ -78,7 +80,9 @@ export const RagManagement: React.FC = () => {
         selectedSourceForText ? Number(selectedSourceForText) : undefined
       );
 
-      setSuccess(`Text ingested successfully: ${result.chunksCreated} chunks created, ${result.totalTokens} tokens`);
+      setSuccess(
+        `Text ingested successfully: ${result.chunksCreated} chunks created, ${result.totalTokens} tokens`
+      );
       setTextTitle('');
       setTextContent('');
       setSelectedSourceForText('');
@@ -144,7 +148,8 @@ export const RagManagement: React.FC = () => {
             <div className="text-sm text-gray-600">
               {systemInfo && (
                 <span>
-                  {systemInfo.database.documentsCount} documents • {systemInfo.database.chunksCount} chunks
+                  {systemInfo.database.documentsCount} documents • {systemInfo.database.chunksCount}{' '}
+                  chunks
                 </span>
               )}
             </div>
@@ -218,7 +223,9 @@ export const RagManagement: React.FC = () => {
               <FileUpload
                 knowledgeSources={knowledgeSources}
                 onUploadSuccess={(result) => {
-                  setSuccess(`File uploaded successfully: ${result.chunksCreated} chunks created, ${result.totalTokens} tokens`);
+                  setSuccess(
+                    `File uploaded successfully: ${result.chunksCreated} chunks created, ${result.totalTokens} tokens`
+                  );
                   loadData();
                 }}
                 onUploadError={(error) => setError(error)}
@@ -251,7 +258,9 @@ export const RagManagement: React.FC = () => {
                   <select
                     id="text-source"
                     value={selectedSourceForText}
-                    onChange={(e) => setSelectedSourceForText(e.target.value === '' ? '' : Number(e.target.value))}
+                    onChange={(e) =>
+                      setSelectedSourceForText(e.target.value === '' ? '' : Number(e.target.value))
+                    }
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select a knowledge source...</option>
@@ -318,7 +327,8 @@ export const RagManagement: React.FC = () => {
                         )}
                         {doc.knowledgeSourceId && (
                           <span>
-                            Source: {knowledgeSources.find(s => s.id === doc.knowledgeSourceId)?.name}
+                            Source:{' '}
+                            {knowledgeSources.find((s) => s.id === doc.knowledgeSourceId)?.name}
                           </span>
                         )}
                       </div>
@@ -357,7 +367,10 @@ export const RagManagement: React.FC = () => {
               <form onSubmit={handleCreateKnowledgeSource} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="source-name" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="source-name"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       Name
                     </label>
                     <input
@@ -371,7 +384,10 @@ export const RagManagement: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="source-type" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="source-type"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       Type
                     </label>
                     <select
@@ -388,7 +404,10 @@ export const RagManagement: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="source-description" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="source-description"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Description (Optional)
                   </label>
                   <textarea
@@ -429,7 +448,8 @@ export const RagManagement: React.FC = () => {
                             {source.sourceType}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {documents.filter(d => d.knowledgeSourceId === source.id).length} documents
+                            {documents.filter((d) => d.knowledgeSourceId === source.id).length}{' '}
+                            documents
                           </span>
                         </div>
                       </div>
@@ -462,7 +482,9 @@ export const RagManagement: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Knowledge Sources:</span>
-                  <span className="text-sm font-medium">{systemInfo.database.knowledgeSourcesCount}</span>
+                  <span className="text-sm font-medium">
+                    {systemInfo.database.knowledgeSourcesCount}
+                  </span>
                 </div>
               </div>
             </div>
@@ -481,11 +503,15 @@ export const RagManagement: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Max Tokens:</span>
-                  <span className="text-sm font-medium">{systemInfo.embedding.maxTokens.toLocaleString()}</span>
+                  <span className="text-sm font-medium">
+                    {systemInfo.embedding.maxTokens.toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Status:</span>
-                  <span className={`text-sm font-medium ${systemInfo.embedding.isConfigured ? 'text-green-600' : 'text-red-600'}`}>
+                  <span
+                    className={`text-sm font-medium ${systemInfo.embedding.isConfigured ? 'text-green-600' : 'text-red-600'}`}
+                  >
                     {systemInfo.embedding.isConfigured ? 'Configured' : 'Not Configured'}
                   </span>
                 </div>
@@ -498,15 +524,21 @@ export const RagManagement: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Status:</span>
-                  <span className="text-sm font-medium text-green-600">{systemInfo.system.status}</span>
+                  <span className="text-sm font-medium text-green-600">
+                    {systemInfo.system.status}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Average Chunk Size:</span>
-                  <span className="text-sm font-medium">{systemInfo.retrieval.averageChunkSize} chars</span>
+                  <span className="text-sm font-medium">
+                    {systemInfo.retrieval.averageChunkSize} chars
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Embedding Coverage:</span>
-                  <span className="text-sm font-medium">{(systemInfo.retrieval.embeddingCoverage * 100).toFixed(1)}%</span>
+                  <span className="text-sm font-medium">
+                    {(systemInfo.retrieval.embeddingCoverage * 100).toFixed(1)}%
+                  </span>
                 </div>
                 <div className="text-xs text-gray-500 mt-4">
                   Last updated: {formatDate(systemInfo.system.timestamp)}

@@ -200,7 +200,6 @@ class ApiService {
       body: JSON.stringify({ model }),
     });
   }
-
 }
 
 export const apiService = new ApiService();
