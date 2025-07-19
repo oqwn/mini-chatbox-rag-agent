@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -36,6 +36,50 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
     );
   }
 );
+
+// Code block component with copy functionality
+const CodeBlock: React.FC<{
+  className?: string;
+  children: any;
+  language?: string;
+  onCopy: (text: string) => void;
+  isCopied: boolean;
+}> = ({ className, children, language, onCopy, isCopied }) => {
+  const codeRef = useRef<HTMLElement>(null);
+
+  const handleCopy = () => {
+    if (codeRef.current) {
+      const codeText = codeRef.current.textContent || '';
+      onCopy(codeText);
+    }
+  };
+
+  return (
+    <div className="relative mb-4 group">
+      <div className="absolute top-0 right-0 flex items-center gap-2 z-10">
+        {language && (
+          <div className="text-xs text-gray-600 bg-gray-200 px-2 py-1 rounded-bl">{language}</div>
+        )}
+        <button
+          onClick={handleCopy}
+          className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded-bl transition-colors"
+          title="Copy code"
+        >
+          {isCopied ? (
+            <span className="text-green-600">Copied!</span>
+          ) : (
+            <span className="text-gray-700">Copy</span>
+          )}
+        </button>
+      </div>
+      <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto">
+        <code ref={codeRef} className={className}>
+          {children}
+        </code>
+      </pre>
+    </div>
+  );
+};
 
 // Track code block index
 let codeBlockIndex = 0;
@@ -77,34 +121,16 @@ const markdownComponents = (
 
       if (!inline) {
         const currentIndex = codeBlockIndex++;
-        const codeString = String(children).replace(/\n$/, '');
 
         return (
-          <div className="relative mb-4 group">
-            <div className="absolute top-0 right-0 flex items-center gap-2">
-              {match && (
-                <div className="text-xs text-gray-600 bg-gray-200 px-2 py-1 rounded-bl">
-                  {match[1]}
-                </div>
-              )}
-              <button
-                onClick={() => handleCopyCode(codeString, currentIndex)}
-                className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded-bl transition-colors"
-                title="Copy code"
-              >
-                {copiedIndex === currentIndex ? (
-                  <span className="text-green-600">Copied!</span>
-                ) : (
-                  <span className="text-gray-700">Copy</span>
-                )}
-              </button>
-            </div>
-            <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto">
-              <code className={className} {...props}>
-                {children}
-              </code>
-            </pre>
-          </div>
+          <CodeBlock
+            className={className}
+            language={match?.[1]}
+            onCopy={(text) => handleCopyCode(text, currentIndex)}
+            isCopied={copiedIndex === currentIndex}
+          >
+            {children}
+          </CodeBlock>
         );
       }
 
