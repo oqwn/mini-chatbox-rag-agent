@@ -28,8 +28,20 @@ export class EmbeddingFactory {
   static createEmbeddingService(logger: Logger): IEmbeddingService {
     const openaiApiKey = process.env.OPENAI_API_KEY;
 
-    if (openaiApiKey && openaiApiKey.trim()) {
-      logger.info('Using OpenAI embedding service (API key provided)');
+    // Enhanced validation to catch more placeholder patterns
+    const isValidApiKey =
+      openaiApiKey &&
+      openaiApiKey.trim() &&
+      openaiApiKey.length > 20 && // Valid OpenAI keys are much longer
+      openaiApiKey.startsWith('sk-') &&
+      !openaiApiKey.includes('your-') &&
+      !openaiApiKey.includes('***') &&
+      !openaiApiKey.includes('placeholder') &&
+      !openaiApiKey.includes('here') &&
+      !/sk-[a-zA-Z0-9*]{10,20}here/.test(openaiApiKey); // Pattern like "sk-ope************here"
+
+    if (isValidApiKey) {
+      logger.info('Using OpenAI embedding service (valid API key provided)');
       try {
         return new EmbeddingService(logger);
       } catch (error) {
@@ -37,7 +49,13 @@ export class EmbeddingFactory {
         return new LocalEmbeddingService(logger);
       }
     } else {
-      logger.info('No OpenAI API key found, using local embedding service');
+      if (openaiApiKey && openaiApiKey.trim()) {
+        logger.info(
+          `Invalid or placeholder OpenAI API key detected (${openaiApiKey.substring(0, 10)}...), using local embedding service`
+        );
+      } else {
+        logger.info('No OpenAI API key found, using local embedding service');
+      }
       return new LocalEmbeddingService(logger);
     }
   }
