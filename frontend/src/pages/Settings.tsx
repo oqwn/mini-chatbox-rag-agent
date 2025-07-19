@@ -17,6 +17,7 @@ export const Settings: React.FC = () => {
   const [storedApiKey, setStoredApiKey] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [modelSupportsTools, setModelSupportsTools] = useState<boolean | null>(null);
+  const [checkingModel, setCheckingModel] = useState(false);
 
   useEffect(() => {
     // Load from local storage first
@@ -57,9 +58,47 @@ export const Settings: React.FC = () => {
       }
 
       setLoading(false);
+      
+      // Auto-check capabilities for available models
+      await checkAvailableModelsCapabilities(response.openai.availableModels);
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to load settings' });
       setLoading(false);
+    }
+  };
+
+  const checkAvailableModelsCapabilities = async (models: string[]) => {
+    // Only check models we haven't tested recently (within last 24 hours)
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    
+    for (const modelName of models) {
+      const capability = StorageService.getModelCapability(modelName);
+      if (!capability || capability.lastChecked < oneDayAgo) {
+        // Test this model in the background
+        try {
+          const result = await apiService.testModelCapabilities(modelName);
+          StorageService.setModelCapability(modelName, result.supportsFunctionCalling);
+        } catch (error) {
+          // Silently fail for background checks
+          console.warn(`Failed to check capabilities for model ${modelName}:`, error);
+        }
+      }
+    }
+  };
+
+  const testModelCapability = async (modelName: string) => {
+    if (!modelName || checkingModel) return;
+    
+    setCheckingModel(true);
+    try {
+      const result = await apiService.testModelCapabilities(modelName);
+      StorageService.setModelCapability(modelName, result.supportsFunctionCalling);
+      setModelSupportsTools(result.supportsFunctionCalling);
+    } catch (error) {
+      console.error('Failed to test model capabilities:', error);
+      // Don't show error to user for capability testing
+    } finally {
+      setCheckingModel(false);
     }
   };
 
@@ -216,6 +255,10 @@ export const Settings: React.FC = () => {
                     setModelSupportsTools(capability.supportsFunctionCalling);
                   } else {
                     setModelSupportsTools(null);
+                    // Auto-test the model if we have API configuration
+                    if (hasStoredApiKey || apiKey) {
+                      testModelCapability(newModel);
+                    }
                   }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -240,6 +283,10 @@ export const Settings: React.FC = () => {
                     setModelSupportsTools(capability.supportsFunctionCalling);
                   } else {
                     setModelSupportsTools(null);
+                    // Auto-test the model if we have API configuration
+                    if (hasStoredApiKey || apiKey) {
+                      testModelCapability(newModel);
+                    }
                   }
                 }}
                 placeholder="Enter model name (e.g., gpt-4, claude-3-opus)"
@@ -276,11 +323,20 @@ export const Settings: React.FC = () => {
               </div>
             )}
 
-            {model && modelSupportsTools === null && (
+            {model && modelSupportsTools === null && !checkingModel && (
               <div className="mt-2 p-2 rounded-md text-sm bg-gray-50 border border-gray-200 text-gray-600">
                 <span className="font-medium">ℹ Model capability unknown</span>
                 <span className="block text-xs mt-1">
                   Function calling support will be detected when you use this model in chat
+                </span>
+              </div>
+            )}
+
+            {checkingModel && (
+              <div className="mt-2 p-2 rounded-md text-sm bg-blue-50 border border-blue-200 text-blue-700">
+                <span className="font-medium">🔍 Checking model capabilities...</span>
+                <span className="block text-xs mt-1">
+                  Testing if this model supports function calling
                 </span>
               </div>
             )}

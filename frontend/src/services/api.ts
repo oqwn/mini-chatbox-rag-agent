@@ -193,6 +193,28 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  async testModelCapabilities(model: string): Promise<{ supportsFunctionCalling: boolean }> {
+    // Send a simple test message with a dummy tool to check if the model supports function calling
+    const testMessages: ChatMessage[] = [
+      { role: 'user', content: 'Say "test" without using any tools.' },
+    ];
+    
+    try {
+      // Try to send with a simple options that might trigger tool use check
+      await this.sendMessage(testMessages, { model });
+      // If successful, we can't definitively say it supports tools
+      // We'll rely on actual usage to determine this
+      return { supportsFunctionCalling: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('404 No endpoints found that support tool use')) {
+        return { supportsFunctionCalling: false };
+      }
+      // For other errors, we can't determine capability
+      throw error;
+    }
+  }
 }
 
 export const apiService = new ApiService();
