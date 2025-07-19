@@ -8,6 +8,28 @@ import multer from 'multer';
 import { promises as fs } from 'fs';
 import { FILE_CONFIG, getAllSupportedExtensions, getFileExtension } from '../config/file-types';
 
+// Utility function to fix UTF-8 encoding issues in filenames
+function fixFilenameEncoding(filename: string): string {
+  try {
+    // Check if filename appears to be mis-encoded UTF-8 (common with Chinese characters)
+    const decoded = Buffer.from(filename, 'latin1').toString('utf8');
+
+    // Simple heuristic: if decoded version has fewer replacement characters, use it
+    // Also check if the decoded version contains valid Chinese characters
+    const hasChineseChars = /[\u4e00-\u9fff]/.test(decoded);
+    const hasFewerReplacementChars =
+      decoded.split('\ufffd').length < filename.split('\ufffd').length;
+
+    if (hasChineseChars || hasFewerReplacementChars) {
+      return decoded;
+    }
+  } catch (error) {
+    // If decoding fails, return original filename
+  }
+
+  return filename;
+}
+
 // Configure multer for file uploads using shared config
 const upload = multer({
   dest: 'uploads/',
@@ -16,6 +38,9 @@ const upload = multer({
     fieldSize: 1024 * 1024, // 1MB field limit
   },
   fileFilter: (_req, file, cb) => {
+    // Fix UTF-8 encoding for Chinese filenames
+    file.originalname = fixFilenameEncoding(file.originalname);
+
     const allowedTypes = getAllSupportedExtensions();
     const ext = getFileExtension(file.originalname);
 
@@ -115,7 +140,8 @@ export class RagController {
 
       const { knowledgeSourceId, metadata } = req.body;
       const filePath = req.file.path;
-      const originalFileName = req.file.originalname;
+      // Ensure filename encoding is correct
+      const originalFileName = fixFilenameEncoding(req.file.originalname);
 
       try {
         const result = await this.documentIngestionService.ingestFile(filePath, {

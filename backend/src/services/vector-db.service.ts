@@ -55,6 +55,8 @@ export class VectorDbService {
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
+      // Ensure UTF-8 encoding for PostgreSQL connections
+      options: '--client_encoding=UTF8',
     });
 
     // Test connection

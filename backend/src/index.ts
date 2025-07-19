@@ -86,8 +86,15 @@ app.use(
     credentials: true,
   })
 );
+// Configure Express to handle UTF-8 properly
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Set UTF-8 headers for all responses
+app.use((_req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
