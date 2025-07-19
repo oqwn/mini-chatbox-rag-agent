@@ -3,6 +3,7 @@ import { apiService, ChatMessage } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { MCPToolsPanel } from '../components/MCPToolsPanel';
 import { StreamingMarkdown } from '../components/StreamingMarkdown';
+import { StorageService } from '../services/storage';
 import '../styles/markdown.css';
 
 export const Chat: React.FC = () => {
@@ -107,6 +108,14 @@ export const Chat: React.FC = () => {
           if (abortController.signal.aborted) return;
           setError(error);
           setIsStreaming(false);
+          
+          // Check if error indicates no function calling support
+          if (error.includes('404 No endpoints found that support tool use')) {
+            // Store that this model doesn't support function calling
+            if (currentModel) {
+              StorageService.setModelCapability(currentModel, false);
+            }
+          }
         },
         () => {
           if (abortController.signal.aborted) return;
@@ -122,6 +131,16 @@ export const Chat: React.FC = () => {
           });
 
           setIsStreaming(false);
+          
+          // If we got here successfully, the model supports function calling
+          // (or at least didn't throw the specific error)
+          if (currentModel && !error) {
+            const capability = StorageService.getModelCapability(currentModel);
+            if (!capability) {
+              // Only set to true if we haven't recorded it before
+              StorageService.setModelCapability(currentModel, true);
+            }
+          }
         },
         abortController.signal
       );
@@ -134,6 +153,14 @@ export const Chat: React.FC = () => {
         setMessages((prev) => prev.slice(0, -1)); // Remove empty assistant message
       } else {
         setError(errorMessage);
+        
+        // Check if error indicates no function calling support
+        if (errorMessage.includes('404 No endpoints found that support tool use')) {
+          // Store that this model doesn't support function calling
+          if (currentModel) {
+            StorageService.setModelCapability(currentModel, false);
+          }
+        }
       }
       setIsStreaming(false);
     }

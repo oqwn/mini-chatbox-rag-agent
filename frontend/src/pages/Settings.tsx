@@ -3,76 +3,6 @@ import { apiService, SettingsResponse } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { StorageService } from '../services/storage';
 
-// Models that support function calling (tools)
-const MODELS_WITH_FUNCTION_CALLING = [
-  // OpenAI models
-  'gpt-3.5-turbo',
-  'gpt-3.5-turbo-16k',
-  'gpt-3.5-turbo-0613',
-  'gpt-3.5-turbo-16k-0613',
-  'gpt-4',
-  'gpt-4-0613',
-  'gpt-4-32k',
-  'gpt-4-32k-0613',
-  'gpt-4-turbo',
-  'gpt-4-turbo-preview',
-  'gpt-4-turbo-2024-04-09',
-  'gpt-4o',
-  'gpt-4o-mini',
-  'gpt-4o-2024-05-13',
-  'gpt-4o-2024-08-06',
-  // Anthropic models (via OpenRouter or other providers)
-  'claude-3-opus',
-  'claude-3-sonnet',
-  'claude-3-haiku',
-  'claude-3-opus-20240229',
-  'claude-3-sonnet-20240229',
-  'claude-3-haiku-20240307',
-  'anthropic/claude-3-opus',
-  'anthropic/claude-3-sonnet',
-  'anthropic/claude-3-haiku',
-  // Google models
-  'gemini-pro',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash',
-  'google/gemini-pro',
-  'google/gemini-1.5-pro',
-  // Mistral models
-  'mistral-large',
-  'mistral-medium',
-  'mistralai/mistral-large',
-  'mistralai/mistral-medium',
-  // Chinese AI models
-  'deepseek-r1-0528',
-  'deepseek-v3',
-  'deepseek-coder',
-  'deepseek-chat',
-  'qwen2-',
-  'qwen2.5-',
-  'qwen-max',
-  'qwen-plus',
-  'qwen-turbo',
-  'glm-4',
-  'glm-4-plus',
-  'glm-4-air',
-  'glm-4-flash',
-  'glm-4-9b',
-  'chatglm3-6b',
-  'chatglm3-turbo',
-  'yi-large',
-  'yi-34b',
-  'yi-medium',
-  // Some Chinese models via API providers
-  'zhipu/glm-4',
-  'alibaba/qwen',
-  '01ai/yi-large',
-];
-
-const checkModelSupportsTools = (modelName: string): boolean => {
-  if (!modelName) return false;
-  const lowerModel = modelName.toLowerCase();
-  return MODELS_WITH_FUNCTION_CALLING.some((m) => lowerModel.includes(m.toLowerCase()));
-};
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -86,6 +16,7 @@ export const Settings: React.FC = () => {
   const [showStoredKey, setShowStoredKey] = useState(false);
   const [storedApiKey, setStoredApiKey] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [modelSupportsTools, setModelSupportsTools] = useState<boolean | null>(null);
 
   useEffect(() => {
     // Load from local storage first
@@ -100,7 +31,14 @@ export const Settings: React.FC = () => {
       setStoredApiKey(savedApiKey);
     }
     if (storedBaseUrl) setBaseUrl(storedBaseUrl);
-    if (storedModel) setModel(storedModel);
+    if (storedModel) {
+      setModel(storedModel);
+      // Check stored capability
+      const capability = StorageService.getModelCapability(storedModel);
+      if (capability) {
+        setModelSupportsTools(capability.supportsFunctionCalling);
+      }
+    }
 
     loadSettings();
   }, []);
@@ -269,7 +207,17 @@ export const Settings: React.FC = () => {
               <select
                 id="model"
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => {
+                  const newModel = e.target.value;
+                  setModel(newModel);
+                  // Check if we have cached capability for this model
+                  const capability = StorageService.getModelCapability(newModel);
+                  if (capability) {
+                    setModelSupportsTools(capability.supportsFunctionCalling);
+                  } else {
+                    setModelSupportsTools(null);
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {settings.openai.availableModels.map((m) => (
@@ -283,23 +231,33 @@ export const Settings: React.FC = () => {
                 type="text"
                 id="model"
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => {
+                  const newModel = e.target.value;
+                  setModel(newModel);
+                  // Check if we have cached capability for this model
+                  const capability = StorageService.getModelCapability(newModel);
+                  if (capability) {
+                    setModelSupportsTools(capability.supportsFunctionCalling);
+                  } else {
+                    setModelSupportsTools(null);
+                  }
+                }}
                 placeholder="Enter model name (e.g., gpt-4, claude-3-opus)"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             )}
             <p className="mt-1 text-sm text-gray-500">Select the AI model to use for chat</p>
 
-            {/* Function calling support indicator */}
-            {model && (
+            {/* Model capability indicator */}
+            {model && modelSupportsTools !== null && (
               <div
                 className={`mt-2 p-2 rounded-md text-sm ${
-                  checkModelSupportsTools(model)
+                  modelSupportsTools
                     ? 'bg-green-50 border border-green-200 text-green-700'
                     : 'bg-yellow-50 border border-yellow-200 text-yellow-700'
                 }`}
               >
-                {checkModelSupportsTools(model) ? (
+                {modelSupportsTools ? (
                   <>
                     <span className="font-medium">✓ Function calling supported</span>
                     <span className="block text-xs mt-1">
@@ -317,6 +275,16 @@ export const Settings: React.FC = () => {
                 )}
               </div>
             )}
+
+            {model && modelSupportsTools === null && (
+              <div className="mt-2 p-2 rounded-md text-sm bg-gray-50 border border-gray-200 text-gray-600">
+                <span className="font-medium">ℹ Model capability unknown</span>
+                <span className="block text-xs mt-1">
+                  Function calling support will be detected when you use this model in chat
+                </span>
+              </div>
+            )}
+
           </div>
         </div>
 
@@ -355,6 +323,7 @@ export const Settings: React.FC = () => {
                 setHasStoredApiKey(false);
                 setStoredApiKey('');
                 setShowStoredKey(false);
+                setModelSupportsTools(null);
                 setMessage({ type: 'success', text: 'Settings cleared from local storage' });
               }
             }}
