@@ -77,11 +77,20 @@ const markdownComponents = (
 
       if (!inline) {
         const currentIndex = codeBlockIndex++;
-        const codeString = String(children).replace(/\n$/, '');
+
+        // Extract text content from children (handles both string and React elements)
+        const extractText = (node: any): string => {
+          if (typeof node === 'string') return node;
+          if (Array.isArray(node)) return node.map(extractText).join('');
+          if (node?.props?.children) return extractText(node.props.children);
+          return '';
+        };
+
+        const codeString = extractText(children).replace(/\n$/, '');
 
         return (
           <div className="relative mb-4 group">
-            <div className="absolute top-0 right-0 flex items-center gap-2">
+            <div className="absolute top-0 right-0 flex items-center gap-2 z-10">
               {match && (
                 <div className="text-xs text-gray-600 bg-gray-200 px-2 py-1 rounded-bl">
                   {match[1]}
