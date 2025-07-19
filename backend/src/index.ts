@@ -42,23 +42,28 @@ const app = express();
 // Middleware
 app.use(helmet());
 // Disable compression for SSE endpoints
-app.use(compression({ 
-  filter: (req, res) => {
-    if (req.path === '/api/chat/stream') {
-      return false;
-    }
-    return compression.filter(req, res);
-  }
-}));
+app.use(
+  compression({
+    filter: (req, res) => {
+      if (req.path === '/api/chat/stream') {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 // Parse CORS origins
-const corsOrigins = configService.get('CORS_ORIGIN').split(',').map(origin => origin.trim());
+const corsOrigins = configService
+  .get('CORS_ORIGIN')
+  .split(',')
+  .map((origin) => origin.trim());
 
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      
+
       if (corsOrigins.includes(origin)) {
         callback(null, true);
       } else {

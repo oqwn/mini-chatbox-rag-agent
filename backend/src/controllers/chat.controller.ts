@@ -32,12 +32,37 @@ export class ChatController {
       const mcpTools = await this.mcpService.getAllTools();
       this.logger.info(`Found ${mcpTools.length} MCP tools available`);
 
+      // Check if the last assistant message contains a permission request
+      let additionalContext = '';
+      if (messages.length >= 2) {
+        const lastAssistantMsg = messages[messages.length - 2];
+        const lastUserMsg = messages[messages.length - 1];
+
+        if (
+          lastAssistantMsg.role === 'assistant' &&
+          lastAssistantMsg.content.includes('[MCP_PERMISSION_REQUEST]') &&
+          lastUserMsg.role === 'user'
+        ) {
+          const userResponse = lastUserMsg.content.toLowerCase();
+          if (
+            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) => userResponse.includes(word))
+          ) {
+            // Extract tool name from permission request
+            const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
+            if (toolMatch) {
+              additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
+            }
+          }
+        }
+      }
+
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
-      const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n') || 'No tools available';
+      const toolNames =
+        mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n') || 'No tools available';
       this.logger.info(`Tool names for prompt: ${toolNames}`);
       let systemPrompt: string;
-      
+
       try {
         systemPrompt = this.promptService.getPrompt('mcp-system.md', {
           TOOL_NAMES: toolNames,
@@ -47,10 +72,10 @@ export class ChatController {
         this.logger.error('Failed to load prompt from file, using fallback:', error);
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
       }
-      
+
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt,
+        content: systemPrompt + additionalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -119,12 +144,37 @@ export class ChatController {
       const mcpTools = await this.mcpService.getAllTools();
       this.logger.info(`Found ${mcpTools.length} MCP tools available`);
 
+      // Check if the last assistant message contains a permission request
+      let additionalContext = '';
+      if (messages.length >= 2) {
+        const lastAssistantMsg = messages[messages.length - 2];
+        const lastUserMsg = messages[messages.length - 1];
+
+        if (
+          lastAssistantMsg.role === 'assistant' &&
+          lastAssistantMsg.content.includes('[MCP_PERMISSION_REQUEST]') &&
+          lastUserMsg.role === 'user'
+        ) {
+          const userResponse = lastUserMsg.content.toLowerCase();
+          if (
+            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) => userResponse.includes(word))
+          ) {
+            // Extract tool name from permission request
+            const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
+            if (toolMatch) {
+              additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
+            }
+          }
+        }
+      }
+
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
-      const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n') || 'No tools available';
+      const toolNames =
+        mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n') || 'No tools available';
       this.logger.info(`Tool names for prompt: ${toolNames}`);
       let systemPrompt: string;
-      
+
       try {
         systemPrompt = this.promptService.getPrompt('mcp-system.md', {
           TOOL_NAMES: toolNames,
@@ -134,10 +184,10 @@ export class ChatController {
         this.logger.error('Failed to load prompt from file, using fallback:', error);
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
       }
-      
+
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt,
+        content: systemPrompt + additionalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -187,7 +237,7 @@ export class ChatController {
   </div>
 </div>`;
             }
-            
+
             // Find the tool and invoke it
             const tool = mcpTools.find((t) => t.name === toolName);
             if (tool) {
