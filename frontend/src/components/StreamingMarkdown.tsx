@@ -73,9 +73,10 @@ const markdownComponents = (
     ),
     code: ({ className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || '');
-      const inline = !className?.startsWith('language-');
+      // ReactMarkdown passes inline prop to distinguish code blocks from inline code
+      const isInlineCode = props.inline === true;
 
-      if (!inline) {
+      if (!isInlineCode) {
         const currentIndex = codeBlockIndex++;
 
         // Extract text content from children (handles both string and React elements)
