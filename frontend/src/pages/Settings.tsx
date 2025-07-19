@@ -3,6 +3,53 @@ import { apiService, SettingsResponse } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { StorageService } from '../services/storage';
 
+// Models that support function calling (tools)
+const MODELS_WITH_FUNCTION_CALLING = [
+  // OpenAI models
+  'gpt-3.5-turbo',
+  'gpt-3.5-turbo-16k',
+  'gpt-3.5-turbo-0613',
+  'gpt-3.5-turbo-16k-0613',
+  'gpt-4',
+  'gpt-4-0613',
+  'gpt-4-32k',
+  'gpt-4-32k-0613',
+  'gpt-4-turbo',
+  'gpt-4-turbo-preview',
+  'gpt-4-turbo-2024-04-09',
+  'gpt-4o',
+  'gpt-4o-mini',
+  'gpt-4o-2024-05-13',
+  'gpt-4o-2024-08-06',
+  // Anthropic models (via OpenRouter or other providers)
+  'claude-3-opus',
+  'claude-3-sonnet',
+  'claude-3-haiku',
+  'claude-3-opus-20240229',
+  'claude-3-sonnet-20240229',
+  'claude-3-haiku-20240307',
+  'anthropic/claude-3-opus',
+  'anthropic/claude-3-sonnet',
+  'anthropic/claude-3-haiku',
+  // Google models
+  'gemini-pro',
+  'gemini-1.5-pro',
+  'gemini-1.5-flash',
+  'google/gemini-pro',
+  'google/gemini-1.5-pro',
+  // Mistral models
+  'mistral-large',
+  'mistral-medium',
+  'mistralai/mistral-large',
+  'mistralai/mistral-medium',
+];
+
+const checkModelSupportsTools = (modelName: string): boolean => {
+  if (!modelName) return false;
+  const lowerModel = modelName.toLowerCase();
+  return MODELS_WITH_FUNCTION_CALLING.some((m) => lowerModel.includes(m.toLowerCase()));
+};
+
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -218,6 +265,34 @@ export const Settings: React.FC = () => {
               />
             )}
             <p className="mt-1 text-sm text-gray-500">Select the AI model to use for chat</p>
+
+            {/* Function calling support indicator */}
+            {model && (
+              <div
+                className={`mt-2 p-2 rounded-md text-sm ${
+                  checkModelSupportsTools(model)
+                    ? 'bg-green-50 border border-green-200 text-green-700'
+                    : 'bg-yellow-50 border border-yellow-200 text-yellow-700'
+                }`}
+              >
+                {checkModelSupportsTools(model) ? (
+                  <>
+                    <span className="font-medium">✓ Function calling supported</span>
+                    <span className="block text-xs mt-1">
+                      This model supports MCP tools and function calling features
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium">⚠ Function calling not supported</span>
+                    <span className="block text-xs mt-1">
+                      This model does not support MCP tools or function calling. Choose a compatible
+                      model to use these features.
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
