@@ -42,6 +42,30 @@ const MODELS_WITH_FUNCTION_CALLING = [
   'mistral-medium',
   'mistralai/mistral-large',
   'mistralai/mistral-medium',
+  // Chinese AI models
+  'deepseek-r1-0528',
+  'deepseek-v3',
+  'deepseek-coder',
+  'deepseek-chat',
+  'qwen2-',
+  'qwen2.5-',
+  'qwen-max',
+  'qwen-plus',
+  'qwen-turbo',
+  'glm-4',
+  'glm-4-plus',
+  'glm-4-air',
+  'glm-4-flash',
+  'glm-4-9b',
+  'chatglm3-6b',
+  'chatglm3-turbo',
+  'yi-large',
+  'yi-34b',
+  'yi-medium',
+  // Some Chinese models via API providers
+  'zhipu/glm-4',
+  'alibaba/qwen',
+  '01ai/yi-large',
 ];
 
 const checkModelSupportsTools = (modelName: string): boolean => {
