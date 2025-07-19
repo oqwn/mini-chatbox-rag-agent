@@ -47,24 +47,22 @@ export const Chat: React.FC = () => {
           const abortController = new AbortController();
           abortControllerRef.current = abortController;
           
-          // Remove the permission request from the current message
-          const cleanedContent = lastMessage.content.replace(
-            /\[MCP_PERMISSION_REQUEST\][\s\S]*?\[\/MCP_PERMISSION_REQUEST\]/,
-            ''
-          ).trim();
+          // Keep the permission request in the message - the PermissionCard will show decision state
+          // Add a line break after the permission request for the continued response
+          const currentContent = lastMessage.content;
           
-          // Update the last message to remove the permission card
+          // Update the message to add space for the continued response
           setMessages((prev) => {
             const newMessages = [...prev];
             newMessages[newMessages.length - 1] = {
               ...newMessages[newMessages.length - 1],
-              content: cleanedContent + '\n\n',
+              content: currentContent + '\n\n',
             };
             return newMessages;
           });
           
-          // Set the streaming content to start after the cleaned content
-          streamingContentRef.current = cleanedContent + '\n\n';
+          // Set the streaming content to start after the current content
+          streamingContentRef.current = currentContent + '\n\n';
           
           try {
             const model = currentModel || (await apiService.getSettings()).openai.model;

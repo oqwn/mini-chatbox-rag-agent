@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface PermissionCardProps {
   toolName: string;
@@ -7,11 +7,15 @@ interface PermissionCardProps {
 }
 
 export const PermissionCard: React.FC<PermissionCardProps> = ({ toolName, description, purpose }) => {
+  const [decision, setDecision] = useState<'approve' | 'cancel' | null>(null);
+
   const handleApprove = () => {
+    setDecision('approve');
     window.dispatchEvent(new CustomEvent('mcp-permission', { detail: 'approve' }));
   };
 
   const handleCancel = () => {
+    setDecision('cancel');
     window.dispatchEvent(new CustomEvent('mcp-permission', { detail: 'cancel' }));
   };
 
@@ -70,48 +74,79 @@ export const PermissionCard: React.FC<PermissionCardProps> = ({ toolName, descri
         <p style={{ margin: 0, opacity: 0.9, lineHeight: 1.5 }}>{purpose}</p>
       </div>
       
-      <div style={{
-        display: 'flex',
-        gap: '12px',
-        justifyContent: 'center'
-      }}>
-        <button 
-          onClick={handleCancel}
-          style={{
-            background: 'rgba(255,255,255,0.2)',
-            border: '2px solid rgba(255,255,255,0.3)',
-            borderRadius: '8px',
-            padding: '12px 24px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            color: 'white',
-            fontSize: '16px'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-        >
-          ❌ Cancel
-        </button>
-        <button 
-          onClick={handleApprove}
-          style={{
-            background: 'rgba(255,255,255,0.9)',
-            color: '#667eea',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '12px 24px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            fontSize: '16px'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,1)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.9)'}
-        >
-          ✅ Approve
-        </button>
-      </div>
+      {decision ? (
+        // Show decision result
+        <div style={{
+          background: decision === 'approve' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+          borderRadius: '8px',
+          padding: '16px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '20px' }}>
+              {decision === 'approve' ? '✅' : '❌'}
+            </span>
+            <span style={{ fontSize: '16px', fontWeight: 600 }}>
+              User {decision === 'approve' ? 'Approved' : 'Cancelled'}
+            </span>
+          </div>
+          <p style={{ margin: '8px 0 0 0', opacity: 0.9, fontSize: '14px' }}>
+            {decision === 'approve' 
+              ? 'Tool execution proceeding...'
+              : 'Tool execution cancelled by user'
+            }
+          </p>
+        </div>
+      ) : (
+        // Show buttons for decision
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          justifyContent: 'center'
+        }}>
+          <button 
+            onClick={handleCancel}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: '2px solid rgba(255,255,255,0.3)',
+              borderRadius: '8px',
+              padding: '12px 24px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              color: 'white',
+              fontSize: '16px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+          >
+            ❌ Cancel
+          </button>
+          <button 
+            onClick={handleApprove}
+            style={{
+              background: 'rgba(255,255,255,0.9)',
+              color: '#667eea',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '12px 24px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontSize: '16px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,1)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.9)'}
+          >
+            ✅ Approve
+          </button>
+        </div>
+      )}
     </div>
   );
 };
