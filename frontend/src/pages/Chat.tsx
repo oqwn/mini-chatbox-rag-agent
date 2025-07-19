@@ -215,7 +215,7 @@ export const Chat: React.FC = () => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto py-4">
         {messages.length === 0 && (
           <div className="text-center text-gray-500 mt-20">
             <p className="text-lg mb-2">Welcome to Mini Chatbox!</p>
@@ -230,10 +230,16 @@ export const Chat: React.FC = () => {
           return (
             <div
               key={index}
-              className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}
+              className={`mb-4 ${message.role === 'user' ? 'text-right px-6' : message.role === 'system' ? 'px-6' : ''}`}
             >
               <div
-                className={`inline-block px-4 py-2 rounded-lg max-w-2xl ${
+                className={`${
+                  message.role === 'user'
+                    ? 'inline-block px-4 py-2 rounded-lg max-w-2xl'
+                    : message.role === 'assistant'
+                      ? 'px-4 py-3 rounded-lg'
+                      : 'inline-block px-4 py-2 rounded-lg max-w-2xl'
+                } ${
                   message.role === 'user'
                     ? 'bg-blue-600 text-white'
                     : message.role === 'system'
@@ -299,7 +305,7 @@ export const Chat: React.FC = () => {
         })}
 
         {error && (
-          <div className="mb-4">
+          <div className="mb-4 px-6">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               {error}
               {error.includes('not configured') && (
