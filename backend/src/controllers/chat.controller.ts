@@ -30,10 +30,12 @@ export class ChatController {
 
       // Get available MCP tools
       const mcpTools = await this.mcpService.getAllTools();
+      this.logger.info(`Found ${mcpTools.length} MCP tools available`);
 
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
       const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n') || 'No tools available';
+      this.logger.info(`Tool names for prompt: ${toolNames}`);
       let systemPrompt: string;
       
       try {
@@ -115,10 +117,12 @@ export class ChatController {
 
       // Get available MCP tools
       const mcpTools = await this.mcpService.getAllTools();
+      this.logger.info(`Found ${mcpTools.length} MCP tools available`);
 
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
       const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n') || 'No tools available';
+      this.logger.info(`Tool names for prompt: ${toolNames}`);
       let systemPrompt: string;
       
       try {
