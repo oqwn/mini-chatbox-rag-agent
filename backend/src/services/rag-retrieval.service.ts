@@ -1,6 +1,6 @@
 import { Logger } from 'winston';
 import { VectorDbService, SimilaritySearchResult } from './vector-db.service';
-import { EmbeddingService } from './embedding.service';
+import { IEmbeddingService } from './embedding-factory.service';
 
 export interface RetrievalQuery {
   query: string;
@@ -52,7 +52,7 @@ export class RagRetrievalService {
 
   constructor(
     private vectorDbService: VectorDbService,
-    private embeddingService: EmbeddingService,
+    private embeddingService: IEmbeddingService,
     private logger: Logger
   ) {}
 

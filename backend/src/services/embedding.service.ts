@@ -27,16 +27,21 @@ export class EmbeddingService {
   private defaultModel = 'text-embedding-3-small'; // 1536 dimensions, cost-effective
   private maxTokensPerRequest = 8191; // OpenAI limit for embeddings
   private maxTextsPerBatch = 100; // Reasonable batch size
+  private _isConfigured = false;
 
   constructor(private logger: Logger) {
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is required');
+    if (!apiKey || !apiKey.trim()) {
+      throw new Error(
+        'OPENAI_API_KEY environment variable is required for OpenAI embedding service'
+      );
     }
 
     this.openai = new OpenAI({
       apiKey,
     });
+
+    this._isConfigured = true;
   }
 
   /**
@@ -168,16 +173,19 @@ export class EmbeddingService {
    * Check if the service is properly configured
    */
   isConfigured(): boolean {
-    return !!process.env.OPENAI_API_KEY;
+    return this._isConfigured;
   }
 
   /**
    * Get embedding model information
    */
   getModelInfo(): {
+    provider: string;
     defaultModel: string;
     dimensions: number;
     maxTokens: number;
+    isLocal: boolean;
+    requiresApiKey: boolean;
   } {
     const dimensions =
       this.defaultModel === 'text-embedding-3-small'
@@ -187,9 +195,12 @@ export class EmbeddingService {
           : 1536;
 
     return {
+      provider: 'openai',
       defaultModel: this.defaultModel,
       dimensions,
       maxTokens: this.maxTokensPerRequest,
+      isLocal: false,
+      requiresApiKey: true,
     };
   }
 

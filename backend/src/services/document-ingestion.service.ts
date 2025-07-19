@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Logger } from 'winston';
 import { VectorDbService, Document, DocumentChunk } from './vector-db.service';
-import { EmbeddingService } from './embedding.service';
+import { IEmbeddingService } from './embedding-factory.service';
 import { fileParserService, ParsedFile } from './file-parser.service';
 
 export interface IngestionResult {
@@ -51,7 +51,7 @@ export class DocumentIngestionService {
 
   constructor(
     private vectorDbService: VectorDbService,
-    private embeddingService: EmbeddingService,
+    private embeddingService: IEmbeddingService,
     private logger: Logger
   ) {}
 

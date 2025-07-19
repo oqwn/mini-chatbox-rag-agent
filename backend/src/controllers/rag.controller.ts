@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Logger } from 'winston';
 import { VectorDbService } from '@/services/vector-db.service';
-import { EmbeddingService } from '@/services/embedding.service';
+import { IEmbeddingService } from '@/services/embedding-factory.service';
 import { DocumentIngestionService } from '@/services/document-ingestion.service';
 import { RagRetrievalService } from '@/services/rag-retrieval.service';
 import multer from 'multer';
@@ -61,7 +61,7 @@ const upload = multer({
 export class RagController {
   constructor(
     private vectorDbService: VectorDbService,
-    private embeddingService: EmbeddingService,
+    private embeddingService: IEmbeddingService,
     private documentIngestionService: DocumentIngestionService,
     private ragRetrievalService: RagRetrievalService,
     private logger: Logger

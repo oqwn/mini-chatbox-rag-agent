@@ -7,7 +7,7 @@ import { ConfigService } from '@/services/config.service';
 import { OpenAIService } from '@/services/openai.service';
 import { PromptService } from '@/services/prompt.service';
 import { VectorDbService } from '@/services/vector-db.service';
-import { EmbeddingService } from '@/services/embedding.service';
+import { EmbeddingFactory } from '@/services/embedding-factory.service';
 import { DocumentIngestionService } from '@/services/document-ingestion.service';
 import { RagRetrievalService } from '@/services/rag-retrieval.service';
 import { ChatController } from '@/controllers/chat.controller';
@@ -39,7 +39,7 @@ const mcpService = new MCPService();
 
 // Initialize RAG services
 const vectorDbService = new VectorDbService(logger);
-const embeddingService = new EmbeddingService(logger);
+const embeddingService = EmbeddingFactory.createEmbeddingService(logger);
 const documentIngestionService = new DocumentIngestionService(vectorDbService, embeddingService, logger);
 const ragRetrievalService = new RagRetrievalService(vectorDbService, embeddingService, logger);
 
