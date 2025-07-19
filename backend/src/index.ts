@@ -5,6 +5,7 @@ import compression from 'compression';
 import winston from 'winston';
 import { ConfigService } from '@/services/config.service';
 import { OpenAIService } from '@/services/openai.service';
+import { PromptService } from '@/services/prompt.service';
 import { ChatController } from '@/controllers/chat.controller';
 import { SettingsController } from '@/controllers/settings.controller';
 import { MCPController } from '@/controllers/mcp.controller';
@@ -27,10 +28,11 @@ const logger = winston.createLogger({
 // Initialize services
 const configService = new ConfigService();
 const openAIService = new OpenAIService(configService, logger);
+const promptService = new PromptService(logger);
 const mcpService = new MCPService();
 
 // Initialize controllers
-const chatController = new ChatController(openAIService, mcpService, logger);
+const chatController = new ChatController(openAIService, mcpService, promptService, logger);
 const settingsController = new SettingsController(configService, openAIService, logger);
 const mcpController = new MCPController(mcpService);
 
