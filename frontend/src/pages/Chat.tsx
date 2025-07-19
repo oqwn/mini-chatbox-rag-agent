@@ -29,53 +29,74 @@ export const Chat: React.FC = () => {
       const customEvent = event as CustomEvent;
       const decision = customEvent.detail;
       
-      // Directly send the decision as a message
-      if (!isStreaming) {
-        const userMessage: ChatMessage = { role: 'user', content: decision };
-        const messagesToSend = [...messages, userMessage];
+      // Continue the existing assistant message instead of creating a new conversation
+      if (!isStreaming && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
         
-        setMessages((prev) => [...prev, userMessage]);
-        setInput('');
-        setError(null);
-        setIsStreaming(true);
-        
-        const assistantMessage: ChatMessage = { role: 'assistant', content: '' };
-        setMessages((prev) => [...prev, assistantMessage]);
-        
-        // Send the message
-        const abortController = new AbortController();
-        abortControllerRef.current = abortController;
-        
-        try {
-          const model = currentModel || (await apiService.getSettings()).openai.model;
-          await apiService.streamMessage(
-            messagesToSend,
-            { model },
-            (content) => {
-              if (abortController.signal.aborted) return;
-              streamingContentRef.current += content;
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                newMessages[newMessages.length - 1].content = streamingContentRef.current;
-                return newMessages;
-              });
-            },
-            (error) => {
-              if (abortController.signal.aborted) return;
-              setError(error);
+        // Only proceed if the last message is from assistant and contains permission request
+        if (lastMessage.role === 'assistant' && lastMessage.content.includes('[MCP_PERMISSION_REQUEST]')) {
+          setError(null);
+          setIsStreaming(true);
+          
+          // Create a hidden user message for the backend to understand the approval
+          // but don't show it in the UI
+          const hiddenUserMessage: ChatMessage = { role: 'user', content: decision };
+          const messagesToSend = [...messages, hiddenUserMessage];
+          
+          // Continue streaming to the existing assistant message
+          const abortController = new AbortController();
+          abortControllerRef.current = abortController;
+          
+          // Remove the permission request from the current message
+          const cleanedContent = lastMessage.content.replace(
+            /\[MCP_PERMISSION_REQUEST\][\s\S]*?\[\/MCP_PERMISSION_REQUEST\]/,
+            ''
+          ).trim();
+          
+          // Update the last message to remove the permission card
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: cleanedContent + '\n\n',
+            };
+            return newMessages;
+          });
+          
+          // Set the streaming content to start after the cleaned content
+          streamingContentRef.current = cleanedContent + '\n\n';
+          
+          try {
+            const model = currentModel || (await apiService.getSettings()).openai.model;
+            await apiService.streamMessage(
+              messagesToSend,
+              { model },
+              (content) => {
+                if (abortController.signal.aborted) return;
+                streamingContentRef.current += content;
+                setMessages((prev) => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1].content = streamingContentRef.current;
+                  return newMessages;
+                });
+              },
+              (error) => {
+                if (abortController.signal.aborted) return;
+                setError(error);
+                setIsStreaming(false);
+              },
+              () => {
+                if (abortController.signal.aborted) return;
+                streamingContentRef.current = '';
+                setIsStreaming(false);
+              },
+              abortController.signal
+            );
+          } catch (err) {
+            if (!abortController.signal.aborted) {
+              setError(err instanceof Error ? err.message : 'Unknown error');
               setIsStreaming(false);
-            },
-            () => {
-              if (abortController.signal.aborted) return;
-              streamingContentRef.current = '';
-              setIsStreaming(false);
-            },
-            abortController.signal
-          );
-        } catch (err) {
-          if (!abortController.signal.aborted) {
-            setError(err instanceof Error ? err.message : 'Unknown error');
-            setIsStreaming(false);
+            }
           }
         }
       }
