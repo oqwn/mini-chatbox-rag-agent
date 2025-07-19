@@ -167,4 +167,28 @@ export class ChatController {
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   }
+
+  public async testModelCapabilities(req: Request, res: Response): Promise<void> {
+    try {
+      const { model } = req.body;
+
+      if (!model || typeof model !== 'string') {
+        res.status(400).json({ error: 'Model name is required' });
+        return;
+      }
+
+      if (!this.openAIService.isConfigured()) {
+        res
+          .status(503)
+          .json({ error: 'AI service not configured. Please set up API key in settings.' });
+        return;
+      }
+
+      const result = await this.openAIService.testModelCapabilities(model);
+      res.json(result);
+    } catch (error) {
+      this.logger.error('Model capability test error:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  }
 }

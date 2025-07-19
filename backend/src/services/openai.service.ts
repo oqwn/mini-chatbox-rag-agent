@@ -342,4 +342,68 @@ export class OpenAIService {
   public isConfigured(): boolean {
     return this.client !== null;
   }
+
+  public async testModelCapabilities(
+    modelName: string
+  ): Promise<{ supportsFunctionCalling: boolean }> {
+    if (!this.client) {
+      throw new Error('AI client not initialized. Please configure API key.');
+    }
+
+    // Create a minimal test to check if the model supports function calling
+    // This test avoids actually executing tools to minimize cost
+    const testTool = {
+      type: 'function' as const,
+      function: {
+        name: 'test_capability',
+        description: 'A test function to check if the model supports function calling',
+        parameters: {
+          type: 'object',
+          properties: {
+            test: {
+              type: 'string',
+              description: 'A test parameter',
+            },
+          },
+          required: ['test'],
+        },
+      },
+    };
+
+    const testMessage = {
+      role: 'user' as const,
+      content: 'Simply respond with "test successful" without using any tools.',
+    };
+
+    try {
+      // Make a minimal API call with tools to test capability
+      await this.client.chat.completions.create({
+        model: modelName,
+        messages: [testMessage],
+        tools: [testTool],
+        tool_choice: 'none', // Don't force tool use, just test if tools are accepted
+        max_tokens: 10, // Minimize cost
+        temperature: 0,
+      });
+
+      // If we get here without error, the model supports function calling
+      return { supportsFunctionCalling: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Check for specific error messages that indicate lack of function calling support
+      if (
+        errorMessage.includes('does not support tools') ||
+        errorMessage.includes('tool use') ||
+        errorMessage.includes('function calling') ||
+        errorMessage.includes('tools parameter') ||
+        (errorMessage.includes('400') && errorMessage.includes('tool'))
+      ) {
+        return { supportsFunctionCalling: false };
+      }
+
+      // For other errors (like auth, network issues), rethrow
+      throw error;
+    }
+  }
 }
