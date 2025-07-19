@@ -71,8 +71,18 @@
   margin-right: 0.5rem;
 }
 
-/* Highlight.js overrides for better visibility */
-.hljs {
-  background: transparent !important;
-  padding: 0 !important;
+/* Ensure all text in markdown content is black */
+.markdown-content * {
+  color: black !important;
+}
+
+/* Keep backgrounds light for readability */
+.markdown-content pre,
+.markdown-content code {
+  background-color: #f3f4f6 !important;
+  color: black !important;
+}
+
+.markdown-content pre code {
+  color: black !important;
 }

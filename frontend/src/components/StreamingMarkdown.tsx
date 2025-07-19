@@ -1,8 +1,6 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeHighlight from 'rehype-highlight';
-import 'highlight.js/styles/github-dark.css';
 
 interface StreamingMarkdownProps {
   content: string;
@@ -16,11 +14,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
     // This preserves streaming while still providing formatting
     return (
       <div className={`markdown-content ${className}`}>
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeHighlight]}
-          components={markdownComponents}
-        >
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
           {content}
         </ReactMarkdown>
         {isStreaming && <span className="animate-pulse ml-1 text-black">▊</span>}
