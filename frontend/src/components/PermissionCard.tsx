@@ -77,7 +77,7 @@ export const PermissionCard: React.FC<PermissionCardProps> = ({ toolName, descri
       {decision ? (
         // Show decision result
         <div style={{
-          background: decision === 'approve' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+          background: 'rgba(255,255,255,0.1)',
           borderRadius: '8px',
           padding: '16px',
           textAlign: 'center'
@@ -88,19 +88,13 @@ export const PermissionCard: React.FC<PermissionCardProps> = ({ toolName, descri
             justifyContent: 'center',
             gap: '8px'
           }}>
-            <span style={{ fontSize: '20px' }}>
+            <span style={{ fontSize: '16px' }}>
               {decision === 'approve' ? '✅' : '❌'}
             </span>
-            <span style={{ fontSize: '16px', fontWeight: 600 }}>
+            <span style={{ fontSize: '16px', fontWeight: 500, opacity: 0.9 }}>
               User {decision === 'approve' ? 'Approved' : 'Cancelled'}
             </span>
           </div>
-          <p style={{ margin: '8px 0 0 0', opacity: 0.9, fontSize: '14px' }}>
-            {decision === 'approve' 
-              ? 'Tool execution proceeding...'
-              : 'Tool execution cancelled by user'
-            }
-          </p>
         </div>
       ) : (
         // Show buttons for decision
