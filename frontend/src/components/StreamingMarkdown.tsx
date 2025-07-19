@@ -10,26 +10,24 @@ interface StreamingMarkdownProps {
   className?: string;
 }
 
-export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(({ 
-  content, 
-  isStreaming = false,
-  className = '' 
-}) => {
-  // Simple approach: Just render markdown as-is and let react-markdown handle it
-  // This preserves streaming while still providing formatting
-  return (
-    <div className={`markdown-content ${className}`}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
-        components={markdownComponents}
-      >
-        {content}
-      </ReactMarkdown>
-      {isStreaming && <span className="animate-pulse ml-1">▊</span>}
-    </div>
-  );
-});
+export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
+  ({ content, isStreaming = false, className = '' }) => {
+    // Simple approach: Just render markdown as-is and let react-markdown handle it
+    // This preserves streaming while still providing formatting
+    return (
+      <div className={`markdown-content ${className}`}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+          components={markdownComponents}
+        >
+          {content}
+        </ReactMarkdown>
+        {isStreaming && <span className="animate-pulse ml-1">▊</span>}
+      </div>
+    );
+  }
+);
 
 // Markdown component customizations
 const markdownComponents = {
@@ -69,9 +67,7 @@ const markdownComponents = {
   },
   table: ({ children }: any) => (
     <div className="overflow-x-auto mb-4">
-      <table className="min-w-full border-collapse border border-gray-300">
-        {children}
-      </table>
+      <table className="min-w-full border-collapse border border-gray-300">{children}</table>
     </div>
   ),
   thead: ({ children }: any) => <thead className="bg-gray-100">{children}</thead>,

@@ -12,7 +12,7 @@ export const useInitializeMCP = () => {
           const config: MCPConfiguration = JSON.parse(savedConfig);
           await mcpService.loadConfiguration(config);
           console.log('MCP configuration loaded automatically');
-          
+
           // Sync tools after a short delay to ensure servers are connected
           setTimeout(() => {
             mcpService.syncToolsFromBackend();

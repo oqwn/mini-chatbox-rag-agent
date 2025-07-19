@@ -53,7 +53,6 @@ class MCPService {
     this.notifyStatusChange(serverId, status);
   }
 
-
   private async connectStdio(serverId: string, config: MCPServerConfig): Promise<void> {
     // Send configuration to backend to handle stdio connections
     await apiService.createMCPServer(serverId, config);
@@ -100,7 +99,6 @@ class MCPService {
       this.notifyStatusChange(serverId, status);
     }
   }
-
 
   private notifyStatusChange(serverId: string, status: MCPServerStatus): void {
     const listener = this.eventListeners.get(serverId);
@@ -159,7 +157,7 @@ class MCPService {
     try {
       // Get all tools from the backend
       const allTools = await apiService.getMCPTools();
-      
+
       // Group tools by serverId
       const toolsByServer = new Map<string, MCPTool[]>();
       for (const tool of allTools) {

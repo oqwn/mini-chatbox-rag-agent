@@ -129,8 +129,8 @@ export const MCP: React.FC = () => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h2 className="font-semibold text-blue-900 mb-2">Model Context Protocol (MCP)</h2>
             <p className="text-blue-700 text-sm">
-              Configure MCP servers to extend the chat with external tools and capabilities. 
-              Uses the same configuration format as Claude Desktop. Connect to filesystem tools, 
+              Configure MCP servers to extend the chat with external tools and capabilities. Uses
+              the same configuration format as Claude Desktop. Connect to filesystem tools,
               databases, APIs, and more.
             </p>
           </div>
@@ -244,7 +244,6 @@ export const MCP: React.FC = () => {
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>
