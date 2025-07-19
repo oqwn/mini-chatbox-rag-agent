@@ -31,15 +31,17 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
 
 // Markdown component customizations
 const markdownComponents = {
-  h1: ({ children }: any) => <h1 className="text-2xl font-bold mb-4 mt-6">{children}</h1>,
-  h2: ({ children }: any) => <h2 className="text-xl font-bold mb-3 mt-5">{children}</h2>,
-  h3: ({ children }: any) => <h3 className="text-lg font-bold mb-2 mt-4">{children}</h3>,
-  p: ({ children }: any) => <p className="mb-4 leading-relaxed">{children}</p>,
+  h1: ({ children }: any) => (
+    <h1 className="text-2xl font-bold mb-4 mt-6 text-black">{children}</h1>
+  ),
+  h2: ({ children }: any) => <h2 className="text-xl font-bold mb-3 mt-5 text-black">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="text-lg font-bold mb-2 mt-4 text-black">{children}</h3>,
+  p: ({ children }: any) => <p className="mb-4 leading-relaxed text-black">{children}</p>,
   ul: ({ children }: any) => <ul className="list-disc list-inside mb-4 ml-4">{children}</ul>,
   ol: ({ children }: any) => <ol className="list-decimal list-inside mb-4 ml-4">{children}</ol>,
-  li: ({ children }: any) => <li className="mb-1">{children}</li>,
+  li: ({ children }: any) => <li className="mb-1 text-black">{children}</li>,
   blockquote: ({ children }: any) => (
-    <blockquote className="border-l-4 border-gray-300 pl-4 py-2 mb-4 italic text-gray-700">
+    <blockquote className="border-l-4 border-gray-300 pl-4 py-2 mb-4 italic text-black">
       {children}
     </blockquote>
   ),
@@ -60,7 +62,7 @@ const markdownComponents = {
         </pre>
       </div>
     ) : (
-      <code className="bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm" {...props}>
+      <code className="bg-gray-100 text-black px-1 py-0.5 rounded text-sm" {...props}>
         {children}
       </code>
     );
@@ -82,7 +84,7 @@ const markdownComponents = {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-blue-600 hover:text-blue-800 underline"
+      className="text-black hover:text-gray-700 underline"
     >
       {children}
     </a>
