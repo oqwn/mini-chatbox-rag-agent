@@ -61,7 +61,7 @@ export class RagRetrievalService {
    */
   async retrieveContext(query: RetrievalQuery): Promise<RetrievalResult> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.debug(`Retrieving context for query: ${query.query.substring(0, 100)}...`);
 
@@ -115,7 +115,9 @@ export class RagRetrievalService {
       };
     } catch (error) {
       this.logger.error('Failed to retrieve context:', error);
-      throw new Error(`Context retrieval failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Context retrieval failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -170,16 +172,20 @@ export class RagRetrievalService {
   ): Promise<{ before?: string; after?: string }> {
     try {
       const allChunks = await this.vectorDbService.getDocumentChunks(documentId);
-      
+
       const beforeChunks = allChunks
-        .filter(chunk => chunk.chunkIndex < chunkIndex && chunk.chunkIndex >= chunkIndex - windowSize)
+        .filter(
+          (chunk) => chunk.chunkIndex < chunkIndex && chunk.chunkIndex >= chunkIndex - windowSize
+        )
         .sort((a, b) => a.chunkIndex - b.chunkIndex)
-        .map(chunk => chunk.chunkText);
+        .map((chunk) => chunk.chunkText);
 
       const afterChunks = allChunks
-        .filter(chunk => chunk.chunkIndex > chunkIndex && chunk.chunkIndex <= chunkIndex + windowSize)
+        .filter(
+          (chunk) => chunk.chunkIndex > chunkIndex && chunk.chunkIndex <= chunkIndex + windowSize
+        )
         .sort((a, b) => a.chunkIndex - b.chunkIndex)
-        .map(chunk => chunk.chunkText);
+        .map((chunk) => chunk.chunkText);
 
       return {
         before: beforeChunks.length > 0 ? beforeChunks.join(' ') : undefined,
@@ -199,11 +205,7 @@ export class RagRetrievalService {
     query: RetrievalQuery,
     options: RankingOptions = {}
   ): number {
-    const {
-      recencyWeight = 0.1,
-      lengthWeight = 0.1,
-      positionWeight = 0.1,
-    } = options;
+    const { recencyWeight = 0.1, lengthWeight = 0.1, positionWeight = 0.1 } = options;
 
     let score = result.similarity * 0.6; // Base similarity score (60% weight)
 
@@ -230,9 +232,9 @@ export class RagRetrievalService {
     // Keyword matching boost
     const queryLower = query.query.toLowerCase();
     const chunkLower = result.chunkText.toLowerCase();
-    const keywordMatches = queryLower.split(' ').filter(word => 
-      word.length > 3 && chunkLower.includes(word)
-    ).length;
+    const keywordMatches = queryLower
+      .split(' ')
+      .filter((word) => word.length > 3 && chunkLower.includes(word)).length;
     score += (keywordMatches / Math.max(queryLower.split(' ').length, 1)) * 0.1;
 
     return Math.min(Math.max(score, 0), 1); // Clamp between 0 and 1
@@ -263,7 +265,7 @@ export class RagRetrievalService {
 
     for (const chunk of chunks) {
       const currentCount = documentChunkCounts.get(chunk.documentId) || 0;
-      
+
       if (currentCount < maxChunksPerDocument) {
         diversifiedChunks.push(chunk);
         documentChunkCounts.set(chunk.documentId, currentCount + 1);
@@ -271,8 +273,8 @@ export class RagRetrievalService {
     }
 
     // If we have room and there are remaining chunks, add the best ones
-    const remainingChunks = chunks.filter(chunk => 
-      !diversifiedChunks.some(dc => dc.id === chunk.id)
+    const remainingChunks = chunks.filter(
+      (chunk) => !diversifiedChunks.some((dc) => dc.id === chunk.id)
     );
 
     for (const chunk of remainingChunks) {
@@ -298,8 +300,7 @@ export class RagRetrievalService {
       let chunkContext = '';
 
       // Add document title if available and different from previous
-      if (chunk.documentTitle && 
-          (i === 0 || chunks[i - 1].documentTitle !== chunk.documentTitle)) {
+      if (chunk.documentTitle && (i === 0 || chunks[i - 1].documentTitle !== chunk.documentTitle)) {
         chunkContext += `\n[Source: ${chunk.documentTitle}]\n`;
       }
 
@@ -332,12 +333,12 @@ export class RagRetrievalService {
     embeddingCoverage: number;
   }> {
     const stats = await this.vectorDbService.getStats();
-    
+
     // Get embedding coverage (chunks with embeddings)
     // This would require a custom query to count chunks with non-null embeddings
     // For now, we'll assume 100% coverage
     const embeddingCoverage = 1.0;
-    
+
     // Average chunk size would also require a custom query
     const averageChunkSize = 500; // Estimate
 

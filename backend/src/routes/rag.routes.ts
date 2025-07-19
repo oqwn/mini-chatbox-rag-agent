@@ -14,8 +14,9 @@ export function createRagRoutes(ragController: RagController): Router {
 
   // Document ingestion
   router.post('/ingest/text', ragController.ingestText.bind(ragController));
-  router.post('/ingest/file', 
-    ragController.ingestFile, 
+  router.post(
+    '/ingest/file',
+    ragController.ingestFile,
     ragController.handleFileIngestion.bind(ragController)
   );
 

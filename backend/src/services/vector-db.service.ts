@@ -100,7 +100,7 @@ export class VectorDbService {
       ORDER BY created_at DESC
     `;
     const result = await this.pool.query(query);
-    return result.rows.map(row => ({
+    return result.rows.map((row) => ({
       id: row.id,
       name: row.name,
       description: row.description,
@@ -139,7 +139,7 @@ export class VectorDbService {
       WHERE id = $1
     `;
     const result = await this.pool.query(query, [id]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
@@ -170,9 +170,9 @@ export class VectorDbService {
     }
 
     query += ' ORDER BY created_at DESC';
-    
+
     const result = await this.pool.query(query, values);
-    return result.rows.map(row => ({
+    return result.rows.map((row) => ({
       id: row.id,
       title: row.title,
       content: row.content,
@@ -221,8 +221,8 @@ export class VectorDbService {
       ORDER BY chunk_index ASC
     `;
     const result = await this.pool.query(query, [documentId]);
-    
-    return result.rows.map(row => ({
+
+    return result.rows.map((row) => ({
       id: row.id,
       documentId: row.document_id,
       chunkText: row.chunk_text,
@@ -252,7 +252,7 @@ export class VectorDbService {
       FROM document_chunks dc
       JOIN documents d ON dc.document_id = d.id
     `;
-    
+
     const values: any[] = [`[${queryEmbedding.join(',')}]`];
     let paramCount = 1;
 
@@ -269,10 +269,10 @@ export class VectorDbService {
     values.push(limit);
 
     const result = await this.pool.query(query, values);
-    
+
     return result.rows
-      .filter(row => row.similarity >= threshold)
-      .map(row => ({
+      .filter((row) => row.similarity >= threshold)
+      .map((row) => ({
         id: row.id,
         documentId: row.document_id,
         chunkText: row.chunk_text,
@@ -310,12 +310,7 @@ export class VectorDbService {
       JOIN documents d ON dc.document_id = d.id
     `;
 
-    const values: any[] = [
-      `[${queryEmbedding.join(',')}]`,
-      queryText,
-      vectorWeight,
-      keywordWeight,
-    ];
+    const values: any[] = [`[${queryEmbedding.join(',')}]`, queryText, vectorWeight, keywordWeight];
     let paramCount = 4;
 
     if (knowledgeSourceId) {
@@ -331,8 +326,8 @@ export class VectorDbService {
     values.push(limit);
 
     const result = await this.pool.query(query, values);
-    
-    return result.rows.map(row => ({
+
+    return result.rows.map((row) => ({
       id: row.id,
       documentId: row.document_id,
       chunkText: row.chunk_text,
@@ -362,10 +357,10 @@ export class VectorDbService {
         (SELECT COUNT(*) FROM document_chunks) as chunks_count,
         (SELECT COUNT(*) FROM knowledge_sources WHERE is_active = true) as knowledge_sources_count
     `;
-    
+
     const result = await this.pool.query(statsQuery);
     const row = result.rows[0];
-    
+
     return {
       documentsCount: parseInt(row.documents_count),
       chunksCount: parseInt(row.chunks_count),

@@ -153,7 +153,7 @@ export class RagController {
     try {
       const { id } = req.params;
       const document = await this.vectorDbService.getDocument(parseInt(id));
-      
+
       if (!document) {
         res.status(404).json({ error: 'Document not found' });
         return;
@@ -226,12 +226,7 @@ export class RagController {
 
   public async similaritySearch(req: Request, res: Response): Promise<void> {
     try {
-      const {
-        query,
-        knowledgeSourceId,
-        limit = 5,
-        threshold = 0.7,
-      } = req.body;
+      const { query, knowledgeSourceId, limit = 5, threshold = 0.7 } = req.body;
 
       if (!query) {
         res.status(400).json({ error: 'Query is required' });
@@ -292,10 +287,10 @@ export class RagController {
     try {
       // Test database connection
       const dbStats = await this.vectorDbService.getStats();
-      
+
       // Test embedding service
       const embeddingConfigured = this.embeddingService.isConfigured();
-      
+
       // Test retrieval
       const retrievalTest = await this.ragRetrievalService.testRetrieval('test query');
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiService, ChatMessage } from '../services/api';
+import { ragApiService, KnowledgeSource } from '../services/rag-api';
 import { useNavigate } from 'react-router-dom';
 import { MCPToolsPanel } from '../components/MCPToolsPanel';
 import { StreamingMarkdown } from '../components/StreamingMarkdown';
@@ -14,6 +15,9 @@ export const Chat: React.FC = () => {
   const [currentModel, setCurrentModel] = useState<string>('');
   const [showMCPTools, setShowMCPTools] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [ragEnabled, setRagEnabled] = useState(false);
+  const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
+  const [selectedKnowledgeSource, setSelectedKnowledgeSource] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingContentRef = useRef<string>('');
@@ -126,7 +130,19 @@ export const Chat: React.FC = () => {
         console.error('Failed to load model:', err);
       }
     };
+    
+    // Load knowledge sources for RAG
+    const loadKnowledgeSources = async () => {
+      try {
+        const result = await ragApiService.getKnowledgeSources();
+        setKnowledgeSources(result.sources);
+      } catch (err) {
+        console.error('Failed to load knowledge sources:', err);
+      }
+    };
+    
     loadModel();
+    loadKnowledgeSources();
 
     // Cleanup function to abort ongoing streams
     return () => {
@@ -152,10 +168,33 @@ export const Chat: React.FC = () => {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const userMessage: ChatMessage = { role: 'user', content: input.trim() };
+    let userMessageContent = input.trim();
+    
+    // If RAG is enabled, retrieve relevant context
+    if (ragEnabled) {
+      try {
+        const ragResult = await ragApiService.search(input.trim(), {
+          knowledgeSourceId: selectedKnowledgeSource || undefined,
+          maxResults: 5,
+          similarityThreshold: 0.7,
+          useHybridSearch: true,
+          contextWindowSize: 2,
+        });
+
+        if (ragResult.relevantChunks.length > 0) {
+          userMessageContent = `Context from knowledge base:\n\n${ragResult.contextText}\n\n---\n\nUser question: ${input.trim()}`;
+        }
+      } catch (ragError) {
+        console.error('RAG search failed:', ragError);
+        // Continue without RAG context
+      }
+    }
+
+    const userMessage: ChatMessage = { role: 'user', content: userMessageContent };
     const messagesToSend = [...messages, userMessage];
 
-    setMessages((prev) => [...prev, userMessage]);
+    // Show original user message in UI, not the RAG-enhanced version
+    setMessages((prev) => [...prev, { role: 'user', content: input.trim() }]);
     setInput('');
     setError(null);
     setIsStreaming(true);
@@ -303,24 +342,63 @@ export const Chat: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-semibold">Chat</h1>
-        <div className="space-x-4">
-          <button
-            onClick={() => setShowMCPTools(true)}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            Tools
-          </button>
-          <button onClick={() => navigate('/mcp')} className="text-gray-600 hover:text-gray-900">
-            MCP
-          </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            Settings
-          </button>
+      <div className="bg-white border-b px-6 py-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-semibold">Chat</h1>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowMCPTools(true)}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              Tools
+            </button>
+            <button onClick={() => navigate('/rag')} className="text-gray-600 hover:text-gray-900">
+              RAG
+            </button>
+            <button onClick={() => navigate('/mcp')} className="text-gray-600 hover:text-gray-900">
+              MCP
+            </button>
+            <button
+              onClick={() => navigate('/settings')}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              Settings
+            </button>
+          </div>
+        </div>
+        
+        {/* RAG Controls */}
+        <div className="mt-3 flex items-center space-x-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={ragEnabled}
+              onChange={(e) => setRagEnabled(e.target.checked)}
+              className="mr-2"
+            />
+            <span className="text-sm text-gray-700">Enable RAG</span>
+          </label>
+          
+          {ragEnabled && knowledgeSources.length > 0 && (
+            <select
+              value={selectedKnowledgeSource || ''}
+              onChange={(e) => setSelectedKnowledgeSource(e.target.value ? Number(e.target.value) : null)}
+              className="text-sm border border-gray-300 rounded px-2 py-1"
+            >
+              <option value="">All sources</option>
+              {knowledgeSources.map((source) => (
+                <option key={source.id} value={source.id}>
+                  {source.name}
+                </option>
+              ))}
+            </select>
+          )}
+          
+          {ragEnabled && (
+            <span className="text-xs text-green-600">
+              ✓ RAG enabled - using knowledge base for context
+            </span>
+          )}
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Chat } from './pages/Chat';
 import { Settings } from './pages/Settings';
 import { MCP } from './pages/MCP';
+import { RagManagement } from './pages/RagManagement';
 import { useInitializeSettings } from './hooks/useInitializeSettings';
 import { useInitializeMCP } from './hooks/useInitializeMCP';
 import './index.css';
@@ -19,6 +20,7 @@ const App = () => {
         <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/mcp" element={<MCP />} />
+        <Route path="/rag" element={<RagManagement />} />
       </Routes>
     </BrowserRouter>
   );

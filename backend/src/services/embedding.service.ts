@@ -45,7 +45,7 @@ export class EmbeddingService {
   async generateEmbedding(request: EmbeddingRequest): Promise<EmbeddingResponse> {
     try {
       const model = request.model || this.defaultModel;
-      
+
       // Validate text length
       if (!request.text.trim()) {
         throw new Error('Text cannot be empty');
@@ -66,7 +66,9 @@ export class EmbeddingService {
       const embedding = response.data[0].embedding;
       const tokenCount = response.usage?.total_tokens || 0;
 
-      this.logger.debug(`Generated embedding with ${embedding.length} dimensions, ${tokenCount} tokens`);
+      this.logger.debug(
+        `Generated embedding with ${embedding.length} dimensions, ${tokenCount} tokens`
+      );
 
       return {
         embedding,
@@ -74,7 +76,9 @@ export class EmbeddingService {
       };
     } catch (error) {
       this.logger.error('Failed to generate embedding:', error);
-      throw new Error(`Embedding generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Embedding generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -88,8 +92,8 @@ export class EmbeddingService {
       }
 
       const model = request.model || this.defaultModel;
-      const validTexts = request.texts.filter(text => text.trim().length > 0);
-      
+      const validTexts = request.texts.filter((text) => text.trim().length > 0);
+
       if (validTexts.length === 0) {
         throw new Error('No valid texts provided');
       }
@@ -113,7 +117,9 @@ export class EmbeddingService {
         });
 
         if (!response.data || response.data.length !== batch.length) {
-          throw new Error(`Batch ${i + 1}: Expected ${batch.length} embeddings, got ${response.data?.length || 0}`);
+          throw new Error(
+            `Batch ${i + 1}: Expected ${batch.length} embeddings, got ${response.data?.length || 0}`
+          );
         }
 
         // Collect embeddings and token counts
@@ -139,7 +145,9 @@ export class EmbeddingService {
       };
     } catch (error) {
       this.logger.error('Failed to generate batch embeddings:', error);
-      throw new Error(`Batch embedding generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Batch embedding generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -149,7 +157,7 @@ export class EmbeddingService {
   async generateQueryEmbedding(query: string, model?: string): Promise<EmbeddingResponse> {
     // Preprocess query for better retrieval
     const processedQuery = this.preprocessQuery(query);
-    
+
     return this.generateEmbedding({
       text: processedQuery,
       model: model || this.defaultModel,
@@ -171,8 +179,12 @@ export class EmbeddingService {
     dimensions: number;
     maxTokens: number;
   } {
-    const dimensions = this.defaultModel === 'text-embedding-3-small' ? 1536 : 
-                     this.defaultModel === 'text-embedding-3-large' ? 3072 : 1536;
+    const dimensions =
+      this.defaultModel === 'text-embedding-3-small'
+        ? 1536
+        : this.defaultModel === 'text-embedding-3-large'
+          ? 3072
+          : 1536;
 
     return {
       defaultModel: this.defaultModel,
@@ -216,7 +228,7 @@ export class EmbeddingService {
    * Simple delay utility
    */
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -251,8 +263,10 @@ export class EmbeddingService {
    * Validate embedding dimensions
    */
   static validateEmbedding(embedding: number[], expectedDimensions: number): boolean {
-    return Array.isArray(embedding) && 
-           embedding.length === expectedDimensions &&
-           embedding.every(num => typeof num === 'number' && !isNaN(num));
+    return (
+      Array.isArray(embedding) &&
+      embedding.length === expectedDimensions &&
+      embedding.every((num) => typeof num === 'number' && !isNaN(num))
+    );
   }
 }
