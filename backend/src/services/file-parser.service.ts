@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
+import { getAllSupportedExtensions, getFileExtension } from '../config/file-types';
 
 export interface ParsedFile {
   content: string;
@@ -18,7 +19,11 @@ export interface ParsedFile {
 
 export class FileParserService {
   async parseFile(filePath: string, originalFileName: string): Promise<ParsedFile> {
-    const extension = path.extname(originalFileName).toLowerCase();
+    const extension = getFileExtension(originalFileName);
+    
+    if (!extension) {
+      throw new Error('File must have an extension');
+    }
 
     switch (extension) {
       case '.pdf':
@@ -185,75 +190,31 @@ export class FileParserService {
     try {
       const stats = await fs.stat(filePath);
 
-      // Check file size (10MB limit)
-      if (stats.size > 10 * 1024 * 1024) {
+      // Import shared config
+      const { FILE_CONFIG } = await import('../config/file-types');
+
+      // Check file size using shared config
+      if (stats.size > FILE_CONFIG.limits.maxFileSize) {
         return {
           isValid: false,
-          error: 'File size exceeds 10MB limit',
+          error: `File size exceeds ${FILE_CONFIG.limits.maxFileSizeDisplay} limit`,
         };
       }
 
       // Check if file exists and is readable
       await fs.access(filePath, fs.constants.R_OK);
 
-      // Validate file extension
-      const extension = path.extname(originalFileName).toLowerCase();
-      const supportedExtensions = [
-        '.pdf',
-        '.docx',
-        '.doc',
-        '.txt',
-        '.md',
-        '.rtf',
-        '.json',
-        '.csv',
-        '.tsv',
-        '.xml',
-        '.yaml',
-        '.yml',
-        '.ini',
-        '.conf',
-        '.toml',
-        '.js',
-        '.ts',
-        '.jsx',
-        '.tsx',
-        '.py',
-        '.java',
-        '.cpp',
-        '.c',
-        '.h',
-        '.hpp',
-        '.css',
-        '.scss',
-        '.sass',
-        '.less',
-        '.html',
-        '.htm',
-        '.php',
-        '.rb',
-        '.go',
-        '.rs',
-        '.swift',
-        '.kt',
-        '.scala',
-        '.pl',
-        '.r',
-        '.m',
-        '.tex',
-        '.vue',
-        '.sql',
-        '.sh',
-        '.bat',
-        '.ps1',
-        '.dockerfile',
-        '.makefile',
-        '.log',
-        '.gitignore',
-        '.env',
-        '.properties',
-        '.cfg',
-      ];
+      // Validate file extension using shared config
+      const extension = getFileExtension(originalFileName);
+      const supportedExtensions = getAllSupportedExtensions();
+
+      // Handle files without extension
+      if (!extension) {
+        return {
+          isValid: false,
+          error: 'File must have an extension',
+        };
+      }
 
       if (!supportedExtensions.includes(extension)) {
         return {

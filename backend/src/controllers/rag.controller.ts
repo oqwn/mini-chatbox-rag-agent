@@ -5,31 +5,26 @@ import { EmbeddingService } from '@/services/embedding.service';
 import { DocumentIngestionService } from '@/services/document-ingestion.service';
 import { RagRetrievalService } from '@/services/rag-retrieval.service';
 import multer from 'multer';
-import path from 'path';
 import { promises as fs } from 'fs';
+import { FILE_CONFIG, getAllSupportedExtensions, getFileExtension } from '../config/file-types';
 
-// Configure multer for file uploads
+// Configure multer for file uploads using shared config
 const upload = multer({
   dest: 'uploads/',
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit for large files
+    fileSize: FILE_CONFIG.limits.maxFileSize,
     fieldSize: 1024 * 1024, // 1MB field limit
   },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = [
-      // Documents
-      '.pdf', '.docx', '.doc', '.txt', '.md', '.rtf',
-      // Data & Config
-      '.json', '.csv', '.tsv', '.xml', '.yaml', '.yml', '.ini', '.conf', '.toml',
-      // Code files
-      '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.h', '.hpp',
-      '.css', '.scss', '.sass', '.less', '.html', '.htm', '.php', '.rb', '.go',
-      '.rs', '.swift', '.kt', '.scala', '.pl', '.r', '.m', '.tex', '.vue',
-      '.sql', '.sh', '.bat', '.ps1', '.dockerfile', '.makefile',
-      // Other text files
-      '.log', '.gitignore', '.env', '.properties', '.cfg'
-    ];
-    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedTypes = getAllSupportedExtensions();
+    const ext = getFileExtension(file.originalname);
+    
+    // Handle files without extension
+    if (!ext) {
+      cb(new Error('File must have an extension'));
+      return;
+    }
+    
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
@@ -120,11 +115,15 @@ export class RagController {
 
       const { knowledgeSourceId, metadata } = req.body;
       const filePath = req.file.path;
+      const originalFileName = req.file.originalname;
 
       try {
         const result = await this.documentIngestionService.ingestFile(filePath, {
           knowledgeSourceId: knowledgeSourceId ? parseInt(knowledgeSourceId) : undefined,
-          metadata: metadata ? JSON.parse(metadata) : undefined,
+          metadata: {
+            ...(metadata ? JSON.parse(metadata) : {}),
+            originalFileName,
+          },
         });
 
         res.json({

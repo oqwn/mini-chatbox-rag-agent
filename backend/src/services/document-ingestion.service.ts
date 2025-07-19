@@ -47,17 +47,17 @@ export class DocumentIngestionService {
     try {
       this.logger.info(`Starting ingestion of file: ${filePath}`);
 
-      // Extract file metadata
-      const fileName = path.basename(filePath);
+      // Extract file metadata - use original filename if provided
+      const fileName = options.metadata?.originalFileName || path.basename(filePath);
       const fileStats = await fs.stat(filePath);
 
-      // Validate file before processing
+      // Validate file before processing using original filename
       const validation = await fileParserService.validateFile(filePath, fileName);
       if (!validation.isValid) {
         throw new Error(validation.error);
       }
 
-      // Parse file content using the file parser service
+      // Parse file content using the file parser service with original filename
       const parsedFile: ParsedFile = await fileParserService.parseFile(filePath, fileName);
 
       const document: Document = {
