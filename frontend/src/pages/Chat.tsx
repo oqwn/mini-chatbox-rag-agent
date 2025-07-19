@@ -244,23 +244,23 @@ export const Chat: React.FC = () => {
                     ? 'bg-blue-600 text-white'
                     : message.role === 'system'
                       ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                      : 'bg-gray-100 text-gray-800'
+                      : 'bg-black text-white'
                 }`}
               >
                 {message.role === 'assistant' ? (
                   <>
                     <StreamingMarkdown content={message.content} isStreaming={isStreamingMessage} />
                     {!isStreamingMessage && message.content && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="mt-3 pt-3 border-t border-gray-600">
                         <button
                           onClick={() => handleCopy(message.content, index)}
-                          className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2 transition-colors"
+                          className="text-sm text-gray-300 hover:text-white flex items-center gap-2 transition-colors"
                           title="Copy response"
                         >
                           {copiedIndex === index ? (
                             <>
                               <svg
-                                className="w-4 h-4 text-green-600"
+                                className="w-4 h-4"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -272,7 +272,7 @@ export const Chat: React.FC = () => {
                                   d="M5 13l4 4L19 7"
                                 />
                               </svg>
-                              <span className="text-green-600">Copied!</span>
+                              <span>Copied!</span>
                             </>
                           ) : (
                             <>
