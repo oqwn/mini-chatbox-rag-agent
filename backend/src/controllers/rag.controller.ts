@@ -12,15 +12,28 @@ import { promises as fs } from 'fs';
 const upload = multer({
   dest: 'uploads/',
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit for large files
+    fieldSize: 1024 * 1024, // 1MB field limit
   },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['.txt', '.md', '.json', '.csv', '.log'];
+    const allowedTypes = [
+      // Documents
+      '.pdf', '.docx', '.doc', '.txt', '.md', '.rtf',
+      // Data & Config
+      '.json', '.csv', '.tsv', '.xml', '.yaml', '.yml', '.ini', '.conf', '.toml',
+      // Code files
+      '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.h', '.hpp',
+      '.css', '.scss', '.sass', '.less', '.html', '.htm', '.php', '.rb', '.go',
+      '.rs', '.swift', '.kt', '.scala', '.pl', '.r', '.m', '.tex', '.vue',
+      '.sql', '.sh', '.bat', '.ps1', '.dockerfile', '.makefile',
+      // Other text files
+      '.log', '.gitignore', '.env', '.properties', '.cfg'
+    ];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Allowed: .txt, .md, .json, .csv, .log'));
+      cb(new Error(`Invalid file type: ${ext}. Supported types: ${allowedTypes.join(', ')}`));
     }
   },
 });

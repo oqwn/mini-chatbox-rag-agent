@@ -27,8 +27,8 @@ export interface IngestionOptions {
 
 export class DocumentIngestionService {
   private defaultChunkingOptions: ChunkingOptions = {
-    chunkSize: 500, // tokens
-    chunkOverlap: 50, // tokens
+    chunkSize: 800, // Increased for better performance, tokens
+    chunkOverlap: 80, // tokens
     separators: ['\n\n', '\n', '. ', '! ', '? ', '; ', ': ', ', ', ' '],
   };
 
@@ -220,12 +220,8 @@ export class DocumentIngestionService {
       chunks.push(chunk);
     }
 
-    // Insert chunks into database
-    const chunkIds: number[] = [];
-    for (const chunk of chunks) {
-      const chunkId = await this.vectorDbService.createDocumentChunk(chunk);
-      chunkIds.push(chunkId);
-    }
+    // Insert chunks into database using batch operation for better performance
+    const chunkIds: number[] = await this.vectorDbService.createDocumentChunksBatch(chunks);
 
     // Generate embeddings if requested
     if (options.generateEmbeddings !== false) {
@@ -249,10 +245,8 @@ export class DocumentIngestionService {
         texts: textChunks,
       });
 
-      // Update chunks with embeddings
-      for (let i = 0; i < chunkIds.length; i++) {
-        await this.vectorDbService.updateChunkEmbedding(chunkIds[i], batchResponse.embeddings[i]);
-      }
+      // Update chunks with embeddings in batches for better performance
+      await this.vectorDbService.updateChunkEmbeddingsBatch(chunkIds, batchResponse.embeddings);
 
       this.logger.debug(`Updated ${chunkIds.length} chunks with embeddings`);
     } catch (error) {

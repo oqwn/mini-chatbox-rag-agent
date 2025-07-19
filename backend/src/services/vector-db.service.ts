@@ -204,6 +204,51 @@ export class VectorDbService {
     return result.rows[0].id;
   }
 
+  // Batch insert for better performance with large documents
+  async createDocumentChunksBatch(chunks: DocumentChunk[]): Promise<number[]> {
+    if (chunks.length === 0) return [];
+
+    // Build batch insert query with proper parameter placeholders
+    const valueStrings: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    for (const chunk of chunks) {
+      valueStrings.push(
+        `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})`
+      );
+      values.push(
+        chunk.documentId,
+        chunk.chunkText,
+        chunk.chunkIndex,
+        chunk.embedding ? `[${chunk.embedding.join(',')}]` : null,
+        chunk.tokenCount,
+        JSON.stringify(chunk.metadata || {})
+      );
+      paramIndex += 6;
+    }
+
+    const query = `
+      INSERT INTO document_chunks (document_id, chunk_text, chunk_index, embedding, token_count, metadata)
+      VALUES ${valueStrings.join(', ')}
+      RETURNING id
+    `;
+
+    try {
+      const result = await this.pool.query(query, values);
+      return result.rows.map(row => row.id);
+    } catch (error) {
+      this.logger.error('Batch insert failed, falling back to individual inserts:', error);
+      // Fallback to individual inserts if batch fails
+      const ids: number[] = [];
+      for (const chunk of chunks) {
+        const id = await this.createDocumentChunk(chunk);
+        ids.push(id);
+      }
+      return ids;
+    }
+  }
+
   async updateChunkEmbedding(chunkId: number, embedding: number[]): Promise<void> {
     const query = `
       UPDATE document_chunks
@@ -211,6 +256,44 @@ export class VectorDbService {
       WHERE id = $2
     `;
     await this.pool.query(query, [`[${embedding.join(',')}]`, chunkId]);
+  }
+
+  // Batch update embeddings for better performance
+  async updateChunkEmbeddingsBatch(chunkIds: number[], embeddings: number[][]): Promise<void> {
+    if (chunkIds.length !== embeddings.length) {
+      throw new Error('ChunkIds and embeddings arrays must have the same length');
+    }
+
+    if (chunkIds.length === 0) return;
+
+    try {
+      // Use CASE statement for batch update
+      const caseStatements = chunkIds.map((_, index) => 
+        `WHEN id = $${index * 2 + 1} THEN $${index * 2 + 2}`
+      ).join(' ');
+
+      const values: any[] = [];
+      for (let i = 0; i < chunkIds.length; i++) {
+        values.push(chunkIds[i], `[${embeddings[i].join(',')}]`);
+      }
+      values.push(...chunkIds); // For the WHERE clause
+
+      const query = `
+        UPDATE document_chunks 
+        SET embedding = CASE 
+          ${caseStatements}
+        END 
+        WHERE id IN (${chunkIds.map((_, i) => `$${chunkIds.length * 2 + 1 + i}`).join(', ')})
+      `;
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      this.logger.error('Batch embedding update failed, falling back to individual updates:', error);
+      // Fallback to individual updates
+      for (let i = 0; i < chunkIds.length; i++) {
+        await this.updateChunkEmbedding(chunkIds[i], embeddings[i]);
+      }
+    }
   }
 
   async getDocumentChunks(documentId: number): Promise<DocumentChunk[]> {
