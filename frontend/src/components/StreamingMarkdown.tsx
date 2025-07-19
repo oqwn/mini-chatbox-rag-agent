@@ -48,10 +48,23 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
     <p style="margin: 0; opacity: 0.9; line-height: 1.5;">${purpose.trim()}</p>
   </div>
   
-  <div style="text-align: center; padding: 16px 0;">
-    <p style="margin: 0; font-size: 16px; font-weight: 500;">
-      Please respond with <strong>"approve"</strong> to execute this tool, or <strong>"cancel"</strong> to skip.
-    </p>
+  <div style="display: flex; gap: 12px; justify-content: center; padding: 16px 0;">
+    <button 
+      onclick="window.dispatchEvent(new CustomEvent('mcp-permission', { detail: 'cancel' }))"
+      style="background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 12px 24px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: white; font-size: 16px;"
+      onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+      onmouseout="this.style.background='rgba(255,255,255,0.2)'"
+    >
+      ❌ Cancel
+    </button>
+    <button 
+      onclick="window.dispatchEvent(new CustomEvent('mcp-permission', { detail: 'approve' }))"
+      style="background: rgba(255,255,255,0.9); color: #667eea; border: none; border-radius: 8px; padding: 12px 24px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 16px;"
+      onmouseover="this.style.background='rgba(255,255,255,1)'"
+      onmouseout="this.style.background='rgba(255,255,255,0.9)'"
+    >
+      ✅ Approve
+    </button>
   </div>
 </div>`;
         return htmlCard;

@@ -23,6 +23,70 @@ export const Chat: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    // Listen for permission button clicks
+    const handlePermission = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const decision = customEvent.detail;
+      
+      // Directly send the decision as a message
+      if (!isStreaming) {
+        const userMessage: ChatMessage = { role: 'user', content: decision };
+        const messagesToSend = [...messages, userMessage];
+        
+        setMessages((prev) => [...prev, userMessage]);
+        setInput('');
+        setError(null);
+        setIsStreaming(true);
+        
+        const assistantMessage: ChatMessage = { role: 'assistant', content: '' };
+        setMessages((prev) => [...prev, assistantMessage]);
+        
+        // Send the message
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+        
+        try {
+          const model = currentModel || (await apiService.getSettings()).openai.model;
+          await apiService.streamMessage(
+            messagesToSend,
+            { model },
+            (content) => {
+              if (abortController.signal.aborted) return;
+              streamingContentRef.current += content;
+              setMessages((prev) => {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1].content = streamingContentRef.current;
+                return newMessages;
+              });
+            },
+            (error) => {
+              if (abortController.signal.aborted) return;
+              setError(error);
+              setIsStreaming(false);
+            },
+            () => {
+              if (abortController.signal.aborted) return;
+              streamingContentRef.current = '';
+              setIsStreaming(false);
+            },
+            abortController.signal
+          );
+        } catch (err) {
+          if (!abortController.signal.aborted) {
+            setError(err instanceof Error ? err.message : 'Unknown error');
+            setIsStreaming(false);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('mcp-permission', handlePermission);
+    return () => {
+      window.removeEventListener('mcp-permission', handlePermission);
+    };
+  }, [messages, isStreaming, currentModel]);
+
   // Scroll to bottom while streaming
   useEffect(() => {
     if (isStreaming) {
