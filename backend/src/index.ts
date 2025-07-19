@@ -6,13 +6,19 @@ import winston from 'winston';
 import { ConfigService } from '@/services/config.service';
 import { OpenAIService } from '@/services/openai.service';
 import { PromptService } from '@/services/prompt.service';
+import { VectorDbService } from '@/services/vector-db.service';
+import { EmbeddingService } from '@/services/embedding.service';
+import { DocumentIngestionService } from '@/services/document-ingestion.service';
+import { RagRetrievalService } from '@/services/rag-retrieval.service';
 import { ChatController } from '@/controllers/chat.controller';
 import { SettingsController } from '@/controllers/settings.controller';
 import { MCPController } from '@/controllers/mcp.controller';
+import { RagController } from '@/controllers/rag.controller';
 import { MCPService } from '@/services/mcp.service';
 import { createChatRoutes } from '@/routes/chat.routes';
 import { createSettingsRoutes } from '@/routes/settings.routes';
 import { createMCPRoutes } from '@/routes/mcp.routes';
+import { createRagRoutes } from '@/routes/rag.routes';
 
 // Configure logger
 const logger = winston.createLogger({
@@ -31,10 +37,17 @@ const openAIService = new OpenAIService(configService, logger);
 const promptService = new PromptService(logger);
 const mcpService = new MCPService();
 
+// Initialize RAG services
+const vectorDbService = new VectorDbService(logger);
+const embeddingService = new EmbeddingService(logger);
+const documentIngestionService = new DocumentIngestionService(vectorDbService, embeddingService, logger);
+const ragRetrievalService = new RagRetrievalService(vectorDbService, embeddingService, logger);
+
 // Initialize controllers
 const chatController = new ChatController(openAIService, mcpService, promptService, logger);
 const settingsController = new SettingsController(configService, openAIService, logger);
 const mcpController = new MCPController(mcpService);
+const ragController = new RagController(vectorDbService, embeddingService, documentIngestionService, ragRetrievalService, logger);
 
 // Create Express app
 const app = express();
@@ -85,6 +98,7 @@ app.get('/health', (_req, res) => {
 app.use('/api', createChatRoutes(chatController));
 app.use('/api', createSettingsRoutes(settingsController));
 app.use('/api', createMCPRoutes(mcpController));
+app.use('/api/rag', createRagRoutes(ragController));
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
