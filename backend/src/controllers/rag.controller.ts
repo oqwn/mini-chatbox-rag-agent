@@ -419,6 +419,104 @@ export class RagController {
     }
   }
 
+  // Configuration endpoints
+  public async getRagConfiguration(_req: Request, res: Response): Promise<void> {
+    try {
+      const embeddingInfo = this.embeddingService.getModelInfo();
+      const rerankingInfo = await this.ragRetrievalService.getRetrievalStats();
+
+      res.json({
+        success: true,
+        configuration: {
+          embedding: {
+            provider: embeddingInfo.provider,
+            model: embeddingInfo.defaultModel,
+            isLocal: embeddingInfo.isLocal || false,
+            isConfigured: this.embeddingService.isConfigured(),
+            requiresApiKey: embeddingInfo.requiresApiKey || false,
+            dimensions: embeddingInfo.dimensions,
+            // Environment variables (without actual values for security)
+            environment: {
+              OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '••••••••' : undefined,
+              EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || undefined,
+              EMBEDDING_ENDPOINT: process.env.EMBEDDING_ENDPOINT || undefined,
+            },
+          },
+          reranking: {
+            provider: rerankingInfo.reranking.provider,
+            method: rerankingInfo.reranking.method,
+            isLocal: rerankingInfo.reranking.isLocal,
+            isConfigured: rerankingInfo.reranking.isConfigured,
+            requiresApiKey: rerankingInfo.reranking.requiresApiKey || false,
+            // Environment variables (without actual values for security)
+            environment: {
+              RERANK_ENDPOINT: process.env.RERANK_ENDPOINT || undefined,
+              RERANK_API_KEY: process.env.RERANK_API_KEY ? '••••••••' : undefined,
+              RERANK_FORCE_LOCAL: process.env.RERANK_FORCE_LOCAL || undefined,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to get RAG configuration:', error);
+      res.status(500).json({ error: 'Failed to get RAG configuration' });
+    }
+  }
+
+  public async updateRagConfiguration(req: Request, res: Response): Promise<void> {
+    try {
+      const { embedding, reranking } = req.body;
+
+      if (!embedding && !reranking) {
+        res.status(400).json({ error: 'No configuration provided' });
+        return;
+      }
+
+      const warnings: string[] = [];
+
+      // Note: In a production environment, you would typically restart the service
+      // or use a proper configuration management system. For this demo, we'll
+      // update process.env and provide guidance to the user.
+
+      if (embedding) {
+        if (embedding.OPENAI_API_KEY !== undefined) {
+          process.env.OPENAI_API_KEY = embedding.OPENAI_API_KEY || undefined;
+        }
+        if (embedding.EMBEDDING_MODEL !== undefined) {
+          process.env.EMBEDDING_MODEL = embedding.EMBEDDING_MODEL || undefined;
+        }
+        if (embedding.EMBEDDING_ENDPOINT !== undefined) {
+          process.env.EMBEDDING_ENDPOINT = embedding.EMBEDDING_ENDPOINT || undefined;
+        }
+      }
+
+      if (reranking) {
+        if (reranking.RERANK_ENDPOINT !== undefined) {
+          process.env.RERANK_ENDPOINT = reranking.RERANK_ENDPOINT || undefined;
+        }
+        if (reranking.RERANK_API_KEY !== undefined) {
+          process.env.RERANK_API_KEY = reranking.RERANK_API_KEY || undefined;
+        }
+        if (reranking.RERANK_FORCE_LOCAL !== undefined) {
+          process.env.RERANK_FORCE_LOCAL = reranking.RERANK_FORCE_LOCAL || undefined;
+        }
+      }
+
+      warnings.push(
+        'Configuration updated in memory. For persistent changes, update your .env file and restart the service.'
+      );
+
+      res.json({
+        success: true,
+        message: 'RAG configuration updated successfully',
+        warnings,
+      });
+    } catch (error) {
+      this.logger.error('Failed to update RAG configuration:', error);
+      res.status(500).json({ error: 'Failed to update RAG configuration' });
+    }
+  }
+
   // Utility endpoints
   public async generateEmbedding(req: Request, res: Response): Promise<void> {
     try {

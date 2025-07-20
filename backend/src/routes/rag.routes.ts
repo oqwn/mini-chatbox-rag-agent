@@ -8,6 +8,10 @@ export function createRagRoutes(ragController: RagController): Router {
   router.get('/health', ragController.healthCheck.bind(ragController));
   router.get('/info', ragController.getSystemInfo.bind(ragController));
 
+  // Configuration endpoints
+  router.get('/config', ragController.getRagConfiguration.bind(ragController));
+  router.put('/config', ragController.updateRagConfiguration.bind(ragController));
+
   // Knowledge sources
   router.post('/knowledge-sources', ragController.createKnowledgeSource.bind(ragController));
   router.get('/knowledge-sources', ragController.getKnowledgeSources.bind(ragController));
