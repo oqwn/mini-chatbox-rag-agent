@@ -158,18 +158,18 @@ export const PermissionCard: React.FC<PermissionCardProps> = ({
           <button
             onClick={handleApprove}
             style={{
-              background: '#333',
-              color: '#fff',
-              border: 'none',
+              background: '#fff',
+              color: '#666',
+              border: '1px solid #ddd',
               borderRadius: '6px',
               padding: '10px 20px',
-              fontWeight: 500,
+              fontWeight: 400,
               cursor: 'pointer',
               transition: 'all 0.2s',
               fontSize: '14px',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#555')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#333')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
           >
             ✅ Approve
           </button>

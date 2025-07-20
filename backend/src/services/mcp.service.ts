@@ -114,7 +114,7 @@ export class MCPService extends EventEmitter {
     await this.initializeMCPHandshake(serverId, childProcess);
   }
 
-  private async initializeMCPHandshake(_serverId: string, process: ChildProcess): Promise<void> {
+  private async initializeMCPHandshake(_serverId: string, childProcess: ChildProcess): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('MCP handshake timeout'));
@@ -155,7 +155,7 @@ export class MCPService extends EventEmitter {
               const message = JSON.parse(line);
               if (message.id === initRequest.id) {
                 clearTimeout(timeout);
-                process.stdout?.removeListener('data', handleStdout);
+                childProcess.stdout?.removeListener('data', handleStdout);
 
                 if (message.error) {
                   reject(new Error(message.error.message || 'MCP initialization failed'));
@@ -170,8 +170,8 @@ export class MCPService extends EventEmitter {
         }
       };
 
-      process.stdout?.on('data', handleStdout);
-      process.stdin?.write(JSON.stringify(initRequest) + '\n');
+      childProcess.stdout?.on('data', handleStdout);
+      childProcess.stdin?.write(JSON.stringify(initRequest) + '\n');
     });
   }
 

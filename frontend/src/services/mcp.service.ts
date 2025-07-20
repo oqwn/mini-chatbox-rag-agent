@@ -126,8 +126,8 @@ class MCPService {
         tools.push(...status.tools);
       }
     }
-    console.log('Available MCP tools:', tools);
-    console.log('Server statuses:', Array.from(this.serverStatuses.values()));
+    // console.log('Available MCP tools:', tools);
+    // console.log('Server statuses:', Array.from(this.serverStatuses.values()));
     return tools;
   }
 
