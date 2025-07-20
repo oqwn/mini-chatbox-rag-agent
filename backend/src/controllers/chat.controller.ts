@@ -31,10 +31,14 @@ export class ChatController {
     }
   }
 
-  private async performRagRetrieval(
-    query: string
-  ): Promise<{ contextText: string; references: any[] } | null> {
+  private async performRagRetrieval(query: string): Promise<{
+    contextText: string;
+    references: any[];
+    retrievalTime: number;
+    usedFallback: boolean;
+  } | null> {
     try {
+      const startTime = Date.now();
       const { hasDocuments, knowledgeSourceIds } = await this.getKnowledgeBaseSources();
 
       if (!hasDocuments || knowledgeSourceIds.length === 0) {
@@ -44,48 +48,114 @@ export class ChatController {
 
       this.logger.debug(`Performing RAG retrieval for query: ${query.substring(0, 100)}...`);
 
-      const ragResult = await this.ragRetrievalService.retrieveContext({
-        query,
-        maxResults: 5,
-        similarityThreshold: 0.3,
-        useReranking: true,
-        rerankTopK: 10,
-      });
+      // Check if retrieval is taking too long and potentially fall back
+      const EMBEDDING_TIMEOUT = 5000; // 5 seconds
+      let usedFallback = false;
 
-      if (ragResult.relevantChunks.length === 0) {
-        this.logger.debug('No relevant chunks found in knowledge base');
-        return null;
+      try {
+        const ragResult = (await Promise.race([
+          this.ragRetrievalService.retrieveContext({
+            query,
+            maxResults: 5,
+            similarityThreshold: 0.3,
+            useReranking: true,
+            rerankTopK: 10,
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Embedding timeout')), EMBEDDING_TIMEOUT)
+          ),
+        ])) as any;
+
+        const retrievalTime = Date.now() - startTime;
+
+        if (ragResult.relevantChunks.length === 0) {
+          this.logger.debug('No relevant chunks found in knowledge base');
+          return null;
+        }
+
+        // Format references for citation with enhanced metadata
+        const references = ragResult.relevantChunks.map((chunk: any, index: number) => ({
+          id: chunk.id,
+          documentId: chunk.documentId,
+          documentTitle: chunk.documentTitle || `Document ${chunk.documentId}`,
+          exactPreview:
+            chunk.chunkMetadata?.exactPreview ||
+            chunk.chunkText.substring(0, 300) + (chunk.chunkText.length > 300 ? '...' : ''),
+          similarity: chunk.similarity,
+          citationNumber: index + 1,
+          rerankScore: chunk.rerankScore,
+          chunkIndex: chunk.chunkIndex,
+          pageNumber: chunk.chunkMetadata?.pageNumber,
+          pageNumbers: chunk.chunkMetadata?.pageNumbers || [],
+          startPage: chunk.chunkMetadata?.startPage,
+          endPage: chunk.chunkMetadata?.endPage,
+          wordCount: chunk.chunkText.split(/\s+/).length,
+          contextBefore: chunk.contextBefore,
+          contextAfter: chunk.contextAfter,
+        }));
+
+        this.logger.info(
+          `RAG retrieved ${references.length} relevant chunks in ${retrievalTime}ms`
+        );
+
+        return {
+          contextText: ragResult.contextText,
+          references,
+          retrievalTime,
+          usedFallback,
+        };
+      } catch (timeoutError) {
+        // Fallback to keyword search if embedding is slow
+        this.logger.warn('Embedding timeout, falling back to keyword search');
+        usedFallback = true;
+
+        // Simplified keyword search fallback
+        const fallbackResult = await this.ragRetrievalService.retrieveContext({
+          query,
+          maxResults: 5,
+          similarityThreshold: 0.2,
+          useReranking: false, // Skip reranking for faster results
+          rerankTopK: 5,
+        });
+
+        const retrievalTime = Date.now() - startTime;
+
+        if (fallbackResult.relevantChunks.length === 0) {
+          this.logger.debug('No relevant chunks found with fallback search');
+          return null;
+        }
+
+        const references = fallbackResult.relevantChunks.map((chunk: any, index: number) => ({
+          id: chunk.id,
+          documentId: chunk.documentId,
+          documentTitle: chunk.documentTitle || `Document ${chunk.documentId}`,
+          exactPreview:
+            chunk.chunkMetadata?.exactPreview ||
+            chunk.chunkText.substring(0, 300) + (chunk.chunkText.length > 300 ? '...' : ''),
+          similarity: chunk.similarity,
+          citationNumber: index + 1,
+          rerankScore: chunk.rerankScore,
+          chunkIndex: chunk.chunkIndex,
+          pageNumber: chunk.chunkMetadata?.pageNumber,
+          pageNumbers: chunk.chunkMetadata?.pageNumbers || [],
+          startPage: chunk.chunkMetadata?.startPage,
+          endPage: chunk.chunkMetadata?.endPage,
+          wordCount: chunk.chunkText.split(/\s+/).length,
+          contextBefore: chunk.contextBefore,
+          contextAfter: chunk.contextAfter,
+        }));
+
+        this.logger.info(
+          `RAG fallback retrieved ${references.length} relevant chunks in ${retrievalTime}ms`
+        );
+
+        return {
+          contextText: fallbackResult.contextText,
+          references,
+          retrievalTime,
+          usedFallback,
+        };
       }
-
-      // Format references for citation with enhanced metadata
-      const references = ragResult.relevantChunks.map((chunk, index) => ({
-        id: chunk.id,
-        documentId: chunk.documentId,
-        documentTitle: chunk.documentTitle || `Document ${chunk.documentId}`,
-        exactPreview:
-          chunk.chunkMetadata?.exactPreview ||
-          chunk.chunkText.substring(0, 300) + (chunk.chunkText.length > 300 ? '...' : ''),
-        similarity: chunk.similarity,
-        citationNumber: index + 1,
-        rerankScore: chunk.rerankScore,
-        chunkIndex: chunk.chunkIndex,
-        pageNumber: chunk.chunkMetadata?.pageNumber,
-        pageNumbers: chunk.chunkMetadata?.pageNumbers || [],
-        startPage: chunk.chunkMetadata?.startPage,
-        endPage: chunk.chunkMetadata?.endPage,
-        wordCount: chunk.chunkText.split(/\s+/).length,
-        contextBefore: chunk.contextBefore,
-        contextAfter: chunk.contextAfter,
-      }));
-
-      this.logger.info(
-        `RAG retrieved ${references.length} relevant chunks in ${ragResult.retrievalTime}ms`
-      );
-
-      return {
-        contextText: ragResult.contextText,
-        references,
-      };
     } catch (error) {
       this.logger.error('RAG retrieval failed:', error);
       return null;
@@ -113,7 +183,12 @@ export class ChatController {
       this.logger.info(`Found ${mcpTools.length} MCP tools available`);
 
       // Perform RAG retrieval for the latest user message
-      let ragContext: { contextText: string; references: any[] } | null = null;
+      let ragContext: {
+        contextText: string;
+        references: any[];
+        retrievalTime: number;
+        usedFallback: boolean;
+      } | null = null;
       const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
       if (lastUserMessage?.content) {
         ragContext = await this.performRagRetrieval(lastUserMessage.content);
@@ -138,11 +213,16 @@ export class ChatController {
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
             if (toolMatch) {
               try {
-                additionalContext = '\n\n' + this.promptService.getPrompt('mcp-permission-approved.md', {
-                  TOOL_NAME: toolMatch[1].trim(),
-                });
+                additionalContext =
+                  '\n\n' +
+                  this.promptService.getPrompt('mcp-permission-approved.md', {
+                    TOOL_NAME: toolMatch[1].trim(),
+                  });
               } catch (error) {
-                this.logger.warn('Failed to load permission approved prompt, using fallback:', error);
+                this.logger.warn(
+                  'Failed to load permission approved prompt, using fallback:',
+                  error
+                );
                 additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
               }
             }
@@ -171,12 +251,20 @@ export class ChatController {
       let ragSystemPrompt = '';
       if (ragContext) {
         try {
-          ragSystemPrompt = this.promptService.getPrompt('rag-system.md', {
+          const retrievalMethod = ragContext.usedFallback ? 'keyword search' : 'semantic search';
+          const timingInfo = `Retrieval completed in ${ragContext.retrievalTime}ms using ${retrievalMethod}`;
+
+          ragSystemPrompt = this.promptService.getPrompt('rag-tool-system.md', {
             CONTEXT_TEXT: ragContext.contextText,
+            RETRIEVAL_TIME: ragContext.retrievalTime.toString(),
+            RETRIEVAL_METHOD: retrievalMethod,
+            TIMING_INFO: timingInfo,
+            USED_FALLBACK: ragContext.usedFallback.toString(),
           });
         } catch (error) {
-          this.logger.warn('Failed to load RAG prompt from file, using fallback:', error);
-          ragSystemPrompt = `\n\n=== KNOWLEDGE BASE CONTEXT ===\nYou have access to the following relevant information from the knowledge base:\n\n${ragContext.contextText}\n\n=== END KNOWLEDGE BASE CONTEXT ===\n\nWhen answering, you should use this knowledge base information when relevant. Always cite your sources using the format [Source: Document Title] when referencing information from the knowledge base.`;
+          this.logger.warn('Failed to load RAG tool prompt from file, using fallback:', error);
+          const retrievalMethod = ragContext.usedFallback ? 'keyword search' : 'semantic search';
+          ragSystemPrompt = `\n\n=== RAG TOOL INFORMATION ===\nRetrieval completed in ${ragContext.retrievalTime}ms using ${retrievalMethod}\n${ragContext.usedFallback ? 'Note: Used fallback search due to slow embedding' : ''}\n\n=== KNOWLEDGE BASE CONTEXT ===\n${ragContext.contextText}\n=== END KNOWLEDGE BASE CONTEXT ===\n\nYou just used the RAG tool to search the knowledge base. Communicate this transparently to the user with timing information.`;
         }
       }
 
@@ -259,7 +347,12 @@ export class ChatController {
       this.logger.info(`Found ${mcpTools.length} MCP tools available`);
 
       // Perform RAG retrieval for the latest user message
-      let ragContext: { contextText: string; references: any[] } | null = null;
+      let ragContext: {
+        contextText: string;
+        references: any[];
+        retrievalTime: number;
+        usedFallback: boolean;
+      } | null = null;
       const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
       if (lastUserMessage?.content) {
         ragContext = await this.performRagRetrieval(lastUserMessage.content);
@@ -284,11 +377,16 @@ export class ChatController {
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
             if (toolMatch) {
               try {
-                additionalContext = '\n\n' + this.promptService.getPrompt('mcp-permission-approved.md', {
-                  TOOL_NAME: toolMatch[1].trim(),
-                });
+                additionalContext =
+                  '\n\n' +
+                  this.promptService.getPrompt('mcp-permission-approved.md', {
+                    TOOL_NAME: toolMatch[1].trim(),
+                  });
               } catch (error) {
-                this.logger.warn('Failed to load permission approved prompt, using fallback:', error);
+                this.logger.warn(
+                  'Failed to load permission approved prompt, using fallback:',
+                  error
+                );
                 additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
               }
             }
@@ -317,12 +415,20 @@ export class ChatController {
       let ragSystemPrompt = '';
       if (ragContext) {
         try {
-          ragSystemPrompt = this.promptService.getPrompt('rag-system.md', {
+          const retrievalMethod = ragContext.usedFallback ? 'keyword search' : 'semantic search';
+          const timingInfo = `Retrieval completed in ${ragContext.retrievalTime}ms using ${retrievalMethod}`;
+
+          ragSystemPrompt = this.promptService.getPrompt('rag-tool-system.md', {
             CONTEXT_TEXT: ragContext.contextText,
+            RETRIEVAL_TIME: ragContext.retrievalTime.toString(),
+            RETRIEVAL_METHOD: retrievalMethod,
+            TIMING_INFO: timingInfo,
+            USED_FALLBACK: ragContext.usedFallback.toString(),
           });
         } catch (error) {
-          this.logger.warn('Failed to load RAG prompt from file, using fallback:', error);
-          ragSystemPrompt = `\n\n=== KNOWLEDGE BASE CONTEXT ===\nYou have access to the following relevant information from the knowledge base:\n\n${ragContext.contextText}\n\n=== END KNOWLEDGE BASE CONTEXT ===\n\nWhen answering, you should use this knowledge base information when relevant. Always cite your sources using the format [Source: Document Title] when referencing information from the knowledge base.`;
+          this.logger.warn('Failed to load RAG tool prompt from file, using fallback:', error);
+          const retrievalMethod = ragContext.usedFallback ? 'keyword search' : 'semantic search';
+          ragSystemPrompt = `\n\n=== RAG TOOL INFORMATION ===\nRetrieval completed in ${ragContext.retrievalTime}ms using ${retrievalMethod}\n${ragContext.usedFallback ? 'Note: Used fallback search due to slow embedding' : ''}\n\n=== KNOWLEDGE BASE CONTEXT ===\n${ragContext.contextText}\n=== END KNOWLEDGE BASE CONTEXT ===\n\nYou just used the RAG tool to search the knowledge base. Communicate this transparently to the user with timing information.`;
         }
       }
 

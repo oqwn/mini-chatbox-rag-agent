@@ -123,16 +123,20 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
               onClick={() => setShowReferences(!showReferences)}
               className="flex items-center text-xs text-gray-500 hover:text-gray-700 transition-colors duration-200"
             >
-              <svg 
-                className={`w-3 h-3 mr-1 transform transition-transform duration-200 ${showReferences ? 'rotate-90' : ''}`} 
-                fill="currentColor" 
+              <svg
+                className={`w-3 h-3 mr-1 transform transition-transform duration-200 ${showReferences ? 'rotate-90' : ''}`}
+                fill="currentColor"
                 viewBox="0 0 20 20"
               >
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clipRule="evenodd"
+                />
               </svg>
               {references.length} source{references.length !== 1 ? 's' : ''} used
             </button>
-            
+
             {/* Collapsible references */}
             {showReferences && (
               <div className="mt-2 space-y-2 animate-fadeIn">
@@ -145,7 +149,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
                     <span className="absolute left-0 top-2 w-4 h-4 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-[10px] font-medium">
                       {ref.citationNumber || index + 1}
                     </span>
-                    
+
                     {/* Document info */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -162,7 +166,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
                         </span>
                       )}
                     </div>
-                    
+
                     {/* Preview on hover */}
                     {ref.preview && (
                       <div className="mt-1 text-gray-500 italic line-clamp-2 group-hover:line-clamp-none transition-all duration-200">
