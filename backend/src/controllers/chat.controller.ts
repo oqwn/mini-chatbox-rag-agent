@@ -137,7 +137,14 @@ export class ChatController {
             // Extract tool name from permission request
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
             if (toolMatch) {
-              additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
+              try {
+                additionalContext = '\n\n' + this.promptService.getPrompt('mcp-permission-approved.md', {
+                  TOOL_NAME: toolMatch[1].trim(),
+                });
+              } catch (error) {
+                this.logger.warn('Failed to load permission approved prompt, using fallback:', error);
+                additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
+              }
             }
           }
         }
@@ -163,7 +170,14 @@ export class ChatController {
       // Add RAG context to system prompt if available
       let ragSystemPrompt = '';
       if (ragContext) {
-        ragSystemPrompt = `\n\n=== KNOWLEDGE BASE CONTEXT ===\nYou have access to the following relevant information from the knowledge base:\n\n${ragContext.contextText}\n\n=== END KNOWLEDGE BASE CONTEXT ===\n\nWhen answering, you should use this knowledge base information when relevant. Always cite your sources using the format [Source: Document Title] when referencing information from the knowledge base.`;
+        try {
+          ragSystemPrompt = this.promptService.getPrompt('rag-system.md', {
+            CONTEXT_TEXT: ragContext.contextText,
+          });
+        } catch (error) {
+          this.logger.warn('Failed to load RAG prompt from file, using fallback:', error);
+          ragSystemPrompt = `\n\n=== KNOWLEDGE BASE CONTEXT ===\nYou have access to the following relevant information from the knowledge base:\n\n${ragContext.contextText}\n\n=== END KNOWLEDGE BASE CONTEXT ===\n\nWhen answering, you should use this knowledge base information when relevant. Always cite your sources using the format [Source: Document Title] when referencing information from the knowledge base.`;
+        }
       }
 
       const systemMessage = {
@@ -269,7 +283,14 @@ export class ChatController {
             // Extract tool name from permission request
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
             if (toolMatch) {
-              additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
+              try {
+                additionalContext = '\n\n' + this.promptService.getPrompt('mcp-permission-approved.md', {
+                  TOOL_NAME: toolMatch[1].trim(),
+                });
+              } catch (error) {
+                this.logger.warn('Failed to load permission approved prompt, using fallback:', error);
+                additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
+              }
             }
           }
         }
@@ -295,7 +316,14 @@ export class ChatController {
       // Add RAG context to system prompt if available
       let ragSystemPrompt = '';
       if (ragContext) {
-        ragSystemPrompt = `\n\n=== KNOWLEDGE BASE CONTEXT ===\nYou have access to the following relevant information from the knowledge base:\n\n${ragContext.contextText}\n\n=== END KNOWLEDGE BASE CONTEXT ===\n\nWhen answering, you should use this knowledge base information when relevant. Always cite your sources using the format [Source: Document Title] when referencing information from the knowledge base.`;
+        try {
+          ragSystemPrompt = this.promptService.getPrompt('rag-system.md', {
+            CONTEXT_TEXT: ragContext.contextText,
+          });
+        } catch (error) {
+          this.logger.warn('Failed to load RAG prompt from file, using fallback:', error);
+          ragSystemPrompt = `\n\n=== KNOWLEDGE BASE CONTEXT ===\nYou have access to the following relevant information from the knowledge base:\n\n${ragContext.contextText}\n\n=== END KNOWLEDGE BASE CONTEXT ===\n\nWhen answering, you should use this knowledge base information when relevant. Always cite your sources using the format [Source: Document Title] when referencing information from the knowledge base.`;
+        }
       }
 
       const systemMessage = {
