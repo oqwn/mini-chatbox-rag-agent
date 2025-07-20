@@ -14,6 +14,7 @@ interface StreamingMarkdownProps {
 export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
   ({ content, isStreaming = false, className = '' }) => {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+    const [showReferences, setShowReferences] = useState(false);
 
     const handleCopyCode = (code: string, index: number) => {
       navigator.clipboard.writeText(code);
@@ -116,51 +117,62 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
             {mainContent}
           </ReactMarkdown>
 
-          <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
-            <h4 className="text-sm font-semibold text-blue-800 mb-3 flex items-center">
-              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z"
-                  clipRule="evenodd"
-                />
+          {/* Subtle references indicator */}
+          <div className="mt-3 border-t border-gray-200 pt-3">
+            <button
+              onClick={() => setShowReferences(!showReferences)}
+              className="flex items-center text-xs text-gray-500 hover:text-gray-700 transition-colors duration-200"
+            >
+              <svg 
+                className={`w-3 h-3 mr-1 transform transition-transform duration-200 ${showReferences ? 'rotate-90' : ''}`} 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
               </svg>
-              Knowledge Base References
-            </h4>
-            <div className="space-y-3">
-              {references.map((ref, index) => (
-                <div
-                  key={index}
-                  className="bg-white p-3 rounded-lg border border-blue-200 shadow-sm"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-semibold rounded-full">
-                        {ref.citationNumber || index + 1}
-                      </span>
-                      <h5 className="text-sm font-medium text-gray-900 truncate">{ref.title}</h5>
-                    </div>
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                      {ref.pageInfo && (
-                        <span className="bg-gray-100 px-2 py-1 rounded">
-                          {ref.pageInfo.includes('-') ? 'Pages' : 'Page'} {ref.pageInfo}
-                        </span>
-                      )}
+              {references.length} source{references.length !== 1 ? 's' : ''} used
+            </button>
+            
+            {/* Collapsible references */}
+            {showReferences && (
+              <div className="mt-2 space-y-2 animate-fadeIn">
+                {references.map((ref, index) => (
+                  <div
+                    key={index}
+                    className="group relative pl-6 py-2 text-xs text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"
+                  >
+                    {/* Citation number */}
+                    <span className="absolute left-0 top-2 w-4 h-4 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-[10px] font-medium">
+                      {ref.citationNumber || index + 1}
+                    </span>
+                    
+                    {/* Document info */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-700">{ref.title}</div>
+                        {ref.pageInfo && (
+                          <span className="text-gray-500">
+                            {ref.pageInfo.includes('-') ? 'Pages' : 'Page'} {ref.pageInfo}
+                          </span>
+                        )}
+                      </div>
                       {ref.similarity > 0 && (
-                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded">
-                          {ref.similarity.toFixed(1)}% match
+                        <span className="text-[10px] text-gray-400 ml-2">
+                          {ref.similarity.toFixed(0)}%
                         </span>
                       )}
                     </div>
+                    
+                    {/* Preview on hover */}
+                    {ref.preview && (
+                      <div className="mt-1 text-gray-500 italic line-clamp-2 group-hover:line-clamp-none transition-all duration-200">
+                        "{ref.preview}"
+                      </div>
+                    )}
                   </div>
-                  {ref.preview && (
-                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-700 italic border-l-2 border-blue-300">
-                      "{ref.preview}"
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {isStreaming && <span className="animate-pulse ml-1 text-black">▊</span>}
