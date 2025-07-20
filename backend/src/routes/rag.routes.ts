@@ -24,6 +24,7 @@ export function createRagRoutes(ragController: RagController): Router {
   router.get('/documents', ragController.getDocuments.bind(ragController));
   router.get('/documents/:id', ragController.getDocument.bind(ragController));
   router.delete('/documents/:id', ragController.deleteDocument.bind(ragController));
+  router.put('/documents/:id/move', ragController.moveDocument.bind(ragController));
   router.get('/documents/:id/chunks', ragController.getDocumentChunks.bind(ragController));
 
   // Search and retrieval

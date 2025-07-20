@@ -179,6 +179,16 @@ class RagApiService {
     });
   }
 
+  async moveDocument(
+    id: number,
+    knowledgeSourceId: number | null
+  ): Promise<{ message: string; documentId: number; knowledgeSourceId: number | null }> {
+    return this.request(`/documents/${id}/move`, {
+      method: 'PUT',
+      body: JSON.stringify({ knowledgeSourceId }),
+    });
+  }
+
   async getDocumentChunks(id: number): Promise<{ chunks: DocumentChunk[] }> {
     return this.request(`/documents/${id}/chunks`);
   }

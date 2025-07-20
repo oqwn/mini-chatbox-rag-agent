@@ -215,6 +215,29 @@ export class RagController {
     }
   }
 
+  public async moveDocument(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { knowledgeSourceId } = req.body;
+
+      if (knowledgeSourceId === undefined) {
+        res.status(400).json({ error: 'Knowledge source ID is required' });
+        return;
+      }
+
+      await this.vectorDbService.moveDocumentToKnowledgeSource(parseInt(id), knowledgeSourceId);
+
+      res.json({
+        message: 'Document moved successfully',
+        documentId: parseInt(id),
+        knowledgeSourceId,
+      });
+    } catch (error) {
+      this.logger.error('Failed to move document:', error);
+      res.status(500).json({ error: 'Failed to move document' });
+    }
+  }
+
   public async getDocumentChunks(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -264,7 +287,7 @@ export class RagController {
 
   public async similaritySearch(req: Request, res: Response): Promise<void> {
     try {
-      const { query, knowledgeSourceId, limit = 5, threshold = 0.3 } = req.body;
+      const { query, knowledgeSourceId, limit = 5 } = req.body;
 
       if (!query) {
         res.status(400).json({ error: 'Query is required' });
@@ -274,11 +297,13 @@ export class RagController {
       // Generate query embedding
       const queryEmbedding = await this.embeddingService.generateQueryEmbedding(query);
 
-      // Perform similarity search
-      const results = await this.vectorDbService.similaritySearch(
+      // Use hybrid search for better keyword matching
+      const results = await this.vectorDbService.hybridSearch(
+        query,
         queryEmbedding.embedding,
         limit,
-        threshold,
+        0.5, // vectorWeight - balance between semantic and keyword
+        0.5, // keywordWeight - increase for better Chinese text matching
         knowledgeSourceId
       );
 

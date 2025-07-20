@@ -380,6 +380,15 @@ export class VectorDbService {
     keywordWeight: number = 0.3,
     knowledgeSourceId?: number
   ): Promise<SimilaritySearchResult[]> {
+    // Calculate keyword score based on exact matches (works for both Chinese and English)
+    const keywordScoreExpression = `
+      (
+        (LENGTH(dc.chunk_text) - LENGTH(REPLACE(LOWER(dc.chunk_text), LOWER($2), ''))) / 
+        GREATEST(LENGTH($2), 1)::float / 
+        GREATEST(LENGTH(dc.chunk_text), 1)::float * 100
+      )
+    `;
+
     let query = `
       SELECT 
         dc.id,
@@ -391,8 +400,10 @@ export class VectorDbService {
         d.metadata as document_metadata,
         (
           $3 * (1 - (dc.embedding <=> $1)) +
-          $4 * ts_rank_cd(to_tsvector('english', dc.chunk_text), plainto_tsquery('english', $2))
-        ) as combined_score
+          $4 * ${keywordScoreExpression}
+        ) as combined_score,
+        1 - (dc.embedding <=> $1) as vector_similarity,
+        ${keywordScoreExpression} as keyword_score
       FROM document_chunks dc
       JOIN documents d ON dc.document_id = d.id
     `;
@@ -431,6 +442,21 @@ export class VectorDbService {
     const query = 'DELETE FROM documents WHERE id = $1';
     await this.pool.query(query, [id]);
     this.logger.info(`Deleted document with ID: ${id}`);
+  }
+
+  async moveDocumentToKnowledgeSource(
+    documentId: number,
+    knowledgeSourceId: number | null
+  ): Promise<void> {
+    const query = 'UPDATE documents SET knowledge_source_id = $1 WHERE id = $2';
+    const result = await this.pool.query(query, [knowledgeSourceId, documentId]);
+    if (result.rowCount === 0) {
+      throw new Error(`Document with ID ${documentId} not found`);
+    }
+
+    this.logger.info(
+      `Moved document ${documentId} to knowledge source ${knowledgeSourceId || 'none'}`
+    );
   }
 
   async getStats(): Promise<{

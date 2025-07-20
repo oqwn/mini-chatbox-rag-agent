@@ -6,7 +6,7 @@ import { FileUpload } from '../components/FileUpload';
 export const RagManagement: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'upload' | 'documents' | 'sources' | 'system'>(
-    'upload'
+    'documents'
   );
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -14,6 +14,10 @@ export const RagManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Move document state
+  const [movingDocumentId, setMovingDocumentId] = useState<number | null>(null);
+  const [selectedKnowledgeSource, setSelectedKnowledgeSource] = useState<'all' | number>('all');
 
   // New Knowledge Source Form
   const [newSourceName, setNewSourceName] = useState('');
@@ -102,6 +106,22 @@ export const RagManagement: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete document');
     }
+  };
+
+  const handleMoveDocument = async (documentId: number, newKnowledgeSourceId: number | null) => {
+    try {
+      await ragApiService.moveDocument(documentId, newKnowledgeSourceId);
+      setSuccess('Document moved successfully');
+      setMovingDocumentId(null);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to move document');
+    }
+  };
+
+  const getFilteredDocuments = () => {
+    if (selectedKnowledgeSource === 'all') return documents;
+    return documents.filter(doc => doc.knowledgeSourceId === selectedKnowledgeSource);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -300,62 +320,226 @@ export const RagManagement: React.FC = () => {
         )}
 
         {activeTab === 'documents' && (
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Documents</h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                All documents in your knowledge base
-              </p>
+          <div className="space-y-6">
+            {/* Knowledge Base Filter */}
+            <div className="bg-white p-4 rounded-lg shadow">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Document Library</h3>
+                <select
+                  value={selectedKnowledgeSource}
+                  onChange={(e) => setSelectedKnowledgeSource(
+                    e.target.value === 'all' ? 'all' : Number(e.target.value)
+                  )}
+                  className="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Knowledge Bases</option>
+                  <option value="">No Knowledge Base</option>
+                  {knowledgeSources.map((source) => (
+                    <option key={source.id} value={source.id}>
+                      {source.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <ul className="divide-y divide-gray-200">
-              {documents.map((doc) => (
-                <li key={doc.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <h4 className="text-sm font-medium text-gray-900 truncate">
-                          {doc.title || 'Untitled'}
+
+            {/* Documents by Knowledge Base */}
+            <div className="space-y-4">
+              {/* Documents without knowledge base */}
+              {selectedKnowledgeSource === 'all' && documents.some(doc => !doc.knowledgeSourceId) && (
+                <div className="bg-white rounded-lg shadow">
+                  <div className="px-4 py-3 bg-gray-50 border-b">
+                    <h4 className="text-sm font-medium text-gray-700">📁 Unorganized Documents</h4>
+                  </div>
+                  <ul className="divide-y divide-gray-200">
+                    {documents.filter(doc => !doc.knowledgeSourceId).map((doc) => (
+                      <li key={doc.id} className="px-4 py-3 hover:bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center">
+                              <span className="text-gray-400 mr-2">📄</span>
+                              <h5 className="text-sm font-medium text-gray-900 truncate">
+                                {doc.title || 'Untitled'}
+                              </h5>
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                {doc.fileType || 'text'}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500 space-x-3">
+                              {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
+                              {doc.metadata?.ingestedAt && (
+                                <span>{formatDate(doc.metadata.ingestedAt)}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {movingDocumentId === doc.id ? (
+                              <>
+                                <select
+                                  onChange={(e) => handleMoveDocument(doc.id!, 
+                                    e.target.value ? Number(e.target.value) : null
+                                  )}
+                                  className="text-sm border-gray-300 rounded"
+                                  defaultValue=""
+                                >
+                                  <option value="">Move to...</option>
+                                  {knowledgeSources.map((source) => (
+                                    <option key={source.id} value={source.id}>
+                                      {source.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={() => setMovingDocumentId(null)}
+                                  className="text-gray-500 hover:text-gray-700 text-sm"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => navigate(`/rag/documents/${doc.id}`)}
+                                  className="text-blue-600 hover:text-blue-900 text-sm"
+                                >
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => setMovingDocumentId(doc.id!)}
+                                  className="text-purple-600 hover:text-purple-900 text-sm"
+                                >
+                                  Move
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteDocument(doc.id!, doc.title || 'Untitled')}
+                                  className="text-red-600 hover:text-red-900 text-sm"
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Documents organized by knowledge base */}
+              {knowledgeSources.map((source) => {
+                const sourceDocs = documents.filter(doc => doc.knowledgeSourceId === source.id);
+                if (selectedKnowledgeSource !== 'all' && selectedKnowledgeSource !== source.id) return null;
+                if (sourceDocs.length === 0 && selectedKnowledgeSource !== source.id) return null;
+
+                return (
+                  <div key={source.id} className="bg-white rounded-lg shadow">
+                    <div className="px-4 py-3 bg-blue-50 border-b">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-blue-900">
+                          🗂️ {source.name}
                         </h4>
-                        <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          {doc.fileType || 'text'}
+                        <span className="text-xs text-blue-600">
+                          {sourceDocs.length} document{sourceDocs.length !== 1 ? 's' : ''}
                         </span>
                       </div>
-                      <div className="mt-1 flex items-center text-sm text-gray-500 space-x-4">
-                        {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
-                        {doc.metadata?.ingestedAt && (
-                          <span>Uploaded {formatDate(doc.metadata.ingestedAt)}</span>
-                        )}
-                        {doc.knowledgeSourceId && (
-                          <span>
-                            Source:{' '}
-                            {knowledgeSources.find((s) => s.id === doc.knowledgeSourceId)?.name}
-                          </span>
-                        )}
-                      </div>
+                      {source.description && (
+                        <p className="text-xs text-blue-700 mt-1">{source.description}</p>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => navigate(`/rag/documents/${doc.id}`)}
-                        className="text-blue-600 hover:text-blue-900 text-sm"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDocument(doc.id!, doc.title || 'Untitled')}
-                        className="text-red-600 hover:text-red-900 text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <ul className="divide-y divide-gray-200">
+                      {sourceDocs.map((doc) => (
+                        <li key={doc.id} className="px-4 py-3 hover:bg-gray-50">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center">
+                                <span className="text-blue-400 mr-2">📄</span>
+                                <h5 className="text-sm font-medium text-gray-900 truncate">
+                                  {doc.title || 'Untitled'}
+                                </h5>
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                  {doc.fileType || 'text'}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500 space-x-3">
+                                {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
+                                {doc.metadata?.ingestedAt && (
+                                  <span>{formatDate(doc.metadata.ingestedAt)}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {movingDocumentId === doc.id ? (
+                                <>
+                                  <select
+                                    onChange={(e) => handleMoveDocument(doc.id!, 
+                                      e.target.value ? Number(e.target.value) : null
+                                    )}
+                                    className="text-sm border-gray-300 rounded"
+                                    defaultValue={source.id}
+                                  >
+                                    <option value="">No Knowledge Base</option>
+                                    {knowledgeSources.map((s) => (
+                                      <option key={s.id} value={s.id}>
+                                        {s.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => setMovingDocumentId(null)}
+                                    className="text-gray-500 hover:text-gray-700 text-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => navigate(`/rag/documents/${doc.id}`)}
+                                    className="text-blue-600 hover:text-blue-900 text-sm"
+                                  >
+                                    View
+                                  </button>
+                                  <button
+                                    onClick={() => setMovingDocumentId(doc.id!)}
+                                    className="text-purple-600 hover:text-purple-900 text-sm"
+                                  >
+                                    Move
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteDocument(doc.id!, doc.title || 'Untitled')}
+                                    className="text-red-600 hover:text-red-900 text-sm"
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                      {sourceDocs.length === 0 && (
+                        <li className="px-4 py-6 text-center text-gray-500 text-sm">
+                          No documents in this knowledge base yet.
+                        </li>
+                      )}
+                    </ul>
                   </div>
-                </li>
-              ))}
-              {documents.length === 0 && (
-                <li className="px-4 py-8 text-center text-gray-500">
-                  No documents found. Upload some files to get started.
-                </li>
+                );
+              })}
+
+              {getFilteredDocuments().length === 0 && (
+                <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                  <p>No documents found.</p>
+                  <button
+                    onClick={() => setActiveTab('upload')}
+                    className="mt-4 text-blue-600 hover:text-blue-900"
+                  >
+                    Upload your first document →
+                  </button>
+                </div>
               )}
-            </ul>
+            </div>
           </div>
         )}
 
