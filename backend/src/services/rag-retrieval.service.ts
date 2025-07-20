@@ -43,7 +43,7 @@ export interface RankingOptions {
 export class RagRetrievalService {
   private defaultOptions = {
     maxResults: 5,
-    similarityThreshold: 0.7,
+    similarityThreshold: 0.3,
     useHybridSearch: true,
     contextWindowSize: 2, // Number of surrounding chunks to include for context
     vectorWeight: 0.7,

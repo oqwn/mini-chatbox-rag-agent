@@ -324,7 +324,7 @@ export class VectorDbService {
   async similaritySearch(
     queryEmbedding: number[],
     limit: number = 5,
-    threshold: number = 0.7,
+    _threshold: number = 0.7,
     knowledgeSourceId?: number
   ): Promise<SimilaritySearchResult[]> {
     let query = `
@@ -358,18 +358,17 @@ export class VectorDbService {
 
     const result = await this.pool.query(query, values);
 
-    return result.rows
-      .filter((row) => row.similarity >= threshold)
-      .map((row) => ({
-        id: row.id,
-        documentId: row.document_id,
-        chunkText: row.chunk_text,
-        chunkIndex: row.chunk_index,
-        similarity: parseFloat(row.similarity),
-        documentTitle: row.document_title,
-        documentMetadata: row.document_metadata,
-        chunkMetadata: row.chunk_metadata,
-      }));
+    // Return all results ordered by similarity, let the caller decide on threshold
+    return result.rows.map((row) => ({
+      id: row.id,
+      documentId: row.document_id,
+      chunkText: row.chunk_text,
+      chunkIndex: row.chunk_index,
+      similarity: parseFloat(row.similarity),
+      documentTitle: row.document_title,
+      documentMetadata: row.document_metadata,
+      chunkMetadata: row.chunk_metadata,
+    }));
   }
 
   // Hybrid search combining keyword and vector search

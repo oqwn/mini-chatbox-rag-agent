@@ -10,7 +10,7 @@ services:
       - "9229:9229"  # Debug port
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://chatbox:secret@postgres:5432/chatbox
+      - DATABASE_URL=postgresql://chatbox:secret@postgres:5432/rag_chatbox
       - REDIS_URL=redis://redis:6379
       - VECTOR_DB_URL=http://qdrant:6333
     env_file:
@@ -48,7 +48,7 @@ services:
     environment:
       - POSTGRES_USER=chatbox
       - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB=chatbox
+      - POSTGRES_DB=rag_chatbox
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:

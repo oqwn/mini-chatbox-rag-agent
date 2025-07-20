@@ -233,7 +233,7 @@ export class RagController {
         query,
         knowledgeSourceId,
         maxResults = 5,
-        similarityThreshold = 0.7,
+        similarityThreshold = 0.3,
         useHybridSearch = true,
         contextWindowSize = 2,
       } = req.body;
@@ -264,7 +264,7 @@ export class RagController {
 
   public async similaritySearch(req: Request, res: Response): Promise<void> {
     try {
-      const { query, knowledgeSourceId, limit = 5, threshold = 0.7 } = req.body;
+      const { query, knowledgeSourceId, limit = 5, threshold = 0.3 } = req.body;
 
       if (!query) {
         res.status(400).json({ error: 'Query is required' });
