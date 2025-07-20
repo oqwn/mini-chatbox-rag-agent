@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import { PermissionCard } from './PermissionCard';
 import 'highlight.js/styles/github.css';
 
@@ -42,7 +43,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
           {beforePermission && (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
+              rehypePlugins={[rehypeRaw, rehypeHighlight]}
               components={markdownComponents(handleCopyCode, copiedIndex)}
             >
               {beforePermission}
@@ -56,7 +57,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
           {afterPermission && (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
+              rehypePlugins={[rehypeRaw, rehypeHighlight]}
               components={markdownComponents(handleCopyCode, copiedIndex)}
             >
               {afterPermission}
@@ -111,7 +112,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
         <div className={`markdown-content ${className}`}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeHighlight]}
+            rehypePlugins={[rehypeRaw, rehypeHighlight]}
             components={markdownComponents(handleCopyCode, copiedIndex)}
           >
             {mainContent}
@@ -189,7 +190,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
       <div className={`markdown-content ${className}`}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeHighlight]}
+          rehypePlugins={[rehypeRaw, rehypeHighlight]}
           components={markdownComponents(handleCopyCode, copiedIndex)}
         >
           {content}

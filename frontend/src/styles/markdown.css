@@ -99,3 +99,99 @@
   background: transparent !important;
   padding: 0 !important;
 }
+
+/* RAG Citations */
+.markdown-content .citation-inline {
+  color: #2563eb !important;
+  background: #dbeafe !important;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  margin: 0 2px;
+  display: inline;
+  position: relative;
+}
+
+.markdown-content .citation-inline:hover {
+  background: #bfdbfe !important;
+  text-decoration: underline;
+}
+
+/* Enhanced tooltip for citations */
+.markdown-content .citation-inline[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: normal;
+  white-space: normal;
+  max-width: 300px;
+  width: max-content;
+  z-index: 1000;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.markdown-content .citation-inline[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1f2937;
+  margin-bottom: -8px;
+  z-index: 1001;
+}
+
+/* RAG Tool Details/Summary */
+.markdown-content details {
+  border: 1px solid #d1d5db;
+  margin: 12px 0;
+  background: white;
+}
+
+.markdown-content summary {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: normal;
+  color: #374151 !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  background: #f9fafb;
+  border: none;
+  user-select: none;
+}
+
+.markdown-content summary:hover {
+  background: #f3f4f6;
+}
+
+.markdown-content summary::marker {
+  display: none;
+}
+
+.markdown-content summary::-webkit-details-marker {
+  display: none;
+}
+
+.markdown-content details[open] summary {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.markdown-content details > *:not(summary) {
+  padding: 16px;
+  background: white;
+}

@@ -112,14 +112,15 @@ class ApiService {
     onMessage: (content: string) => void,
     onError: (error: string) => void,
     onDone: () => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    ragEnabled?: boolean
   ): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ messages, options }),
+      body: JSON.stringify({ messages, options, ragEnabled }),
       signal,
     });
 

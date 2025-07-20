@@ -95,7 +95,8 @@ export const Chat: React.FC = () => {
                 streamingContentRef.current = '';
                 setIsStreaming(false);
               },
-              abortController.signal
+              abortController.signal,
+              ragEnabled
             );
           } catch (err) {
             if (!abortController.signal.aborted) {
@@ -171,33 +172,10 @@ export const Chat: React.FC = () => {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    let userMessageContent = input.trim();
-
-    // If RAG is enabled, retrieve relevant context
-    if (ragEnabled) {
-      try {
-        const ragResult = await ragApiService.search(input.trim(), {
-          knowledgeSourceId: selectedKnowledgeSource || undefined,
-          maxResults: 5,
-          similarityThreshold: 0.7,
-          useHybridSearch: true,
-          contextWindowSize: 2,
-        });
-
-        if (ragResult.relevantChunks.length > 0) {
-          userMessageContent = `Context from knowledge base:\n\n${ragResult.contextText}\n\n---\n\nUser question: ${input.trim()}`;
-        }
-      } catch (ragError) {
-        console.error('RAG search failed:', ragError);
-        // Continue without RAG context
-      }
-    }
-
-    const userMessage: ChatMessage = { role: 'user', content: userMessageContent };
+    const userMessage: ChatMessage = { role: 'user', content: input.trim() };
     const messagesToSend = [...messages, userMessage];
 
-    // Show original user message in UI, not the RAG-enhanced version
-    setMessages((prev) => [...prev, { role: 'user', content: input.trim() }]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setError(null);
     setIsStreaming(true);
@@ -267,7 +245,8 @@ export const Chat: React.FC = () => {
             }
           }
         },
-        abortController.signal
+        abortController.signal,
+        ragEnabled
       );
     } catch (err) {
       if (abortController.signal.aborted) return;

@@ -164,7 +164,7 @@ export class ChatController {
 
   public async chat(req: Request, res: Response): Promise<void> {
     try {
-      const { messages, options } = req.body;
+      const { messages, options, ragEnabled } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
         res.status(400).json({ error: 'Messages array is required' });
@@ -190,7 +190,7 @@ export class ChatController {
         usedFallback: boolean;
       } | null = null;
       const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
-      if (lastUserMessage?.content) {
+      if (lastUserMessage?.content && ragEnabled === true) {
         ragContext = await this.performRagRetrieval(lastUserMessage.content);
       }
 
@@ -318,7 +318,7 @@ export class ChatController {
 
   public async chatStream(req: Request, res: Response): Promise<void> {
     try {
-      const { messages, options } = req.body;
+      const { messages, options, ragEnabled } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
         res.status(400).json({ error: 'Messages array is required' });
@@ -354,8 +354,10 @@ export class ChatController {
         usedFallback: boolean;
       } | null = null;
       const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
-      if (lastUserMessage?.content) {
+      if (lastUserMessage?.content && ragEnabled === true) {
+        this.logger.info(`Performing RAG retrieval for: ${lastUserMessage.content}`);
         ragContext = await this.performRagRetrieval(lastUserMessage.content);
+        this.logger.info(`RAG retrieval result: ${ragContext ? 'SUCCESS' : 'FAILED'}`);
       }
 
       // Check if the last assistant message contains a permission request

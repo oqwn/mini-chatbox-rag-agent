@@ -42,7 +42,11 @@ export class EmbeddingFactory {
       !openaiApiKey.includes('here') &&
       !/sk-[a-zA-Z0-9*]{10,20}here/.test(openaiApiKey); // Pattern like "sk-ope************here"
 
-    if (isValidApiKey) {
+    // Check if using OpenRouter (which doesn't support embedding models)
+    const baseUrl = openaiConfig.baseUrl;
+    const isOpenRouter = baseUrl && baseUrl.includes('openrouter.ai');
+
+    if (isValidApiKey && !isOpenRouter) {
       logger.info('Using OpenAI embedding service (valid API key provided)');
       try {
         return new EmbeddingService(configService, logger);
