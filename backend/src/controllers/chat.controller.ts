@@ -57,16 +57,25 @@ export class ChatController {
         return null;
       }
 
-      // Format references for citation
+      // Format references for citation with enhanced metadata
       const references = ragResult.relevantChunks.map((chunk, index) => ({
         id: chunk.id,
         documentId: chunk.documentId,
         documentTitle: chunk.documentTitle || `Document ${chunk.documentId}`,
-        chunkText: chunk.chunkText.substring(0, 200) + (chunk.chunkText.length > 200 ? '...' : ''),
+        exactPreview:
+          chunk.chunkMetadata?.exactPreview ||
+          chunk.chunkText.substring(0, 300) + (chunk.chunkText.length > 300 ? '...' : ''),
         similarity: chunk.similarity,
         citationNumber: index + 1,
         rerankScore: chunk.rerankScore,
         chunkIndex: chunk.chunkIndex,
+        pageNumber: chunk.chunkMetadata?.pageNumber,
+        pageNumbers: chunk.chunkMetadata?.pageNumbers || [],
+        startPage: chunk.chunkMetadata?.startPage,
+        endPage: chunk.chunkMetadata?.endPage,
+        wordCount: chunk.chunkText.split(/\s+/).length,
+        contextBefore: chunk.contextBefore,
+        contextAfter: chunk.contextAfter,
       }));
 
       this.logger.info(
@@ -375,11 +384,30 @@ export class ChatController {
           const referencesText =
             '\n\n--- References ---\n' +
             ragContext.references
-              .map(
-                (ref) =>
-                  `[${ref.citationNumber}] ${ref.documentTitle} (Similarity: ${(ref.similarity * 100).toFixed(1)}%)`
-              )
-              .join('\n');
+              .map((ref) => {
+                let refText = `[${ref.citationNumber}] ${ref.documentTitle}`;
+
+                // Add page information if available
+                if (ref.pageNumber) {
+                  refText += ` (Page ${ref.pageNumber})`;
+                } else if (ref.startPage && ref.endPage) {
+                  if (ref.startPage === ref.endPage) {
+                    refText += ` (Page ${ref.startPage})`;
+                  } else {
+                    refText += ` (Pages ${ref.startPage}-${ref.endPage})`;
+                  }
+                }
+
+                refText += ` - Similarity: ${(ref.similarity * 100).toFixed(1)}%`;
+
+                // Add exact preview
+                if (ref.exactPreview) {
+                  refText += `\n   "${ref.exactPreview}"`;
+                }
+
+                return refText;
+              })
+              .join('\n\n');
           res.write(referencesText);
         }
       } catch (streamError) {

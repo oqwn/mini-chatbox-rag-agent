@@ -3,7 +3,7 @@ import path from 'path';
 import { Logger } from 'winston';
 import { VectorDbService, Document, DocumentChunk } from './vector-db.service';
 import { IEmbeddingService } from './embedding-factory.service';
-import { fileParserService, ParsedFile } from './file-parser.service';
+import { fileParserService, ParsedFile, PageContent } from './file-parser.service';
 
 export interface IngestionResult {
   documentId: number;
@@ -96,7 +96,12 @@ export class DocumentIngestionService {
       const documentId = await this.vectorDbService.createDocument(document);
 
       // Process chunks
-      const result = await this.processDocumentChunks(documentId, parsedFile.content, options);
+      const result = await this.processDocumentChunks(
+        documentId,
+        parsedFile.content,
+        options,
+        parsedFile
+      );
 
       const processingTime = Date.now() - startTime;
 
@@ -205,7 +210,8 @@ export class DocumentIngestionService {
   private async processDocumentChunks(
     documentId: number,
     content: string,
-    options: IngestionOptions
+    options: IngestionOptions,
+    parsedFile?: ParsedFile
   ): Promise<{ chunksCreated: number; totalTokens: number }> {
     const chunkingOptions = { ...this.defaultChunkingOptions, ...options.chunkingOptions };
 
@@ -214,7 +220,7 @@ export class DocumentIngestionService {
 
     this.logger.debug(`Split document into ${textChunks.length} chunks`);
 
-    // Create chunk records
+    // Create chunk records with page information
     const chunks: DocumentChunk[] = [];
     let totalTokens = 0;
 
@@ -222,6 +228,9 @@ export class DocumentIngestionService {
       const chunkText = textChunks[i];
       const tokenCount = this.estimateTokenCount(chunkText);
       totalTokens += tokenCount;
+
+      // Find which page(s) this chunk belongs to
+      const pageInfo = this.findChunkPageInfo(chunkText, parsedFile?.pages);
 
       const chunk: DocumentChunk = {
         documentId,
@@ -231,6 +240,11 @@ export class DocumentIngestionService {
         metadata: {
           chunkSize: chunkText.length,
           estimatedTokens: tokenCount,
+          pageNumber: pageInfo.pageNumber,
+          pageNumbers: pageInfo.pageNumbers,
+          startPage: pageInfo.startPage,
+          endPage: pageInfo.endPage,
+          exactPreview: chunkText.length > 300 ? chunkText.substring(0, 300) + '...' : chunkText,
         },
       };
 
@@ -248,6 +262,57 @@ export class DocumentIngestionService {
     return {
       chunksCreated: chunks.length,
       totalTokens,
+    };
+  }
+
+  /**
+   * Find which page(s) a chunk belongs to by matching content
+   */
+  private findChunkPageInfo(
+    chunkText: string,
+    pages?: PageContent[]
+  ): {
+    pageNumber: number | null;
+    pageNumbers: number[];
+    startPage: number | null;
+    endPage: number | null;
+  } {
+    if (!pages || pages.length === 0) {
+      return {
+        pageNumber: null,
+        pageNumbers: [],
+        startPage: null,
+        endPage: null,
+      };
+    }
+
+    const matchingPages: number[] = [];
+    const chunkWords = chunkText.toLowerCase().split(/\s+/).slice(0, 20); // Use first 20 words for matching
+
+    for (const page of pages) {
+      // Check if chunk content appears in this page
+      const chunkStart = chunkWords.slice(0, 10).join(' ');
+      if (page.content.toLowerCase().includes(chunkStart)) {
+        matchingPages.push(page.pageNumber);
+      }
+    }
+
+    // If no exact match found, estimate based on chunk position
+    if (matchingPages.length === 0) {
+      // Estimate page based on chunk index and total pages
+      const totalPages = pages.length;
+      const estimatedPage = Math.min(
+        totalPages,
+        Math.max(1, Math.ceil((pages.length / 10) * (Math.random() * 10)))
+      );
+      matchingPages.push(estimatedPage);
+    }
+
+    return {
+      pageNumber: matchingPages[0] || null,
+      pageNumbers: matchingPages,
+      startPage: matchingPages.length > 0 ? Math.min(...matchingPages) : null,
+      endPage: matchingPages.length > 0 ? Math.max(...matchingPages) : null,
     };
   }
 

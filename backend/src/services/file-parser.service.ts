@@ -15,6 +15,13 @@ export interface ParsedFile {
     modifiedDate?: string;
     fileType: string;
   };
+  pages?: PageContent[];
+}
+
+export interface PageContent {
+  pageNumber: number;
+  content: string;
+  wordCount: number;
 }
 
 export class FileParserService {
@@ -92,6 +99,30 @@ export class FileParserService {
       const buffer = await fs.readFile(filePath);
       const data = await pdfParse(buffer);
 
+      // For now, create estimated pages from full text since pdf-parse doesn't provide page-by-page extraction
+      const pages: PageContent[] = [];
+
+      if (data.text && data.numpages > 0) {
+        // Estimate page breaks based on content length
+        const words = data.text.split(/\s+/);
+        const wordsPerPage = Math.max(50, Math.floor(words.length / data.numpages));
+
+        for (let i = 0; i < data.numpages; i++) {
+          const startIndex = i * wordsPerPage;
+          const endIndex = Math.min((i + 1) * wordsPerPage, words.length);
+          const pageWords = words.slice(startIndex, endIndex);
+          const pageContent = pageWords.join(' ');
+
+          if (pageContent.trim()) {
+            pages.push({
+              pageNumber: i + 1,
+              content: pageContent,
+              wordCount: pageWords.length,
+            });
+          }
+        }
+      }
+
       return {
         content: data.text,
         metadata: {
@@ -103,6 +134,7 @@ export class FileParserService {
           modifiedDate: data.info?.ModDate,
           fileType: 'pdf',
         },
+        pages,
       };
     } catch (error) {
       throw new Error(

@@ -70,10 +70,41 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
     if (referencesMatch) {
       const [fullMatch, referencesText] = referencesMatch;
       const mainContent = content.substring(0, content.indexOf(fullMatch));
+      // Parse references to extract citation, title, page, and preview
       const references = referencesText
         .trim()
-        .split('\n')
-        .filter((ref) => ref.trim());
+        .split('\n\n')
+        .filter((ref) => ref.trim())
+        .map((ref) => {
+          const lines = ref.split('\n');
+          const mainLine = lines[0];
+          const previewLine = lines.find((line) => line.trim().startsWith('"'));
+
+          // Extract citation number, title, page info, and similarity
+          const citationMatch = mainLine.match(
+            /^\[(\d+)\] (.+?)(?:\s+\(Page?\s+([^)]+)\))?\s+-\s+Similarity:\s+(\d+\.?\d*)%$/
+          );
+
+          if (citationMatch) {
+            const [, citationNumber, title, pageInfo, similarity] = citationMatch;
+            return {
+              citationNumber: parseInt(citationNumber),
+              title: title.trim(),
+              pageInfo: pageInfo || null,
+              similarity: parseFloat(similarity),
+              preview: previewLine ? previewLine.trim().replace(/^"/, '').replace(/"$/, '') : null,
+            };
+          }
+
+          // Fallback for simple format
+          return {
+            citationNumber: 0,
+            title: mainLine,
+            pageInfo: null,
+            similarity: 0,
+            preview: previewLine ? previewLine.trim().replace(/^"/, '').replace(/"$/, '') : null,
+          };
+        });
 
       return (
         <div className={`markdown-content ${className}`}>
@@ -86,7 +117,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
           </ReactMarkdown>
 
           <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
-            <h4 className="text-sm font-semibold text-blue-800 mb-2 flex items-center">
+            <h4 className="text-sm font-semibold text-blue-800 mb-3 flex items-center">
               <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
@@ -96,10 +127,37 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
               </svg>
               Knowledge Base References
             </h4>
-            <div className="space-y-1">
+            <div className="space-y-3">
               {references.map((ref, index) => (
-                <div key={index} className="text-sm text-blue-700 bg-white p-2 rounded border">
-                  {ref}
+                <div
+                  key={index}
+                  className="bg-white p-3 rounded-lg border border-blue-200 shadow-sm"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-semibold rounded-full">
+                        {ref.citationNumber || index + 1}
+                      </span>
+                      <h5 className="text-sm font-medium text-gray-900 truncate">{ref.title}</h5>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs text-gray-500">
+                      {ref.pageInfo && (
+                        <span className="bg-gray-100 px-2 py-1 rounded">
+                          {ref.pageInfo.includes('-') ? 'Pages' : 'Page'} {ref.pageInfo}
+                        </span>
+                      )}
+                      {ref.similarity > 0 && (
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded">
+                          {ref.similarity.toFixed(1)}% match
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {ref.preview && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-700 italic border-l-2 border-blue-300">
+                      "{ref.preview}"
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
