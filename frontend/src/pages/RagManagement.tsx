@@ -333,7 +333,6 @@ export const RagManagement: React.FC = () => {
                   className="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">All Knowledge Bases</option>
-                  <option value="">No Knowledge Base</option>
                   {knowledgeSources.map((source) => (
                     <option key={source.id} value={source.id}>
                       {source.name}
@@ -345,87 +344,6 @@ export const RagManagement: React.FC = () => {
 
             {/* Documents by Knowledge Base */}
             <div className="space-y-4">
-              {/* Documents without knowledge base */}
-              {selectedKnowledgeSource === 'all' && documents.some(doc => !doc.knowledgeSourceId) && (
-                <div className="bg-white rounded-lg shadow">
-                  <div className="px-4 py-3 bg-gray-50 border-b">
-                    <h4 className="text-sm font-medium text-gray-700">📁 Unorganized Documents</h4>
-                  </div>
-                  <ul className="divide-y divide-gray-200">
-                    {documents.filter(doc => !doc.knowledgeSourceId).map((doc) => (
-                      <li key={doc.id} className="px-4 py-3 hover:bg-gray-50">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center">
-                              <span className="text-gray-400 mr-2">📄</span>
-                              <h5 className="text-sm font-medium text-gray-900 truncate">
-                                {doc.title || 'Untitled'}
-                              </h5>
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                                {doc.fileType || 'text'}
-                              </span>
-                            </div>
-                            <div className="mt-1 text-xs text-gray-500 space-x-3">
-                              {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
-                              {doc.metadata?.ingestedAt && (
-                                <span>{formatDate(doc.metadata.ingestedAt)}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {movingDocumentId === doc.id ? (
-                              <>
-                                <select
-                                  onChange={(e) => handleMoveDocument(doc.id!, 
-                                    e.target.value ? Number(e.target.value) : null
-                                  )}
-                                  className="text-sm border-gray-300 rounded"
-                                  defaultValue=""
-                                >
-                                  <option value="">Move to...</option>
-                                  {knowledgeSources.map((source) => (
-                                    <option key={source.id} value={source.id}>
-                                      {source.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  onClick={() => setMovingDocumentId(null)}
-                                  className="text-gray-500 hover:text-gray-700 text-sm"
-                                >
-                                  Cancel
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => navigate(`/rag/documents/${doc.id}`)}
-                                  className="text-blue-600 hover:text-blue-900 text-sm"
-                                >
-                                  View
-                                </button>
-                                <button
-                                  onClick={() => setMovingDocumentId(doc.id!)}
-                                  className="text-purple-600 hover:text-purple-900 text-sm"
-                                >
-                                  Move
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteDocument(doc.id!, doc.title || 'Untitled')}
-                                  className="text-red-600 hover:text-red-900 text-sm"
-                                >
-                                  Delete
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               {/* Documents organized by knowledge base */}
               {knowledgeSources.map((source) => {
                 const sourceDocs = documents.filter(doc => doc.knowledgeSourceId === source.id);
@@ -470,15 +388,17 @@ export const RagManagement: React.FC = () => {
                             </div>
                             <div className="flex items-center space-x-2">
                               {movingDocumentId === doc.id ? (
-                                <>
+                                <div className="flex items-center space-x-2 bg-yellow-50 p-2 rounded">
+                                  <span className="text-sm text-yellow-800">Move to:</span>
                                   <select
-                                    onChange={(e) => handleMoveDocument(doc.id!, 
-                                      e.target.value ? Number(e.target.value) : null
-                                    )}
-                                    className="text-sm border-gray-300 rounded"
+                                    onChange={(e) => {
+                                      if (e.target.value !== String(source.id)) {
+                                        handleMoveDocument(doc.id!, Number(e.target.value));
+                                      }
+                                    }}
+                                    className="text-sm border-yellow-300 rounded bg-white"
                                     defaultValue={source.id}
                                   >
-                                    <option value="">No Knowledge Base</option>
                                     {knowledgeSources.map((s) => (
                                       <option key={s.id} value={s.id}>
                                         {s.name}
@@ -487,30 +407,30 @@ export const RagManagement: React.FC = () => {
                                   </select>
                                   <button
                                     onClick={() => setMovingDocumentId(null)}
-                                    className="text-gray-500 hover:text-gray-700 text-sm"
+                                    className="text-yellow-600 hover:text-yellow-800 text-sm px-2 py-1 bg-white border border-yellow-300 rounded"
                                   >
                                     Cancel
                                   </button>
-                                </>
+                                </div>
                               ) : (
                                 <>
                                   <button
                                     onClick={() => navigate(`/rag/documents/${doc.id}`)}
-                                    className="text-blue-600 hover:text-blue-900 text-sm"
+                                    className="text-blue-600 hover:text-blue-900 text-sm px-2 py-1 hover:bg-blue-50 rounded"
                                   >
-                                    View
+                                    📖 View
                                   </button>
                                   <button
                                     onClick={() => setMovingDocumentId(doc.id!)}
-                                    className="text-purple-600 hover:text-purple-900 text-sm"
+                                    className="text-purple-600 hover:text-purple-900 text-sm px-2 py-1 hover:bg-purple-50 rounded"
                                   >
-                                    Move
+                                    🔄 Move
                                   </button>
                                   <button
                                     onClick={() => handleDeleteDocument(doc.id!, doc.title || 'Untitled')}
-                                    className="text-red-600 hover:text-red-900 text-sm"
+                                    className="text-red-600 hover:text-red-900 text-sm px-2 py-1 hover:bg-red-50 rounded"
                                   >
-                                    Delete
+                                    🗑️ Delete
                                   </button>
                                 </>
                               )}

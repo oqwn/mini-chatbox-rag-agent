@@ -67,6 +67,23 @@ export class RagController {
     private logger: Logger
   ) {}
 
+  private async getDefaultKnowledgeSourceId(): Promise<number> {
+    const sources = await this.vectorDbService.getKnowledgeSources();
+    const defaultSource = sources.find((s) => s.name === 'Default Knowledge Base');
+
+    if (!defaultSource) {
+      // Create default knowledge base if it doesn't exist
+      const newSourceId = await this.vectorDbService.createKnowledgeSource({
+        name: 'Default Knowledge Base',
+        description: 'Default knowledge base for general documents',
+        sourceType: 'general',
+      });
+      return newSourceId;
+    }
+
+    return defaultSource.id!;
+  }
+
   // Knowledge Sources
   public async createKnowledgeSource(req: Request, res: Response): Promise<void> {
     try {
@@ -111,8 +128,12 @@ export class RagController {
         return;
       }
 
+      // Use default knowledge base if none specified
+      const finalKnowledgeSourceId =
+        knowledgeSourceId || (await this.getDefaultKnowledgeSourceId());
+
       const result = await this.documentIngestionService.ingestText(content, title, {
-        knowledgeSourceId,
+        knowledgeSourceId: finalKnowledgeSourceId,
         metadata,
       });
 
@@ -144,8 +165,13 @@ export class RagController {
       const originalFileName = fixFilenameEncoding(req.file.originalname);
 
       try {
+        // Use default knowledge base if none specified
+        const finalKnowledgeSourceId = knowledgeSourceId
+          ? parseInt(knowledgeSourceId)
+          : await this.getDefaultKnowledgeSourceId();
+
         const result = await this.documentIngestionService.ingestFile(filePath, {
-          knowledgeSourceId: knowledgeSourceId ? parseInt(knowledgeSourceId) : undefined,
+          knowledgeSourceId: finalKnowledgeSourceId,
           metadata: {
             ...(metadata ? JSON.parse(metadata) : {}),
             originalFileName,
