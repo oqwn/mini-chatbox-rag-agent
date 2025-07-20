@@ -38,5 +38,13 @@ export function createRagRoutes(ragController: RagController): Router {
   // Utility
   router.post('/embedding', ragController.generateEmbedding.bind(ragController));
 
+  // Multimodal endpoints
+  router.get('/media/info', ragController.getMediaInfo.bind(ragController));
+  router.post(
+    '/media/validate',
+    ragController.validateMediaFile_upload,
+    ragController.validateMediaFile.bind(ragController)
+  );
+
   return router;
 }

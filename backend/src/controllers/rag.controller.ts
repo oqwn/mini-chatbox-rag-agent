@@ -5,6 +5,7 @@ import { VectorDbService } from '@/services/vector-db.service';
 import { IEmbeddingService } from '@/services/embedding-factory.service';
 import { DocumentIngestionService } from '@/services/document-ingestion.service';
 import { RagRetrievalService } from '@/services/rag-retrieval.service';
+import { MultimodalFactoryService } from '@/services/multimodal-factory.service';
 import multer from 'multer';
 import { promises as fs } from 'fs';
 import { FILE_CONFIG, getAllSupportedExtensions, getFileExtension } from '../config/file-types';
@@ -60,6 +61,8 @@ const upload = multer({
 });
 
 export class RagController {
+  private multimodalService: MultimodalFactoryService;
+
   constructor(
     private vectorDbService: VectorDbService,
     private embeddingService: IEmbeddingService,
@@ -67,7 +70,9 @@ export class RagController {
     private ragRetrievalService: RagRetrievalService,
     private configService: ConfigService,
     private logger: Logger
-  ) {}
+  ) {
+    this.multimodalService = new MultimodalFactoryService(configService, logger);
+  }
 
   private async getDefaultKnowledgeSourceId(): Promise<number> {
     const sources = await this.vectorDbService.getKnowledgeSources();
@@ -161,7 +166,7 @@ export class RagController {
         return;
       }
 
-      const { knowledgeSourceId, metadata } = req.body;
+      const { knowledgeSourceId, metadata, multimodal } = req.body;
       const filePath = req.file.path;
       // Ensure filename encoding is correct
       const originalFileName = fixFilenameEncoding(req.file.originalname);
@@ -172,21 +177,100 @@ export class RagController {
           ? parseInt(knowledgeSourceId)
           : await this.getDefaultKnowledgeSourceId();
 
-        const result = await this.documentIngestionService.ingestFile(filePath, {
-          knowledgeSourceId: finalKnowledgeSourceId,
-          metadata: {
-            ...(metadata ? JSON.parse(metadata) : {}),
-            originalFileName,
-          },
-        });
+        // Check if this is a multimodal file (image, video, audio)
+        const mediaType = this.multimodalService.getMediaType(originalFileName);
+        const isMultimodal = multimodal === 'true' || ['image', 'video', 'audio'].includes(mediaType);
 
-        res.json({
-          success: true,
-          documentId: result.documentId,
-          chunksCreated: result.chunksCreated,
-          totalTokens: result.totalTokens,
-          processingTime: result.processingTime,
-        });
+        let result;
+
+        if (isMultimodal && mediaType !== 'document') {
+          // Process as multimodal content
+          this.logger.info(`Processing multimodal ${mediaType} file: ${originalFileName}`);
+          
+          const multimodalResult = await this.multimodalService.processMedia(filePath, originalFileName, {
+            extractText: true,
+            generateThumbnail: true,
+            analyzeContent: true,
+            transcribe: mediaType === 'audio' || mediaType === 'video',
+            extractFrames: mediaType === 'video',
+            frameCount: 5,
+          });
+
+          // Extract text content for RAG ingestion
+          let contentForIngestion = multimodalResult.textContent || '';
+          
+          // Add metadata as searchable content
+          if (multimodalResult.analysis) {
+            const analysisText = JSON.stringify(multimodalResult.analysis).replace(/[{}",]/g, ' ');
+            contentForIngestion += `\n\nFile Analysis: ${analysisText}`;
+          }
+
+          // Add media info as content
+          const mediaInfo = await this.multimodalService.getMediaInfo(filePath, originalFileName);
+          contentForIngestion += `\n\nMedia Type: ${mediaInfo.type}\nFile Size: ${mediaInfo.size}`;
+          
+          if (mediaInfo.info) {
+            const infoText = JSON.stringify(mediaInfo.info).replace(/[{}",]/g, ' ');
+            contentForIngestion += `\nMedia Info: ${infoText}`;
+          }
+
+          // If no text content was extracted, create minimal content
+          if (!contentForIngestion.trim()) {
+            contentForIngestion = `${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} file: ${originalFileName}`;
+          }
+
+          // Ingest the extracted content
+          result = await this.documentIngestionService.ingestText(
+            contentForIngestion,
+            originalFileName,
+            {
+              knowledgeSourceId: finalKnowledgeSourceId,
+              metadata: {
+                ...(metadata ? JSON.parse(metadata) : {}),
+                originalFileName,
+                mediaType,
+                multimodal: true,
+                thumbnailPath: multimodalResult.thumbnailPath,
+                additionalFiles: multimodalResult.additionalFiles,
+                processingTime: multimodalResult.processingTime,
+                originalFileSize: req.file.size,
+                analysis: multimodalResult.analysis,
+              },
+            }
+          );
+
+          res.json({
+            success: true,
+            documentId: result.documentId,
+            chunksCreated: result.chunksCreated,
+            totalTokens: result.totalTokens,
+            processingTime: result.processingTime,
+            mediaType,
+            multimodal: true,
+            textExtracted: !!multimodalResult.textContent,
+            thumbnailGenerated: !!multimodalResult.thumbnailPath,
+            additionalFiles: multimodalResult.additionalFiles?.length || 0,
+          });
+        } else {
+          // Process as regular document
+          result = await this.documentIngestionService.ingestFile(filePath, {
+            knowledgeSourceId: finalKnowledgeSourceId,
+            metadata: {
+              ...(metadata ? JSON.parse(metadata) : {}),
+              originalFileName,
+            },
+          });
+
+          res.json({
+            success: true,
+            documentId: result.documentId,
+            chunksCreated: result.chunksCreated,
+            totalTokens: result.totalTokens,
+            processingTime: result.processingTime,
+            mediaType: 'document',
+            multimodal: false,
+          });
+        }
       } finally {
         // Clean up uploaded file
         try {
@@ -546,4 +630,93 @@ export class RagController {
       res.status(500).json({ error: 'Failed to generate embedding' });
     }
   }
+
+  // Multimodal endpoints
+  public async getMediaInfo(req: Request, res: Response): Promise<void> {
+    try {
+      const { filename } = req.query;
+
+      if (!filename) {
+        res.status(400).json({ error: 'Filename is required' });
+        return;
+      }
+
+      const mediaType = this.multimodalService.getMediaType(filename as string);
+      const isSupported = this.multimodalService.isSupported(filename as string);
+      const supportedExtensions = this.multimodalService.getSupportedExtensions();
+
+      res.json({
+        success: true,
+        mediaType,
+        isSupported,
+        supportedExtensions,
+        multimodalCapabilities: {
+          image: {
+            ocr: true,
+            thumbnails: true,
+            analysis: true,
+            formats: supportedExtensions.image,
+          },
+          video: {
+            frameExtraction: true,
+            thumbnails: true,
+            audioExtraction: true,
+            transcription: true,
+            formats: supportedExtensions.video,
+          },
+          audio: {
+            transcription: true,
+            waveforms: true,
+            analysis: true,
+            formats: supportedExtensions.audio,
+          },
+          document: {
+            textExtraction: true,
+            chunking: true,
+            embedding: true,
+            formats: supportedExtensions.document,
+          },
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to get media info:', error);
+      res.status(500).json({ error: 'Failed to get media info' });
+    }
+  }
+
+  public async validateMediaFile(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
+      }
+
+      const filePath = req.file.path;
+      const originalFileName = fixFilenameEncoding(req.file.originalname);
+
+      try {
+        const validation = await this.multimodalService.validateMedia(filePath, originalFileName);
+        const mediaInfo = await this.multimodalService.getMediaInfo(filePath, originalFileName);
+
+        res.json({
+          success: true,
+          isValid: validation.isValid,
+          error: validation.error,
+          mediaInfo,
+        });
+      } finally {
+        // Clean up uploaded file
+        try {
+          await fs.unlink(filePath);
+        } catch (cleanupError) {
+          this.logger.warn('Failed to clean up validation file:', cleanupError);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Failed to validate media file:', error);
+      res.status(500).json({ error: 'Failed to validate media file' });
+    }
+  }
+
+  public validateMediaFile_upload = upload.single('file');
 }

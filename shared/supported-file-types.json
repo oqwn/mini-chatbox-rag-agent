@@ -17,6 +17,18 @@
       ],
       "description": "Source code files"
     },
+    "images": {
+      "extensions": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff", ".svg"],
+      "description": "Image files with OCR support"
+    },
+    "videos": {
+      "extensions": [".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv", ".m4v"],
+      "description": "Video files with frame extraction and transcription"
+    },
+    "audio": {
+      "extensions": [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".wma"],
+      "description": "Audio files with transcription support"
+    },
     "other": {
       "extensions": [".log", ".gitignore", ".env", ".properties", ".cfg"],
       "description": "Other text files"
@@ -25,6 +37,23 @@
   "limits": {
     "maxFileSize": 52428800,
     "maxFileSizeMB": 50,
-    "maxFileSizeDisplay": "50MB"
+    "maxFileSizeDisplay": "50MB",
+    "multimodal": {
+      "image": {
+        "maxFileSize": 52428800,
+        "maxFileSizeDisplay": "50MB",
+        "maxDimensions": "10000x10000"
+      },
+      "video": {
+        "maxFileSize": 524288000,
+        "maxFileSizeDisplay": "500MB",
+        "maxDuration": "2 hours"
+      },
+      "audio": {
+        "maxFileSize": 104857600,
+        "maxFileSizeDisplay": "100MB",
+        "maxDuration": "2 hours"
+      }
+    }
   }
 }
