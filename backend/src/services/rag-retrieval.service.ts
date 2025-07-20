@@ -1,6 +1,7 @@
 import { Logger } from 'winston';
 import { VectorDbService, SimilaritySearchResult } from './vector-db.service';
 import { IEmbeddingService } from './embedding-factory.service';
+import { IRerankingService, RerankingDocument } from './reranking.service';
 
 export interface RetrievalQuery {
   query: string;
@@ -9,6 +10,8 @@ export interface RetrievalQuery {
   similarityThreshold?: number;
   useHybridSearch?: boolean;
   contextWindowSize?: number;
+  useReranking?: boolean;
+  rerankTopK?: number;
 }
 
 export interface RetrievalResult {
@@ -17,6 +20,9 @@ export interface RetrievalResult {
   totalTokens: number;
   retrievalTime: number;
   searchMethod: 'vector' | 'hybrid';
+  rerankingUsed: boolean;
+  rerankingTime?: number;
+  rerankingMethod?: string;
 }
 
 export interface EnrichedChunk {
@@ -31,6 +37,9 @@ export interface EnrichedChunk {
   relevanceScore: number;
   contextBefore?: string;
   contextAfter?: string;
+  rerankScore?: number;
+  originalRank?: number;
+  finalRank?: number;
 }
 
 export interface RankingOptions {
@@ -48,11 +57,14 @@ export class RagRetrievalService {
     contextWindowSize: 2, // Number of surrounding chunks to include for context
     vectorWeight: 0.7,
     keywordWeight: 0.3,
+    useReranking: true,
+    rerankTopK: 20, // Retrieve more candidates for reranking
   };
 
   constructor(
     private vectorDbService: VectorDbService,
     private embeddingService: IEmbeddingService,
+    private rerankingService: IRerankingService,
     private logger: Logger
   ) {}
 
@@ -61,12 +73,23 @@ export class RagRetrievalService {
    */
   async retrieveContext(query: RetrievalQuery): Promise<RetrievalResult> {
     const startTime = Date.now();
+    let rerankingTime = 0;
+    let rerankingMethod = '';
+    const useReranking = query.useReranking !== false && this.defaultOptions.useReranking;
 
     try {
       this.logger.debug(`Retrieving context for query: ${query.query.substring(0, 100)}...`);
 
       // Generate query embedding
       const queryEmbedding = await this.embeddingService.generateQueryEmbedding(query.query);
+
+      // Determine how many results to retrieve initially
+      const initialMaxResults = useReranking
+        ? Math.max(
+            query.rerankTopK || this.defaultOptions.rerankTopK,
+            (query.maxResults || this.defaultOptions.maxResults) * 2
+          )
+        : query.maxResults || this.defaultOptions.maxResults;
 
       // Perform search
       const searchMethod = query.useHybridSearch !== false ? 'hybrid' : 'vector';
@@ -76,7 +99,7 @@ export class RagRetrievalService {
         searchResults = await this.vectorDbService.hybridSearch(
           query.query,
           queryEmbedding.embedding,
-          query.maxResults || this.defaultOptions.maxResults,
+          initialMaxResults,
           this.defaultOptions.vectorWeight,
           this.defaultOptions.keywordWeight,
           query.knowledgeSourceId
@@ -84,17 +107,42 @@ export class RagRetrievalService {
       } else {
         searchResults = await this.vectorDbService.similaritySearch(
           queryEmbedding.embedding,
-          query.maxResults || this.defaultOptions.maxResults,
+          initialMaxResults,
           query.similarityThreshold || this.defaultOptions.similarityThreshold,
           query.knowledgeSourceId
         );
       }
 
       // Enrich chunks with additional context and relevance scoring
-      const enrichedChunks = await this.enrichChunks(searchResults, query);
+      let enrichedChunks = await this.enrichChunks(searchResults, query);
 
-      // Rank and filter results
-      const rankedChunks = this.rankChunks(enrichedChunks, query);
+      // Apply reranking if enabled and configured
+      if (useReranking && enrichedChunks.length > 1) {
+        const rerankStart = Date.now();
+
+        try {
+          enrichedChunks = await this.applyReranking(enrichedChunks, query);
+          rerankingTime = Date.now() - rerankStart;
+          rerankingMethod = this.rerankingService.getServiceInfo().method;
+
+          this.logger.debug(
+            `Reranked ${enrichedChunks.length} chunks in ${rerankingTime}ms using ${rerankingMethod}`
+          );
+        } catch (error) {
+          this.logger.warn('Reranking failed, using original ranking:', error);
+          rerankingTime = Date.now() - rerankStart;
+          rerankingMethod = 'failed-fallback';
+        }
+      }
+
+      // Apply traditional ranking and diversity if no reranking was used
+      if (!useReranking || enrichedChunks.length <= 1) {
+        enrichedChunks = this.rankChunks(enrichedChunks, query);
+      }
+
+      // Limit to final maxResults
+      const finalMaxResults = query.maxResults || this.defaultOptions.maxResults;
+      const rankedChunks = enrichedChunks.slice(0, finalMaxResults);
 
       // Generate context text
       const contextText = this.generateContextText(rankedChunks);
@@ -112,6 +160,9 @@ export class RagRetrievalService {
         totalTokens,
         retrievalTime,
         searchMethod,
+        rerankingUsed: useReranking && rerankingTime > 0,
+        rerankingTime: rerankingTime || undefined,
+        rerankingMethod: rerankingMethod || undefined,
       };
     } catch (error) {
       this.logger.error('Failed to retrieve context:', error);
@@ -119,6 +170,52 @@ export class RagRetrievalService {
         `Context retrieval failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
+  }
+
+  /**
+   * Apply reranking to enriched chunks
+   */
+  private async applyReranking(
+    enrichedChunks: EnrichedChunk[],
+    query: RetrievalQuery
+  ): Promise<EnrichedChunk[]> {
+    // Convert enriched chunks to reranking documents
+    const rerankingDocs: RerankingDocument[] = enrichedChunks.map((chunk) => ({
+      id: chunk.id,
+      text: chunk.chunkText,
+      title: chunk.documentTitle,
+      metadata: {
+        ...chunk.chunkMetadata,
+        documentMetadata: chunk.documentMetadata,
+        chunkIndex: chunk.chunkIndex,
+        documentId: chunk.documentId,
+      },
+      originalScore: chunk.relevanceScore,
+    }));
+
+    // Perform reranking
+    const rerankResponse = await this.rerankingService.rerank({
+      query: query.query,
+      documents: rerankingDocs,
+      topK: query.maxResults || this.defaultOptions.maxResults,
+    });
+
+    // Map reranked results back to enriched chunks
+    const rerankedChunks: EnrichedChunk[] = [];
+
+    for (const rerankResult of rerankResponse.results) {
+      const originalChunk = enrichedChunks.find((chunk) => chunk.id === rerankResult.id);
+      if (originalChunk) {
+        rerankedChunks.push({
+          ...originalChunk,
+          rerankScore: rerankResult.rerankScore,
+          originalRank: enrichedChunks.findIndex((chunk) => chunk.id === rerankResult.id) + 1,
+          finalRank: rerankResult.rank,
+        });
+      }
+    }
+
+    return rerankedChunks;
   }
 
   /**
@@ -347,6 +444,13 @@ export class RagRetrievalService {
     totalChunks: number;
     averageChunkSize: number;
     embeddingCoverage: number;
+    reranking: {
+      isConfigured: boolean;
+      provider: string;
+      method: string;
+      isLocal: boolean;
+      requiresApiKey?: boolean;
+    };
   }> {
     const stats = await this.vectorDbService.getStats();
 
@@ -358,11 +462,21 @@ export class RagRetrievalService {
     // Average chunk size would also require a custom query
     const averageChunkSize = 500; // Estimate
 
+    // Get reranking service info
+    const rerankingInfo = this.rerankingService.getServiceInfo();
+
     return {
       totalDocuments: stats.documentsCount,
       totalChunks: stats.chunksCount,
       averageChunkSize,
       embeddingCoverage,
+      reranking: {
+        isConfigured: this.rerankingService.isConfigured(),
+        provider: rerankingInfo.provider,
+        method: rerankingInfo.method,
+        isLocal: rerankingInfo.isLocal,
+        requiresApiKey: rerankingInfo.requiresApiKey,
+      },
     };
   }
 

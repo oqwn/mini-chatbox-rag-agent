@@ -571,7 +571,7 @@ export const RagManagement: React.FC = () => {
         )}
 
         {activeTab === 'system' && systemInfo && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Database Stats */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Database</h3>
@@ -617,6 +617,35 @@ export const RagManagement: React.FC = () => {
                     className={`text-sm font-medium ${systemInfo.embedding.isConfigured ? 'text-green-600' : 'text-red-600'}`}
                   >
                     {systemInfo.embedding.isConfigured ? 'Configured' : 'Not Configured'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Reranking Info */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Reranking</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Provider:</span>
+                  <span className="text-sm font-medium">{systemInfo.retrieval.reranking.provider}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Method:</span>
+                  <span className="text-sm font-medium">{systemInfo.retrieval.reranking.method}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Type:</span>
+                  <span className="text-sm font-medium">
+                    {systemInfo.retrieval.reranking.isLocal ? 'Local' : 'Remote'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Status:</span>
+                  <span
+                    className={`text-sm font-medium ${systemInfo.retrieval.reranking.isConfigured ? 'text-green-600' : 'text-red-600'}`}
+                  >
+                    {systemInfo.retrieval.reranking.isConfigured ? 'Configured' : 'Not Configured'}
                   </span>
                 </div>
               </div>

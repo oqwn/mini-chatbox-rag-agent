@@ -285,6 +285,8 @@ export class RagController {
         similarityThreshold = 0.3,
         useHybridSearch = true,
         contextWindowSize = 2,
+        useReranking = true,
+        rerankTopK = 20,
       } = req.body;
 
       if (!query) {
@@ -299,6 +301,8 @@ export class RagController {
         similarityThreshold,
         useHybridSearch,
         contextWindowSize,
+        useReranking,
+        rerankTopK,
       });
 
       res.json({

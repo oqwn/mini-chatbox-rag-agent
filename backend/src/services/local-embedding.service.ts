@@ -19,7 +19,6 @@ export class LocalEmbeddingService {
   private readonly targetDimensions = 1536; // Target dimensions to match OpenAI (for database compatibility)
   private readonly maxTokensPerRequest = 512; // Model's context limit
   private readonly maxTextsPerBatch = 32; // Reasonable batch size for local processing
-  private isInitialized = false;
 
   constructor(private logger: Logger) {}
 
@@ -38,7 +37,6 @@ export class LocalEmbeddingService {
         quantized: true, // Use quantized model for faster loading and less memory
       })) as FeatureExtractionPipeline;
 
-      this.isInitialized = true;
       this.logger.info('Local embedding model initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize local embedding model:', error);
@@ -52,7 +50,9 @@ export class LocalEmbeddingService {
    * Check if the service is properly configured
    */
   isConfigured(): boolean {
-    return this.isInitialized;
+    // Local embedding service is always configured since it doesn't require API keys
+    // Return true as we can always initialize the local model
+    return true;
   }
 
   /**

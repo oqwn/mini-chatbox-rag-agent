@@ -48,6 +48,9 @@ export interface ContextRetrievalResult {
   totalTokens: number;
   retrievalTime: number;
   searchMethod: 'vector' | 'hybrid';
+  rerankingUsed: boolean;
+  rerankingTime?: number;
+  rerankingMethod?: string;
 }
 
 export interface IngestionResult {
@@ -75,6 +78,13 @@ export interface SystemInfo {
     totalChunks: number;
     averageChunkSize: number;
     embeddingCoverage: number;
+    reranking: {
+      isConfigured: boolean;
+      provider: string;
+      method: string;
+      isLocal: boolean;
+      requiresApiKey?: boolean;
+    };
   };
   system: {
     status: string;
@@ -202,6 +212,8 @@ class RagApiService {
       similarityThreshold?: number;
       useHybridSearch?: boolean;
       contextWindowSize?: number;
+      useReranking?: boolean;
+      rerankTopK?: number;
     } = {}
   ): Promise<ContextRetrievalResult> {
     return this.request('/search', {
