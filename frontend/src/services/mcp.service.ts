@@ -172,7 +172,7 @@ class MCPService {
         const status = this.serverStatuses.get(serverId);
         if (status) {
           status.tools = tools;
-          console.log(`Updated server ${serverId} with ${tools.length} tools`);
+          // console.log(`Updated server ${serverId} with ${tools.length} tools`);
           this.notifyStatusChange(serverId, status);
         }
       }
