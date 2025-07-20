@@ -515,37 +515,8 @@ export class ChatController {
         }
         this.logger.info(`Stream completed with ${chunkCount} chunks`);
 
-        // Send RAG references at the end if available
-        if (ragContext && ragContext.references.length > 0) {
-          const referencesText =
-            '\n\n--- References ---\n' +
-            ragContext.references
-              .map((ref) => {
-                let refText = `[${ref.citationNumber}] ${ref.documentTitle}`;
-
-                // Add page information if available
-                if (ref.pageNumber) {
-                  refText += ` (Page ${ref.pageNumber})`;
-                } else if (ref.startPage && ref.endPage) {
-                  if (ref.startPage === ref.endPage) {
-                    refText += ` (Page ${ref.startPage})`;
-                  } else {
-                    refText += ` (Pages ${ref.startPage}-${ref.endPage})`;
-                  }
-                }
-
-                refText += ` - Similarity: ${(ref.similarity * 100).toFixed(1)}%`;
-
-                // Add exact preview
-                if (ref.exactPreview) {
-                  refText += `\n   "${ref.exactPreview}"`;
-                }
-
-                return refText;
-              })
-              .join('\n\n');
-          res.write(referencesText);
-        }
+        // References are now handled via inline citations in the AI response
+        // No longer appending a separate references section
       } catch (streamError) {
         const errorMessage = streamError instanceof Error ? streamError.message : 'Stream error';
         this.logger.error('Stream error:', errorMessage);
