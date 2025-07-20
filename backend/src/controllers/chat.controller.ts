@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { OpenAIService } from '@/services/openai.service';
 import { MCPService } from '@/services/mcp.service';
 import { PromptService } from '@/services/prompt.service';
+import { RagRetrievalService } from '@/services/rag-retrieval.service';
+import { VectorDbService } from '@/services/vector-db.service';
 import { Logger } from 'winston';
 
 export class ChatController {
@@ -9,8 +11,77 @@ export class ChatController {
     private openAIService: OpenAIService,
     private mcpService: MCPService,
     private promptService: PromptService,
+    private ragRetrievalService: RagRetrievalService,
+    private vectorDbService: VectorDbService,
     private logger: Logger
   ) {}
+
+  private async getKnowledgeBaseSources(): Promise<{
+    hasDocuments: boolean;
+    knowledgeSourceIds: number[];
+  }> {
+    try {
+      const sources = await this.vectorDbService.getKnowledgeSources();
+      const knowledgeSourceIds = sources.map((s) => s.id!).filter((id) => id !== undefined);
+      const hasDocuments = knowledgeSourceIds.length > 0;
+      return { hasDocuments, knowledgeSourceIds };
+    } catch (error) {
+      this.logger.error('Failed to get knowledge sources:', error);
+      return { hasDocuments: false, knowledgeSourceIds: [] };
+    }
+  }
+
+  private async performRagRetrieval(
+    query: string
+  ): Promise<{ contextText: string; references: any[] } | null> {
+    try {
+      const { hasDocuments, knowledgeSourceIds } = await this.getKnowledgeBaseSources();
+
+      if (!hasDocuments || knowledgeSourceIds.length === 0) {
+        this.logger.debug('No documents in knowledge base, skipping RAG retrieval');
+        return null;
+      }
+
+      this.logger.debug(`Performing RAG retrieval for query: ${query.substring(0, 100)}...`);
+
+      const ragResult = await this.ragRetrievalService.retrieveContext({
+        query,
+        maxResults: 5,
+        similarityThreshold: 0.3,
+        useReranking: true,
+        rerankTopK: 10,
+      });
+
+      if (ragResult.relevantChunks.length === 0) {
+        this.logger.debug('No relevant chunks found in knowledge base');
+        return null;
+      }
+
+      // Format references for citation
+      const references = ragResult.relevantChunks.map((chunk, index) => ({
+        id: chunk.id,
+        documentId: chunk.documentId,
+        documentTitle: chunk.documentTitle || `Document ${chunk.documentId}`,
+        chunkText: chunk.chunkText.substring(0, 200) + (chunk.chunkText.length > 200 ? '...' : ''),
+        similarity: chunk.similarity,
+        citationNumber: index + 1,
+        rerankScore: chunk.rerankScore,
+        chunkIndex: chunk.chunkIndex,
+      }));
+
+      this.logger.info(
+        `RAG retrieved ${references.length} relevant chunks in ${ragResult.retrievalTime}ms`
+      );
+
+      return {
+        contextText: ragResult.contextText,
+        references,
+      };
+    } catch (error) {
+      this.logger.error('RAG retrieval failed:', error);
+      return null;
+    }
+  }
 
   public async chat(req: Request, res: Response): Promise<void> {
     try {
@@ -31,6 +102,13 @@ export class ChatController {
       // Get available MCP tools
       const mcpTools = await this.mcpService.getAllTools();
       this.logger.info(`Found ${mcpTools.length} MCP tools available`);
+
+      // Perform RAG retrieval for the latest user message
+      let ragContext: { contextText: string; references: any[] } | null = null;
+      const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
+      if (lastUserMessage?.content) {
+        ragContext = await this.performRagRetrieval(lastUserMessage.content);
+      }
 
       // Check if the last assistant message contains a permission request
       let additionalContext = '';
@@ -73,9 +151,15 @@ export class ChatController {
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
       }
 
+      // Add RAG context to system prompt if available
+      let ragSystemPrompt = '';
+      if (ragContext) {
+        ragSystemPrompt = `\n\n=== KNOWLEDGE BASE CONTEXT ===\nYou have access to the following relevant information from the knowledge base:\n\n${ragContext.contextText}\n\n=== END KNOWLEDGE BASE CONTEXT ===\n\nWhen answering, you should use this knowledge base information when relevant. Always cite your sources using the format [Source: Document Title] when referencing information from the knowledge base.`;
+      }
+
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt + additionalContext,
+        content: systemPrompt + additionalContext + ragSystemPrompt,
       };
 
       // Add system message at the beginning if not already present
@@ -107,7 +191,14 @@ export class ChatController {
         },
       });
 
-      res.json({ message: response });
+      // Include RAG references in response if available
+      const responseWithReferences = {
+        message: response,
+        ragReferences: ragContext?.references || null,
+        ragUsed: ragContext !== null,
+      };
+
+      res.json(responseWithReferences);
     } catch (error) {
       this.logger.error('Chat error:', error);
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
@@ -144,6 +235,13 @@ export class ChatController {
       const mcpTools = await this.mcpService.getAllTools();
       this.logger.info(`Found ${mcpTools.length} MCP tools available`);
 
+      // Perform RAG retrieval for the latest user message
+      let ragContext: { contextText: string; references: any[] } | null = null;
+      const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
+      if (lastUserMessage?.content) {
+        ragContext = await this.performRagRetrieval(lastUserMessage.content);
+      }
+
       // Check if the last assistant message contains a permission request
       let additionalContext = '';
       if (messages.length >= 2) {
@@ -185,9 +283,15 @@ export class ChatController {
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
       }
 
+      // Add RAG context to system prompt if available
+      let ragSystemPrompt = '';
+      if (ragContext) {
+        ragSystemPrompt = `\n\n=== KNOWLEDGE BASE CONTEXT ===\nYou have access to the following relevant information from the knowledge base:\n\n${ragContext.contextText}\n\n=== END KNOWLEDGE BASE CONTEXT ===\n\nWhen answering, you should use this knowledge base information when relevant. Always cite your sources using the format [Source: Document Title] when referencing information from the knowledge base.`;
+      }
+
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt + additionalContext,
+        content: systemPrompt + additionalContext + ragSystemPrompt,
       };
 
       // Add system message at the beginning if not already present
@@ -265,6 +369,19 @@ export class ChatController {
           if (res.flush) res.flush();
         }
         this.logger.info(`Stream completed with ${chunkCount} chunks`);
+
+        // Send RAG references at the end if available
+        if (ragContext && ragContext.references.length > 0) {
+          const referencesText =
+            '\n\n--- References ---\n' +
+            ragContext.references
+              .map(
+                (ref) =>
+                  `[${ref.citationNumber}] ${ref.documentTitle} (Similarity: ${(ref.similarity * 100).toFixed(1)}%)`
+              )
+              .join('\n');
+          res.write(referencesText);
+        }
       } catch (streamError) {
         const errorMessage = streamError instanceof Error ? streamError.message : 'Stream error';
         this.logger.error('Stream error:', errorMessage);

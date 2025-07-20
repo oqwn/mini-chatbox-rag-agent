@@ -26,6 +26,10 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
       /\[MCP_PERMISSION_REQUEST\]\s*TOOL:\s*(.+?)\s*DESCRIPTION:\s*(.+?)\s*PURPOSE:\s*(.+?)\s*\[\/MCP_PERMISSION_REQUEST\]/s;
     const permissionMatch = content.match(permissionRegex);
 
+    // Check if content contains RAG references
+    const referencesRegex = /\n\n--- References ---\n(.+?)$/s;
+    const referencesMatch = content.match(referencesRegex);
+
     if (permissionMatch) {
       // Extract permission request details
       const [fullMatch, tool, description, purpose] = permissionMatch;
@@ -62,7 +66,51 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
       );
     }
 
-    // No permission request, render normally
+    // Handle content with or without references
+    if (referencesMatch) {
+      const [fullMatch, referencesText] = referencesMatch;
+      const mainContent = content.substring(0, content.indexOf(fullMatch));
+      const references = referencesText
+        .trim()
+        .split('\n')
+        .filter((ref) => ref.trim());
+
+      return (
+        <div className={`markdown-content ${className}`}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={markdownComponents(handleCopyCode, copiedIndex)}
+          >
+            {mainContent}
+          </ReactMarkdown>
+
+          <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+            <h4 className="text-sm font-semibold text-blue-800 mb-2 flex items-center">
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Knowledge Base References
+            </h4>
+            <div className="space-y-1">
+              {references.map((ref, index) => (
+                <div key={index} className="text-sm text-blue-700 bg-white p-2 rounded border">
+                  {ref}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {isStreaming && <span className="animate-pulse ml-1 text-black">▊</span>}
+        </div>
+      );
+    }
+
+    // No special content, render normally
     return (
       <div className={`markdown-content ${className}`}>
         <ReactMarkdown
