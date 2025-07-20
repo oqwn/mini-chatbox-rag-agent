@@ -92,6 +92,47 @@ export interface SystemInfo {
   };
 }
 
+export interface RagConfiguration {
+  embedding: {
+    provider: string;
+    model: string;
+    isLocal: boolean;
+    isConfigured: boolean;
+    requiresApiKey: boolean;
+    dimensions: number;
+    environment: {
+      OPENAI_API_KEY?: string;
+      EMBEDDING_MODEL?: string;
+      EMBEDDING_ENDPOINT?: string;
+    };
+  };
+  reranking: {
+    provider: string;
+    method: string;
+    isLocal: boolean;
+    isConfigured: boolean;
+    requiresApiKey: boolean;
+    environment: {
+      RERANK_ENDPOINT?: string;
+      RERANK_API_KEY?: string;
+      RERANK_FORCE_LOCAL?: string;
+    };
+  };
+}
+
+export interface ConfigurationUpdateRequest {
+  embedding?: {
+    OPENAI_API_KEY?: string;
+    EMBEDDING_MODEL?: string;
+    EMBEDDING_ENDPOINT?: string;
+  };
+  reranking?: {
+    RERANK_ENDPOINT?: string;
+    RERANK_API_KEY?: string;
+    RERANK_FORCE_LOCAL?: string;
+  };
+}
+
 class RagApiService {
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${API_BASE_URL}/api/rag${endpoint}`;
@@ -258,6 +299,22 @@ class RagApiService {
     checks: Record<string, any>;
   }> {
     return this.request('/health');
+  }
+
+  // Configuration Management
+  async getRagConfiguration(): Promise<{ success: boolean; configuration: RagConfiguration }> {
+    return this.request('/config');
+  }
+
+  async updateRagConfiguration(config: ConfigurationUpdateRequest): Promise<{
+    success: boolean;
+    message: string;
+    warnings?: string[];
+  }> {
+    return this.request('/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
   }
 
   // Utility

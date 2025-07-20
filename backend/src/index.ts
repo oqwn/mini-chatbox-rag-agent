@@ -40,8 +40,8 @@ const mcpService = new MCPService();
 
 // Initialize RAG services
 const vectorDbService = new VectorDbService(logger);
-const embeddingService = EmbeddingFactory.createEmbeddingService(logger);
-const rerankingService = RerankingFactory.createRerankingService(logger);
+const embeddingService = EmbeddingFactory.createEmbeddingService(configService, logger);
+const rerankingService = RerankingFactory.createRerankingService(configService, logger);
 const documentIngestionService = new DocumentIngestionService(vectorDbService, embeddingService, logger);
 const ragRetrievalService = new RagRetrievalService(vectorDbService, embeddingService, rerankingService, logger);
 
@@ -49,7 +49,7 @@ const ragRetrievalService = new RagRetrievalService(vectorDbService, embeddingSe
 const chatController = new ChatController(openAIService, mcpService, promptService, logger);
 const settingsController = new SettingsController(configService, openAIService, logger);
 const mcpController = new MCPController(mcpService);
-const ragController = new RagController(vectorDbService, embeddingService, documentIngestionService, ragRetrievalService, logger);
+const ragController = new RagController(vectorDbService, embeddingService, documentIngestionService, ragRetrievalService, configService, logger);
 
 // Create Express app
 const app = express();

@@ -1,4 +1,5 @@
 import { Logger } from 'winston';
+import { ConfigService } from './config.service';
 import { EmbeddingService } from './embedding.service';
 import { LocalEmbeddingService } from './local-embedding.service';
 
@@ -25,8 +26,9 @@ export interface IEmbeddingService {
 }
 
 export class EmbeddingFactory {
-  static createEmbeddingService(logger: Logger): IEmbeddingService {
-    const openaiApiKey = process.env.OPENAI_API_KEY;
+  static createEmbeddingService(configService: ConfigService, logger: Logger): IEmbeddingService {
+    const openaiConfig = configService.getOpenAIConfig();
+    const openaiApiKey = openaiConfig.apiKey;
 
     // Enhanced validation to catch more placeholder patterns
     const isValidApiKey =
@@ -43,7 +45,7 @@ export class EmbeddingFactory {
     if (isValidApiKey) {
       logger.info('Using OpenAI embedding service (valid API key provided)');
       try {
-        return new EmbeddingService(logger);
+        return new EmbeddingService(configService, logger);
       } catch (error) {
         logger.warn('Failed to initialize OpenAI embedding service, falling back to local:', error);
         return new LocalEmbeddingService(logger);

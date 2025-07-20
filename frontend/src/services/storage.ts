@@ -5,6 +5,12 @@ const STORAGE_KEYS = {
   BASE_URL: 'chatbox_base_url',
   MODEL: 'chatbox_model',
   MODEL_CAPABILITIES: 'chatbox_model_capabilities',
+  // RAG configuration
+  RAG_EMBEDDING_MODEL: 'chatbox_rag_embedding_model',
+  RAG_EMBEDDING_ENDPOINT: 'chatbox_rag_embedding_endpoint',
+  RAG_RERANK_ENDPOINT: 'chatbox_rag_rerank_endpoint',
+  RAG_RERANK_API_KEY: 'chatbox_rag_rerank_api_key',
+  RAG_RERANK_FORCE_LOCAL: 'chatbox_rag_rerank_force_local',
 } as const;
 
 type ModelCapability = {
@@ -85,11 +91,90 @@ export class StorageService {
     }
   }
 
+  // RAG Configuration methods
+  static setRagEmbeddingModel(model: string): void {
+    if (model) {
+      localStorage.setItem(STORAGE_KEYS.RAG_EMBEDDING_MODEL, model);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.RAG_EMBEDDING_MODEL);
+    }
+  }
+
+  static getRagEmbeddingModel(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.RAG_EMBEDDING_MODEL);
+  }
+
+  static setRagEmbeddingEndpoint(endpoint: string): void {
+    if (endpoint) {
+      localStorage.setItem(STORAGE_KEYS.RAG_EMBEDDING_ENDPOINT, endpoint);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.RAG_EMBEDDING_ENDPOINT);
+    }
+  }
+
+  static getRagEmbeddingEndpoint(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.RAG_EMBEDDING_ENDPOINT);
+  }
+
+  static setRagRerankEndpoint(endpoint: string): void {
+    if (endpoint) {
+      localStorage.setItem(STORAGE_KEYS.RAG_RERANK_ENDPOINT, endpoint);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_ENDPOINT);
+    }
+  }
+
+  static getRagRerankEndpoint(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.RAG_RERANK_ENDPOINT);
+  }
+
+  static setRagRerankApiKey(apiKey: string): void {
+    if (apiKey) {
+      // Encrypt the API key before storing
+      const encryptedKey = encrypt(apiKey);
+      localStorage.setItem(STORAGE_KEYS.RAG_RERANK_API_KEY, encryptedKey);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_API_KEY);
+    }
+  }
+
+  static getRagRerankApiKey(): string | null {
+    const storedKey = localStorage.getItem(STORAGE_KEYS.RAG_RERANK_API_KEY);
+    if (!storedKey) return null;
+
+    // Decrypt the API key
+    if (isEncrypted(storedKey)) {
+      return decrypt(storedKey);
+    }
+
+    // Migrate unencrypted keys (for backward compatibility)
+    this.setRagRerankApiKey(storedKey);
+    return storedKey;
+  }
+
+  static setRagRerankForceLocal(forceLocal: string): void {
+    if (forceLocal) {
+      localStorage.setItem(STORAGE_KEYS.RAG_RERANK_FORCE_LOCAL, forceLocal);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_FORCE_LOCAL);
+    }
+  }
+
+  static getRagRerankForceLocal(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.RAG_RERANK_FORCE_LOCAL);
+  }
+
   static clearAll(): void {
     localStorage.removeItem(STORAGE_KEYS.API_KEY);
     localStorage.removeItem(STORAGE_KEYS.BASE_URL);
     localStorage.removeItem(STORAGE_KEYS.MODEL);
     localStorage.removeItem(STORAGE_KEYS.MODEL_CAPABILITIES);
+    // RAG settings
+    localStorage.removeItem(STORAGE_KEYS.RAG_EMBEDDING_MODEL);
+    localStorage.removeItem(STORAGE_KEYS.RAG_EMBEDDING_ENDPOINT);
+    localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_ENDPOINT);
+    localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_API_KEY);
+    localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_FORCE_LOCAL);
     // Note: We keep the encryption key so that if the user re-enters
     // their API key, it will be encrypted with the same key
   }

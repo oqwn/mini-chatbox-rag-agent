@@ -1,4 +1,5 @@
 import { Logger } from 'winston';
+import { ConfigService } from './config.service';
 import {
   IRerankingService,
   LocalRerankingService,
@@ -6,10 +7,11 @@ import {
 } from './reranking.service';
 
 export class RerankingFactory {
-  static createRerankingService(logger: Logger): IRerankingService {
-    const rerankEndpoint = process.env.RERANK_ENDPOINT;
-    const rerankApiKey = process.env.RERANK_API_KEY;
-    const forceLocal = process.env.RERANK_FORCE_LOCAL === 'true';
+  static createRerankingService(configService: ConfigService, logger: Logger): IRerankingService {
+    const ragConfig = configService.getRagConfig();
+    const rerankEndpoint = ragConfig.rerankEndpoint;
+    const rerankApiKey = ragConfig.rerankApiKey;
+    const forceLocal = ragConfig.rerankForceLocal === 'true';
 
     // If forced to use local or no endpoint configured, use local service
     if (forceLocal || !rerankEndpoint) {

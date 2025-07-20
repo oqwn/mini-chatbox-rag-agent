@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Logger } from 'winston';
+import { ConfigService } from '@/services/config.service';
 import { VectorDbService } from '@/services/vector-db.service';
 import { IEmbeddingService } from '@/services/embedding-factory.service';
 import { DocumentIngestionService } from '@/services/document-ingestion.service';
@@ -64,6 +65,7 @@ export class RagController {
     private embeddingService: IEmbeddingService,
     private documentIngestionService: DocumentIngestionService,
     private ragRetrievalService: RagRetrievalService,
+    private configService: ConfigService,
     private logger: Logger
   ) {}
 
@@ -424,6 +426,8 @@ export class RagController {
     try {
       const embeddingInfo = this.embeddingService.getModelInfo();
       const rerankingInfo = await this.ragRetrievalService.getRetrievalStats();
+      const openaiConfig = this.configService.getOpenAIConfig();
+      const ragConfig = this.configService.getRagConfig();
 
       res.json({
         success: true,
@@ -435,11 +439,11 @@ export class RagController {
             isConfigured: this.embeddingService.isConfigured(),
             requiresApiKey: embeddingInfo.requiresApiKey || false,
             dimensions: embeddingInfo.dimensions,
-            // Environment variables (without actual values for security)
+            // Configuration values (without actual values for security)
             environment: {
-              OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '••••••••' : undefined,
-              EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || undefined,
-              EMBEDDING_ENDPOINT: process.env.EMBEDDING_ENDPOINT || undefined,
+              OPENAI_API_KEY: openaiConfig.apiKey ? '••••••••' : undefined,
+              EMBEDDING_MODEL: ragConfig.embeddingModel || undefined,
+              EMBEDDING_ENDPOINT: ragConfig.embeddingEndpoint || undefined,
             },
           },
           reranking: {
@@ -448,11 +452,11 @@ export class RagController {
             isLocal: rerankingInfo.reranking.isLocal,
             isConfigured: rerankingInfo.reranking.isConfigured,
             requiresApiKey: rerankingInfo.reranking.requiresApiKey || false,
-            // Environment variables (without actual values for security)
+            // Configuration values (without actual values for security)
             environment: {
-              RERANK_ENDPOINT: process.env.RERANK_ENDPOINT || undefined,
-              RERANK_API_KEY: process.env.RERANK_API_KEY ? '••••••••' : undefined,
-              RERANK_FORCE_LOCAL: process.env.RERANK_FORCE_LOCAL || undefined,
+              RERANK_ENDPOINT: ragConfig.rerankEndpoint || undefined,
+              RERANK_API_KEY: ragConfig.rerankApiKey ? '••••••••' : undefined,
+              RERANK_FORCE_LOCAL: ragConfig.rerankForceLocal || undefined,
             },
           },
         },
@@ -472,44 +476,46 @@ export class RagController {
         return;
       }
 
-      const warnings: string[] = [];
-
-      // Note: In a production environment, you would typically restart the service
-      // or use a proper configuration management system. For this demo, we'll
-      // update process.env and provide guidance to the user.
+      // Update configuration using ConfigService for persistence
+      const ragConfig: any = {};
 
       if (embedding) {
-        if (embedding.OPENAI_API_KEY !== undefined) {
-          process.env.OPENAI_API_KEY = embedding.OPENAI_API_KEY || undefined;
-        }
         if (embedding.EMBEDDING_MODEL !== undefined) {
-          process.env.EMBEDDING_MODEL = embedding.EMBEDDING_MODEL || undefined;
+          ragConfig.embeddingModel = embedding.EMBEDDING_MODEL;
         }
         if (embedding.EMBEDDING_ENDPOINT !== undefined) {
-          process.env.EMBEDDING_ENDPOINT = embedding.EMBEDDING_ENDPOINT || undefined;
+          ragConfig.embeddingEndpoint = embedding.EMBEDDING_ENDPOINT;
         }
       }
 
       if (reranking) {
         if (reranking.RERANK_ENDPOINT !== undefined) {
-          process.env.RERANK_ENDPOINT = reranking.RERANK_ENDPOINT || undefined;
+          ragConfig.rerankEndpoint = reranking.RERANK_ENDPOINT;
         }
         if (reranking.RERANK_API_KEY !== undefined) {
-          process.env.RERANK_API_KEY = reranking.RERANK_API_KEY || undefined;
+          ragConfig.rerankApiKey = reranking.RERANK_API_KEY;
         }
         if (reranking.RERANK_FORCE_LOCAL !== undefined) {
-          process.env.RERANK_FORCE_LOCAL = reranking.RERANK_FORCE_LOCAL || undefined;
+          ragConfig.rerankForceLocal = reranking.RERANK_FORCE_LOCAL;
         }
       }
 
-      warnings.push(
-        'Configuration updated in memory. For persistent changes, update your .env file and restart the service.'
-      );
+      // Update RAG configuration persistently
+      this.configService.updateRagConfig(ragConfig);
+
+      // Handle OpenAI API key separately if provided
+      if (embedding && embedding.OPENAI_API_KEY !== undefined) {
+        const openaiConfig = this.configService.getOpenAIConfig();
+        this.configService.updateOpenAIConfig(
+          embedding.OPENAI_API_KEY || openaiConfig.apiKey,
+          openaiConfig.baseUrl,
+          openaiConfig.model
+        );
+      }
 
       res.json({
         success: true,
-        message: 'RAG configuration updated successfully',
-        warnings,
+        message: 'RAG configuration updated successfully and persisted',
       });
     } catch (error) {
       this.logger.error('Failed to update RAG configuration:', error);

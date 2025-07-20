@@ -28,6 +28,15 @@ export class ConfigService {
       OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || '',
       OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini',
 
+      // RAG Embedding config
+      EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || '',
+      EMBEDDING_ENDPOINT: process.env.EMBEDDING_ENDPOINT || '',
+
+      // RAG Reranking config
+      RERANK_ENDPOINT: process.env.RERANK_ENDPOINT || '',
+      RERANK_API_KEY: process.env.RERANK_API_KEY || '',
+      RERANK_FORCE_LOCAL: process.env.RERANK_FORCE_LOCAL || '',
+
       // CORS
       CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
     };
@@ -62,6 +71,38 @@ export class ConfigService {
       apiKey: this.config.OPENAI_API_KEY,
       baseUrl: this.config.OPENAI_BASE_URL,
       model: this.config.OPENAI_MODEL,
+    };
+  }
+
+  public updateRagConfig(config: {
+    embeddingModel?: string;
+    embeddingEndpoint?: string;
+    rerankEndpoint?: string;
+    rerankApiKey?: string;
+    rerankForceLocal?: string;
+  }): void {
+    if (config.embeddingModel !== undefined) this.config.EMBEDDING_MODEL = config.embeddingModel;
+    if (config.embeddingEndpoint !== undefined)
+      this.config.EMBEDDING_ENDPOINT = config.embeddingEndpoint;
+    if (config.rerankEndpoint !== undefined) this.config.RERANK_ENDPOINT = config.rerankEndpoint;
+    if (config.rerankApiKey !== undefined) this.config.RERANK_API_KEY = config.rerankApiKey;
+    if (config.rerankForceLocal !== undefined)
+      this.config.RERANK_FORCE_LOCAL = config.rerankForceLocal;
+  }
+
+  public getRagConfig(): {
+    embeddingModel: string;
+    embeddingEndpoint: string;
+    rerankEndpoint: string;
+    rerankApiKey: string;
+    rerankForceLocal: string;
+  } {
+    return {
+      embeddingModel: this.config.EMBEDDING_MODEL,
+      embeddingEndpoint: this.config.EMBEDDING_ENDPOINT,
+      rerankEndpoint: this.config.RERANK_ENDPOINT,
+      rerankApiKey: this.config.RERANK_API_KEY,
+      rerankForceLocal: this.config.RERANK_FORCE_LOCAL,
     };
   }
 }

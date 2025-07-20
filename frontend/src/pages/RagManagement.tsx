@@ -1,20 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ragApiService, KnowledgeSource, Document, SystemInfo } from '../services/rag-api';
+import {
+  ragApiService,
+  KnowledgeSource,
+  Document,
+  SystemInfo,
+  RagConfiguration,
+  ConfigurationUpdateRequest,
+} from '../services/rag-api';
 import { FileUpload } from '../components/FileUpload';
 
 export const RagManagement: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'upload' | 'documents' | 'sources' | 'system'>(
-    'documents'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'upload' | 'documents' | 'sources' | 'system' | 'config'
+  >('documents');
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [ragConfig, setRagConfig] = useState<RagConfiguration | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+
   // Move document state
   const [movingDocumentId, setMovingDocumentId] = useState<number | null>(null);
   const [selectedKnowledgeSource, setSelectedKnowledgeSource] = useState<'all' | number>('all');
@@ -29,9 +39,27 @@ export const RagManagement: React.FC = () => {
   const [textContent, setTextContent] = useState('');
   const [selectedSourceForText, setSelectedSourceForText] = useState<number | ''>('');
 
+  // Configuration form state
+  const [embeddingConfig, setEmbeddingConfig] = useState({
+    OPENAI_API_KEY: '',
+    EMBEDDING_MODEL: '',
+    EMBEDDING_ENDPOINT: '',
+  });
+  const [rerankingConfig, setRerankingConfig] = useState({
+    RERANK_ENDPOINT: '',
+    RERANK_API_KEY: '',
+    RERANK_FORCE_LOCAL: '',
+  });
+
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'config' && !ragConfig && !configLoading) {
+      loadConfiguration();
+    }
+  }, [activeTab, ragConfig, configLoading]);
 
   const loadData = async () => {
     try {
@@ -49,6 +77,79 @@ export const RagManagement: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadConfiguration = async () => {
+    try {
+      setConfigLoading(true);
+      const configResult = await ragApiService.getRagConfiguration();
+      setRagConfig(configResult.configuration);
+
+      // Initialize form state with current values (but don't show actual API keys)
+      setEmbeddingConfig({
+        OPENAI_API_KEY: configResult.configuration.embedding.environment.OPENAI_API_KEY ? '' : '',
+        EMBEDDING_MODEL: configResult.configuration.embedding.environment.EMBEDDING_MODEL || '',
+        EMBEDDING_ENDPOINT:
+          configResult.configuration.embedding.environment.EMBEDDING_ENDPOINT || '',
+      });
+      setRerankingConfig({
+        RERANK_ENDPOINT: configResult.configuration.reranking.environment.RERANK_ENDPOINT || '',
+        RERANK_API_KEY: configResult.configuration.reranking.environment.RERANK_API_KEY ? '' : '',
+        RERANK_FORCE_LOCAL:
+          configResult.configuration.reranking.environment.RERANK_FORCE_LOCAL || '',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load configuration');
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const handleSaveConfiguration = async () => {
+    try {
+      setConfigSaving(true);
+      setError(null);
+      setSuccess(null);
+
+      const updateRequest: ConfigurationUpdateRequest = {};
+
+      // Only include fields that have values
+      const embeddingFields = Object.entries(embeddingConfig).filter(([_, value]) => value.trim());
+      const rerankingFields = Object.entries(rerankingConfig).filter(([_, value]) => value.trim());
+
+      if (embeddingFields.length > 0) {
+        updateRequest.embedding = {};
+        embeddingFields.forEach(([key, value]) => {
+          updateRequest.embedding![key as keyof typeof embeddingConfig] = value;
+        });
+      }
+
+      if (rerankingFields.length > 0) {
+        updateRequest.reranking = {};
+        rerankingFields.forEach(([key, value]) => {
+          updateRequest.reranking![key as keyof typeof rerankingConfig] = value;
+        });
+      }
+
+      if (Object.keys(updateRequest).length === 0) {
+        setError('No configuration changes to save');
+        return;
+      }
+
+      const result = await ragApiService.updateRagConfiguration(updateRequest);
+      setSuccess(result.message);
+
+      if (result.warnings && result.warnings.length > 0) {
+        setSuccess(result.message + '\n\nWarnings:\n' + result.warnings.join('\n'));
+      }
+
+      // Reload configuration to reflect changes
+      await loadConfiguration();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save configuration');
+    } finally {
+      setConfigSaving(false);
     }
   };
 
@@ -121,7 +222,7 @@ export const RagManagement: React.FC = () => {
 
   const getFilteredDocuments = () => {
     if (selectedKnowledgeSource === 'all') return documents;
-    return documents.filter(doc => doc.knowledgeSourceId === selectedKnowledgeSource);
+    return documents.filter((doc) => doc.knowledgeSourceId === selectedKnowledgeSource);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -186,10 +287,16 @@ export const RagManagement: React.FC = () => {
               { key: 'documents', label: 'Documents', icon: '📄' },
               { key: 'sources', label: 'Knowledge Sources', icon: '🗂️' },
               { key: 'system', label: 'System Info', icon: '⚙️' },
+              { key: 'config', label: 'Configuration', icon: '🔧' },
             ].map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key as any)}
+                onClick={() => {
+                  setActiveTab(tab.key as any);
+                  if (tab.key === 'config' && !ragConfig && !configLoading) {
+                    loadConfiguration();
+                  }
+                }}
                 className={`${
                   activeTab === tab.key
                     ? 'border-blue-500 text-blue-600'
@@ -327,9 +434,11 @@ export const RagManagement: React.FC = () => {
                 <h3 className="text-lg font-medium text-gray-900">Document Library</h3>
                 <select
                   value={selectedKnowledgeSource}
-                  onChange={(e) => setSelectedKnowledgeSource(
-                    e.target.value === 'all' ? 'all' : Number(e.target.value)
-                  )}
+                  onChange={(e) =>
+                    setSelectedKnowledgeSource(
+                      e.target.value === 'all' ? 'all' : Number(e.target.value)
+                    )
+                  }
                   className="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">All Knowledge Bases</option>
@@ -346,17 +455,16 @@ export const RagManagement: React.FC = () => {
             <div className="space-y-4">
               {/* Documents organized by knowledge base */}
               {knowledgeSources.map((source) => {
-                const sourceDocs = documents.filter(doc => doc.knowledgeSourceId === source.id);
-                if (selectedKnowledgeSource !== 'all' && selectedKnowledgeSource !== source.id) return null;
+                const sourceDocs = documents.filter((doc) => doc.knowledgeSourceId === source.id);
+                if (selectedKnowledgeSource !== 'all' && selectedKnowledgeSource !== source.id)
+                  return null;
                 if (sourceDocs.length === 0 && selectedKnowledgeSource !== source.id) return null;
 
                 return (
                   <div key={source.id} className="bg-white rounded-lg shadow">
                     <div className="px-4 py-3 bg-blue-50 border-b">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-blue-900">
-                          🗂️ {source.name}
-                        </h4>
+                        <h4 className="text-sm font-medium text-blue-900">🗂️ {source.name}</h4>
                         <span className="text-xs text-blue-600">
                           {sourceDocs.length} document{sourceDocs.length !== 1 ? 's' : ''}
                         </span>
@@ -427,7 +535,9 @@ export const RagManagement: React.FC = () => {
                                     🔄 Move
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteDocument(doc.id!, doc.title || 'Untitled')}
+                                    onClick={() =>
+                                      handleDeleteDocument(doc.id!, doc.title || 'Untitled')
+                                    }
                                     className="text-red-600 hover:text-red-900 text-sm px-2 py-1 hover:bg-red-50 rounded"
                                   >
                                     🗑️ Delete
@@ -628,11 +738,15 @@ export const RagManagement: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Provider:</span>
-                  <span className="text-sm font-medium">{systemInfo.retrieval.reranking.provider}</span>
+                  <span className="text-sm font-medium">
+                    {systemInfo.retrieval.reranking.provider}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Method:</span>
-                  <span className="text-sm font-medium">{systemInfo.retrieval.reranking.method}</span>
+                  <span className="text-sm font-medium">
+                    {systemInfo.retrieval.reranking.method}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Type:</span>
@@ -677,6 +791,253 @@ export const RagManagement: React.FC = () => {
                   Last updated: {formatDate(systemInfo.system.timestamp)}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'config' && (
+          <div className="space-y-6">
+            {configLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Loading configuration...</span>
+              </div>
+            ) : ragConfig ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Embedding Configuration */}
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    🔍 Embedding Configuration
+                  </h3>
+
+                  {/* Current Status */}
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Current Status</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Provider:</span>
+                        <span className="font-medium">{ragConfig.embedding.provider}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Model:</span>
+                        <span className="font-medium">{ragConfig.embedding.model}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Type:</span>
+                        <span className="font-medium">
+                          {ragConfig.embedding.isLocal ? 'Local' : 'Remote'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Status:</span>
+                        <span
+                          className={`font-medium ${ragConfig.embedding.isConfigured ? 'text-green-600' : 'text-red-600'}`}
+                        >
+                          {ragConfig.embedding.isConfigured ? 'Configured' : 'Not Configured'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Configuration Form */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        OpenAI API Key
+                      </label>
+                      <input
+                        type="password"
+                        value={embeddingConfig.OPENAI_API_KEY}
+                        onChange={(e) =>
+                          setEmbeddingConfig({ ...embeddingConfig, OPENAI_API_KEY: e.target.value })
+                        }
+                        placeholder={
+                          ragConfig.embedding.environment.OPENAI_API_KEY ? '••••••••' : 'sk-...'
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Leave empty to keep current key</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Embedding Model (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={embeddingConfig.EMBEDDING_MODEL}
+                        onChange={(e) =>
+                          setEmbeddingConfig({
+                            ...embeddingConfig,
+                            EMBEDDING_MODEL: e.target.value,
+                          })
+                        }
+                        placeholder="text-embedding-3-small"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Custom embedding model name</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Embedding Endpoint (Optional)
+                      </label>
+                      <input
+                        type="url"
+                        value={embeddingConfig.EMBEDDING_ENDPOINT}
+                        onChange={(e) =>
+                          setEmbeddingConfig({
+                            ...embeddingConfig,
+                            EMBEDDING_ENDPOINT: e.target.value,
+                          })
+                        }
+                        placeholder="http://localhost:8080/embeddings"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Custom embedding service endpoint
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reranking Configuration */}
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    🔄 Reranking Configuration
+                  </h3>
+
+                  {/* Current Status */}
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Current Status</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Provider:</span>
+                        <span className="font-medium">{ragConfig.reranking.provider}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Method:</span>
+                        <span className="font-medium">{ragConfig.reranking.method}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Type:</span>
+                        <span className="font-medium">
+                          {ragConfig.reranking.isLocal ? 'Local' : 'Remote'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Status:</span>
+                        <span
+                          className={`font-medium ${ragConfig.reranking.isConfigured ? 'text-green-600' : 'text-red-600'}`}
+                        >
+                          {ragConfig.reranking.isConfigured ? 'Configured' : 'Not Configured'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Configuration Form */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rerank Endpoint
+                      </label>
+                      <input
+                        type="url"
+                        value={rerankingConfig.RERANK_ENDPOINT}
+                        onChange={(e) =>
+                          setRerankingConfig({
+                            ...rerankingConfig,
+                            RERANK_ENDPOINT: e.target.value,
+                          })
+                        }
+                        placeholder="http://localhost:8080/rerank"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        External reranking service endpoint
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rerank API Key (Optional)
+                      </label>
+                      <input
+                        type="password"
+                        value={rerankingConfig.RERANK_API_KEY}
+                        onChange={(e) =>
+                          setRerankingConfig({ ...rerankingConfig, RERANK_API_KEY: e.target.value })
+                        }
+                        placeholder={
+                          ragConfig.reranking.environment.RERANK_API_KEY
+                            ? '••••••••'
+                            : 'API key for rerank service'
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Leave empty to keep current key</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Force Local Reranking
+                      </label>
+                      <select
+                        value={rerankingConfig.RERANK_FORCE_LOCAL}
+                        onChange={(e) =>
+                          setRerankingConfig({
+                            ...rerankingConfig,
+                            RERANK_FORCE_LOCAL: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Auto (prefer remote if available)</option>
+                        <option value="true">Force Local</option>
+                        <option value="false">Prefer Remote</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Whether to force local reranking or allow remote
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                Failed to load configuration. Please try refreshing the page.
+              </div>
+            )}
+
+            {/* Save Button */}
+            {ragConfig && (
+              <div className="flex justify-center">
+                <button
+                  onClick={handleSaveConfiguration}
+                  disabled={configSaving}
+                  className={`px-6 py-3 rounded-md font-medium ${
+                    configSaving
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {configSaving ? 'Saving Configuration...' : 'Save Configuration'}
+                </button>
+              </div>
+            )}
+
+            {/* Info Box */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-blue-800 mb-2">📝 Configuration Notes</h4>
+              <ul className="text-xs text-blue-700 space-y-1">
+                <li>
+                  • Changes are applied immediately but may require service restart for full effect
+                </li>
+                <li>• For persistent configuration, update your .env file</li>
+                <li>• Local services (embedding/reranking) work without API keys</li>
+                <li>• Remote services offer better performance but require network connectivity</li>
+              </ul>
             </div>
           </div>
         )}

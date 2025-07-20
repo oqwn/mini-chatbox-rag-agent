@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { Logger } from 'winston';
+import { ConfigService } from './config.service';
 
 export interface EmbeddingRequest {
   text: string;
@@ -29,16 +30,18 @@ export class EmbeddingService {
   private maxTextsPerBatch = 100; // Reasonable batch size
   private _isConfigured = false;
 
-  constructor(private logger: Logger) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey || !apiKey.trim()) {
-      throw new Error(
-        'OPENAI_API_KEY environment variable is required for OpenAI embedding service'
-      );
+  constructor(
+    private configService: ConfigService,
+    private logger: Logger
+  ) {
+    const config = this.configService.getOpenAIConfig();
+    if (!config.apiKey || !config.apiKey.trim()) {
+      throw new Error('OPENAI_API_KEY is required for OpenAI embedding service');
     }
 
     this.openai = new OpenAI({
-      apiKey,
+      apiKey: config.apiKey,
+      baseURL: config.baseUrl || undefined,
     });
 
     this._isConfigured = true;

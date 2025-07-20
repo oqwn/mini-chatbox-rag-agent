@@ -17,12 +17,41 @@ export interface OpenAISettings {
   model?: string;
 }
 
+export interface RagEmbeddingSettings {
+  model?: string;
+  endpoint?: string;
+}
+
+export interface RagRerankingSettings {
+  endpoint?: string;
+  apiKey?: string;
+  forceLocal?: string;
+}
+
+export interface RagSettings {
+  embedding: RagEmbeddingSettings;
+  reranking: RagRerankingSettings;
+}
+
 export interface SettingsResponse {
   openai: {
     isConfigured: boolean;
     baseUrl: string;
     model: string;
     availableModels: string[];
+  };
+  rag: {
+    embedding: {
+      model: string;
+      endpoint: string;
+      isConfigured: boolean;
+    };
+    reranking: {
+      endpoint: string;
+      hasApiKey: boolean;
+      forceLocal: string;
+      isConfigured: boolean;
+    };
   };
 }
 
@@ -61,7 +90,8 @@ class ApiService {
   }
 
   async updateSettings(settings: {
-    openai: OpenAISettings;
+    openai?: OpenAISettings;
+    rag?: RagSettings;
   }): Promise<{ success: boolean; message: string }> {
     return this.request('/settings', {
       method: 'PUT',

@@ -18,6 +18,16 @@ export const Settings: React.FC = () => {
   const [modelSupportsTools, setModelSupportsTools] = useState<boolean | null>(null);
   const [checkingModel, setCheckingModel] = useState(false);
 
+  // RAG Configuration state
+  const [ragEmbeddingModel, setRagEmbeddingModel] = useState('');
+  const [ragEmbeddingEndpoint, setRagEmbeddingEndpoint] = useState('');
+  const [ragRerankEndpoint, setRagRerankEndpoint] = useState('');
+  const [ragRerankApiKey, setRagRerankApiKey] = useState('');
+  const [ragRerankForceLocal, setRagRerankForceLocal] = useState('');
+  const [hasStoredRerankKey, setHasStoredRerankKey] = useState(false);
+  const [showStoredRerankKey, setShowStoredRerankKey] = useState(false);
+  const [storedRerankApiKey, setStoredRerankApiKey] = useState('');
+
   useEffect(() => {
     // Load from local storage first
     const savedApiKey = StorageService.getApiKey();
@@ -40,6 +50,22 @@ export const Settings: React.FC = () => {
       }
     }
 
+    // Load RAG configuration from local storage
+    const savedRagEmbeddingModel = StorageService.getRagEmbeddingModel();
+    const savedRagEmbeddingEndpoint = StorageService.getRagEmbeddingEndpoint();
+    const savedRagRerankEndpoint = StorageService.getRagRerankEndpoint();
+    const savedRagRerankApiKey = StorageService.getRagRerankApiKey();
+    const savedRagRerankForceLocal = StorageService.getRagRerankForceLocal();
+
+    if (savedRagEmbeddingModel) setRagEmbeddingModel(savedRagEmbeddingModel);
+    if (savedRagEmbeddingEndpoint) setRagEmbeddingEndpoint(savedRagEmbeddingEndpoint);
+    if (savedRagRerankEndpoint) setRagRerankEndpoint(savedRagRerankEndpoint);
+    if (savedRagRerankApiKey) {
+      setHasStoredRerankKey(true);
+      setStoredRerankApiKey(savedRagRerankApiKey);
+    }
+    if (savedRagRerankForceLocal) setRagRerankForceLocal(savedRagRerankForceLocal);
+
     loadSettings();
   }, []);
 
@@ -54,6 +80,22 @@ export const Settings: React.FC = () => {
       }
       if (!StorageService.getModel()) {
         setModel(response.openai.model);
+      }
+
+      // Load RAG configuration from server if not in local storage
+      if (response.rag) {
+        if (!StorageService.getRagEmbeddingModel()) {
+          setRagEmbeddingModel(response.rag.embedding.model || '');
+        }
+        if (!StorageService.getRagEmbeddingEndpoint()) {
+          setRagEmbeddingEndpoint(response.rag.embedding.endpoint || '');
+        }
+        if (!StorageService.getRagRerankEndpoint()) {
+          setRagRerankEndpoint(response.rag.reranking.endpoint || '');
+        }
+        if (!StorageService.getRagRerankForceLocal()) {
+          setRagRerankForceLocal(response.rag.reranking.forceLocal || '');
+        }
       }
 
       setLoading(false);
@@ -113,14 +155,45 @@ export const Settings: React.FC = () => {
     try {
       // Use the entered API key or the stored one
       const effectiveApiKey = apiKey || StorageService.getApiKey() || '';
+      const effectiveRerankApiKey = ragRerankApiKey || StorageService.getRagRerankApiKey() || '';
 
-      const response = await apiService.updateSettings({
-        openai: {
-          apiKey: effectiveApiKey,
-          baseUrl: baseUrl || undefined,
-          model: model || undefined,
-        },
-      });
+      const updatePayload: {
+        openai?: { apiKey: string; baseUrl?: string; model?: string };
+        rag?: {
+          embedding: { model?: string; endpoint?: string };
+          reranking: { endpoint?: string; apiKey?: string; forceLocal?: string };
+        };
+      } = {};
+
+      // Add OpenAI configuration
+      updatePayload.openai = {
+        apiKey: effectiveApiKey,
+        baseUrl: baseUrl || undefined,
+        model: model || undefined,
+      };
+
+      // Add RAG configuration if any fields have values
+      const hasRagConfig =
+        ragEmbeddingModel ||
+        ragEmbeddingEndpoint ||
+        ragRerankEndpoint ||
+        ragRerankApiKey ||
+        ragRerankForceLocal;
+      if (hasRagConfig) {
+        updatePayload.rag = {
+          embedding: {
+            model: ragEmbeddingModel || undefined,
+            endpoint: ragEmbeddingEndpoint || undefined,
+          },
+          reranking: {
+            endpoint: ragRerankEndpoint || undefined,
+            apiKey: effectiveRerankApiKey || undefined,
+            forceLocal: ragRerankForceLocal || undefined,
+          },
+        };
+      }
+
+      const response = await apiService.updateSettings(updatePayload);
 
       // Save to local storage
       if (apiKey) {
@@ -131,9 +204,22 @@ export const Settings: React.FC = () => {
       StorageService.setBaseUrl(baseUrl);
       StorageService.setModel(model);
 
+      // Save RAG configuration to local storage
+      StorageService.setRagEmbeddingModel(ragEmbeddingModel);
+      StorageService.setRagEmbeddingEndpoint(ragEmbeddingEndpoint);
+      StorageService.setRagRerankEndpoint(ragRerankEndpoint);
+      if (ragRerankApiKey) {
+        StorageService.setRagRerankApiKey(ragRerankApiKey);
+        setHasStoredRerankKey(true);
+        setStoredRerankApiKey(ragRerankApiKey);
+      }
+      StorageService.setRagRerankForceLocal(ragRerankForceLocal);
+
       setMessage({ type: 'success', text: response.message });
       setApiKey(''); // Clear the input field after saving
+      setRagRerankApiKey(''); // Clear the rerank API key input field
       setShowStoredKey(false); // Hide the key after saving
+      setShowStoredRerankKey(false); // Hide the rerank key after saving
       await loadSettings(); // Reload settings to get new model list
     } catch (error) {
       setMessage({
@@ -378,6 +464,15 @@ export const Settings: React.FC = () => {
                 setStoredApiKey('');
                 setShowStoredKey(false);
                 setModelSupportsTools(null);
+                // Clear RAG settings
+                setRagEmbeddingModel('');
+                setRagEmbeddingEndpoint('');
+                setRagRerankEndpoint('');
+                setRagRerankApiKey('');
+                setRagRerankForceLocal('');
+                setHasStoredRerankKey(false);
+                setStoredRerankApiKey('');
+                setShowStoredRerankKey(false);
                 setMessage({ type: 'success', text: 'Settings cleared from local storage' });
               }
             }}
@@ -385,6 +480,162 @@ export const Settings: React.FC = () => {
           >
             Clear Stored Settings
           </button>
+        </div>
+      </div>
+
+      {/* RAG Configuration Section */}
+      <div className="bg-white rounded-lg shadow p-6 mt-6">
+        <h2 className="text-xl font-semibold mb-4">RAG Configuration</h2>
+
+        {settings?.rag && (
+          <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded">
+            📊 Embedding:{' '}
+            {settings.rag.embedding.isConfigured ? '✓ Configured' : '⚠ Not configured'} | 🔄
+            Reranking: {settings.rag.reranking.isConfigured ? '✓ Configured' : '⚠ Not configured'}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Embedding Configuration */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-3">🔍 Embedding Configuration</h3>
+
+            <div>
+              <label
+                htmlFor="ragEmbeddingModel"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Embedding Model
+              </label>
+              <input
+                type="text"
+                id="ragEmbeddingModel"
+                value={ragEmbeddingModel}
+                onChange={(e) => setRagEmbeddingModel(e.target.value)}
+                placeholder="text-embedding-3-small"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                OpenAI embedding model name (leave empty for default)
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="ragEmbeddingEndpoint"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Embedding Endpoint
+              </label>
+              <input
+                type="url"
+                id="ragEmbeddingEndpoint"
+                value={ragEmbeddingEndpoint}
+                onChange={(e) => setRagEmbeddingEndpoint(e.target.value)}
+                placeholder="https://your-embedding-service/v1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Custom embedding service endpoint (optional)
+              </p>
+            </div>
+          </div>
+
+          {/* Reranking Configuration */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-3">🔄 Reranking Configuration</h3>
+
+            <div>
+              <label
+                htmlFor="ragRerankEndpoint"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Rerank Endpoint
+              </label>
+              <input
+                type="url"
+                id="ragRerankEndpoint"
+                value={ragRerankEndpoint}
+                onChange={(e) => setRagRerankEndpoint(e.target.value)}
+                placeholder="https://your-rerank-service/rerank"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-sm text-gray-500">Remote reranking service endpoint</p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="ragRerankApiKey"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Rerank API Key
+              </label>
+              <div className="relative">
+                <input
+                  type={showStoredRerankKey ? 'text' : 'password'}
+                  id="ragRerankApiKey"
+                  value={
+                    showStoredRerankKey && hasStoredRerankKey && !ragRerankApiKey
+                      ? storedRerankApiKey
+                      : ragRerankApiKey
+                  }
+                  onChange={(e) => setRagRerankApiKey(e.target.value)}
+                  placeholder={
+                    hasStoredRerankKey
+                      ? '••••••••• (configured)'
+                      : 'Optional API key for rerank service'
+                  }
+                  className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {hasStoredRerankKey && (
+                  <button
+                    type="button"
+                    onClick={() => setShowStoredRerankKey(!showStoredRerankKey)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+                  >
+                    {showStoredRerankKey ? 'Hide' : 'Show'}
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                API key for remote reranking service (encrypted storage)
+                {hasStoredRerankKey && ' Leave empty to keep existing key.'}
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="ragRerankForceLocal"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Force Local Reranking
+              </label>
+              <select
+                id="ragRerankForceLocal"
+                value={ragRerankForceLocal}
+                onChange={(e) => setRagRerankForceLocal(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Auto (use remote if available)</option>
+                <option value="true">Always use local reranking</option>
+                <option value="false">Prefer remote reranking</option>
+              </select>
+              <p className="mt-1 text-sm text-gray-500">
+                Whether to force local reranking algorithms
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="text-sm font-medium text-blue-800 mb-2">📝 RAG Configuration Notes</h4>
+          <ul className="text-xs text-blue-700 space-y-1">
+            <li>• Embedding models are used for document indexing and similarity search</li>
+            <li>• Reranking improves search relevance by reordering results</li>
+            <li>• Local services work offline but may have lower performance</li>
+            <li>• Remote services require network connectivity but offer better accuracy</li>
+            <li>• All settings are stored securely and persistently in your browser</li>
+          </ul>
         </div>
       </div>
     </div>
