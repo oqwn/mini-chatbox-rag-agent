@@ -274,7 +274,10 @@ export class ChatController {
       if (hasLocalTools) {
         try {
           agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
-          this.logger.info('Added agent tools formatting prompt');
+          // Also add the distinction prompt to clarify agent tools vs MCP tools
+          const distinctionPrompt = this.promptService.getPrompt('tools-distinction.md');
+          agentToolsPrompt = agentToolsPrompt + '\n\n' + distinctionPrompt;
+          this.logger.info('Added agent tools formatting and distinction prompts');
         } catch (error) {
           this.logger.warn('Failed to load agent tools prompt:', error);
         }
@@ -473,7 +476,10 @@ export class ChatController {
       if (hasLocalTools) {
         try {
           agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
-          this.logger.info('Added agent tools formatting prompt');
+          // Also add the distinction prompt to clarify agent tools vs MCP tools
+          const distinctionPrompt = this.promptService.getPrompt('tools-distinction.md');
+          agentToolsPrompt = agentToolsPrompt + '\n\n' + distinctionPrompt;
+          this.logger.info('Added agent tools formatting and distinction prompts');
         } catch (error) {
           this.logger.warn('Failed to load agent tools prompt:', error);
         }

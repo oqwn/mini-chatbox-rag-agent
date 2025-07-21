@@ -1,6 +1,6 @@
-# Agent Tools
+# Agent Tools (Built-in)
 
-This directory contains powerful tools that extend the AI agent's capabilities. These tools are automatically registered and made available through the MCP (Model Context Protocol) interface.
+This directory contains powerful built-in agent tools that extend the AI's capabilities. These are **NOT MCP tools** - they are integrated local tools that run directly within the agent system.
 
 ## Available Tools
 
@@ -89,16 +89,16 @@ OPENAI_API_KEY=your-openai-api-key
 
 ## Usage Example
 
-When the AI agent needs to use these tools, it will show a permission request card. Here's an example interaction:
+When the AI agent needs to use these built-in tools, it will show a permission request card. Here's an example interaction:
 
 ```
 User: "Read the contents of config.json"
 
-AI: I'll help you read the contents of config.json.
+AI: I'll help you read the contents of config.json using the built-in agent tool.
 
 [MCP_PERMISSION_REQUEST]
 TOOL: read_file
-DESCRIPTION: Read the contents of a file from the file system
+DESCRIPTION: [AGENT TOOL] Read the contents of a file from the file system
 PURPOSE: To read the config.json file as requested
 [/MCP_PERMISSION_REQUEST]
 

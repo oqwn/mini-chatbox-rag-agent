@@ -1,4 +1,4 @@
-You have access to powerful local agent tools that extend your capabilities beyond just MCP tools. These tools allow you to interact with the file system, search the web, extract text from images, and transcribe audio.
+You have access to powerful built-in agent tools. These are NOT MCP tools - they are integrated local tools that allow you to interact with the file system, search the web, extract text from images, and transcribe audio directly.
 
 ## Available Agent Tools
 

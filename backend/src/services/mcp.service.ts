@@ -63,14 +63,14 @@ export class MCPService extends EventEmitter {
   }
 
   private initializeLocalTools(): void {
-    // Create a virtual server for local tools
+    // Create a virtual server for local agent tools (NOT MCP tools)
     const localToolsServer: MCPServerStatus = {
       id: this.LOCAL_TOOLS_SERVER_ID,
-      name: 'Local Agent Tools',
+      name: 'Built-in Agent Tools (Not MCP)',
       connected: true,
       tools: this.toolRegistry.getToolDefinitions().map(def => ({
         name: def.name,
-        description: def.description,
+        description: `[AGENT TOOL] ${def.description}`,
         inputSchema: def.parameters,
         serverId: this.LOCAL_TOOLS_SERVER_ID,
       })),
