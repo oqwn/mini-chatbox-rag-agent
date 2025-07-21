@@ -31,16 +31,22 @@ export class ReadFileTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    return this.allowedPaths.some(allowed => 
+    const result = this.allowedPaths.some(allowed => 
       absolutePath.startsWith(path.resolve(allowed))
     );
+    
+    if (!result) {
+      this.logger.warn(`Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map(p => path.resolve(p)).join(', ')}`);
+    }
+    
+    return result;
   }
 
   async execute(parameters: { file_path: string; encoding?: string }): Promise<any> {
     const { file_path, encoding = 'utf8' } = parameters;
 
     if (!this.isPathAllowed(file_path)) {
-      throw new Error(`Access denied: Path ${file_path} is not in allowed directories`);
+      throw new Error(`Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`);
     }
 
     try {
@@ -98,9 +104,15 @@ export class WriteFileTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    return this.allowedPaths.some(allowed => 
+    const result = this.allowedPaths.some(allowed => 
       absolutePath.startsWith(path.resolve(allowed))
     );
+    
+    if (!result) {
+      this.logger.warn(`Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map(p => path.resolve(p)).join(', ')}`);
+    }
+    
+    return result;
   }
 
   async execute(parameters: { 
@@ -112,7 +124,7 @@ export class WriteFileTool extends BaseTool {
     const { file_path, content, encoding = 'utf8', create_directories = false } = parameters;
 
     if (!this.isPathAllowed(file_path)) {
-      throw new Error(`Access denied: Path ${file_path} is not in allowed directories`);
+      throw new Error(`Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`);
     }
 
     try {
@@ -179,9 +191,15 @@ export class UpdateFileTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    return this.allowedPaths.some(allowed => 
+    const result = this.allowedPaths.some(allowed => 
       absolutePath.startsWith(path.resolve(allowed))
     );
+    
+    if (!result) {
+      this.logger.warn(`Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map(p => path.resolve(p)).join(', ')}`);
+    }
+    
+    return result;
   }
 
   async execute(parameters: { 
@@ -200,7 +218,7 @@ export class UpdateFileTool extends BaseTool {
     } = parameters;
 
     if (!this.isPathAllowed(file_path)) {
-      throw new Error(`Access denied: Path ${file_path} is not in allowed directories`);
+      throw new Error(`Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`);
     }
 
     try {
@@ -273,9 +291,15 @@ export class DeleteFileTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    return this.allowedPaths.some(allowed => 
+    const result = this.allowedPaths.some(allowed => 
       absolutePath.startsWith(path.resolve(allowed))
     );
+    
+    if (!result) {
+      this.logger.warn(`Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map(p => path.resolve(p)).join(', ')}`);
+    }
+    
+    return result;
   }
 
   async execute(parameters: { file_path: string; confirm: boolean }): Promise<any> {
@@ -286,7 +310,7 @@ export class DeleteFileTool extends BaseTool {
     }
 
     if (!this.isPathAllowed(file_path)) {
-      throw new Error(`Access denied: Path ${file_path} is not in allowed directories`);
+      throw new Error(`Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`);
     }
 
     try {

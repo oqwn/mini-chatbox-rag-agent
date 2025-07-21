@@ -14,8 +14,12 @@ export class ToolRegistry {
     this.allowedPaths = process.env.ALLOWED_FILE_PATHS?.split(',') || [
       process.cwd(), // Current working directory
       '/tmp', // Temporary files
+      '/Users', // User directories (macOS)
+      '/home', // User directories (Linux)
+      '/var/tmp', // Additional temp directory
     ];
 
+    this.logger.info(`File system tools allowed paths: ${this.allowedPaths.join(', ')}`);
     this.registerDefaultTools();
   }
 
@@ -89,7 +93,17 @@ export class ToolRegistry {
       return result;
     } catch (error) {
       this.logger.error(`Tool execution failed: ${name}`, error);
+      
+      // If it's a file system tool with path restrictions, provide helpful error info
+      if (error instanceof Error && error.message.includes('Access denied')) {
+        this.logger.info(`File system allowed paths: ${this.allowedPaths.join(', ')}`);
+      }
+      
       throw error;
     }
+  }
+
+  getAllowedPaths(): string[] {
+    return [...this.allowedPaths];
   }
 }
