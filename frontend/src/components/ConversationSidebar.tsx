@@ -30,13 +30,15 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 }) => {
   const [conversations, setConversations] = useState<ConversationWithDropdown[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'starred' | 'recent'>('recent');
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [showProjectMenu, setShowProjectMenu] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +46,21 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       loadProjects();
     }
   }, [isOpen]);
+
+  // Close project menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showProjectMenu !== null) {
+        setShowProjectMenu(null);
+      }
+      if (conversations.some((c) => c.showProjectDropdown)) {
+        setConversations((convs) => convs.map((conv) => ({ ...conv, showProjectDropdown: false })));
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showProjectMenu, conversations]);
 
   const loadConversations = async () => {
     setLoading(true);
@@ -80,9 +97,11 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   };
 
-  const handleMoveToProject = async (conversationId: number, projectId: number) => {
+  const handleMoveToProject = async (conversationId: number, projectId: number | null) => {
     try {
-      await conversationApiService.updateConversation(conversationId, { projectId });
+      await conversationApiService.updateConversation(conversationId, {
+        projectId: projectId ?? undefined,
+      });
       await loadConversations();
     } catch (err) {
       console.error('Failed to move conversation:', err);
@@ -102,17 +121,54 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     if (!newProjectName.trim()) return;
 
     try {
-      await conversationApiService.createProject({
-        name: newProjectName,
-        color: '#' + Math.floor(Math.random() * 16777215).toString(16),
-        icon: 'folder',
-      });
+      if (editingProject) {
+        // Update existing project
+        await conversationApiService.updateProject(editingProject.id, {
+          name: newProjectName,
+        });
+      } else {
+        // Create new project
+        await conversationApiService.createProject({
+          name: newProjectName,
+          color: '#' + Math.floor(Math.random() * 16777215).toString(16),
+          icon: '📁',
+        });
+      }
       setNewProjectName('');
       setShowProjectModal(false);
+      setEditingProject(null);
       await loadProjects();
     } catch (err) {
-      console.error('Failed to create project:', err);
+      console.error('Failed to create/update project:', err);
     }
+  };
+
+  const handleDeleteProject = async (projectId: number) => {
+    if (
+      !window.confirm(
+        'Are you sure you want to delete this project? Conversations will not be deleted.'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await conversationApiService.deleteProject(projectId);
+      await loadProjects();
+      await loadConversations();
+      if (selectedProjectId === projectId) {
+        setSelectedProjectId(null);
+      }
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+    }
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setNewProjectName(project.name);
+    setShowProjectModal(true);
+    setShowProjectMenu(null);
   };
 
   const handleSelectConversation = (sessionId: string) => {
@@ -151,7 +207,11 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       return !conv.isArchived;
     })
     .filter((conv) => {
-      if (selectedProjectId !== null && conv.projectId !== selectedProjectId) return false;
+      // Filter by project (null means no project, undefined means all projects)
+      if (selectedProjectId !== undefined) {
+        if (selectedProjectId === null && conv.projectId !== null) return false;
+        if (selectedProjectId !== null && conv.projectId !== selectedProjectId) return false;
+      }
       return conv.title?.toLowerCase().includes(searchTerm.toLowerCase());
     })
     .sort((a, b) => {
@@ -211,26 +271,70 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           </div>
           <div className="space-y-1">
             <button
+              onClick={() => setSelectedProjectId(undefined)}
+              className={`w-full text-left px-2 py-1 rounded text-sm ${
+                selectedProjectId === undefined ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+              }`}
+            >
+              📋 All Conversations
+            </button>
+            <button
               onClick={() => setSelectedProjectId(null)}
               className={`w-full text-left px-2 py-1 rounded text-sm ${
                 selectedProjectId === null ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
               }`}
             >
-              📁 All Projects
+              📄 No Project
             </button>
             {projects.map((project) => (
-              <button
+              <div
                 key={project.id}
-                onClick={() => setSelectedProjectId(project.id)}
-                className={`w-full text-left px-2 py-1 rounded text-sm flex items-center gap-2 ${
+                className={`group flex items-center gap-2 px-2 py-1 rounded text-sm ${
                   selectedProjectId === project.id
                     ? 'bg-blue-100 text-blue-700'
                     : 'hover:bg-gray-100'
                 }`}
               >
-                <span style={{ color: project.color }}>{project.icon}</span>
-                <span className="truncate">{project.name}</span>
-              </button>
+                <button
+                  onClick={() => setSelectedProjectId(project.id)}
+                  className="flex-1 text-left flex items-center gap-2"
+                >
+                  <span style={{ color: project.color }}>{project.icon}</span>
+                  <span className="truncate">{project.name}</span>
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowProjectMenu(showProjectMenu === project.id ? null : project.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded"
+                  >
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                    </svg>
+                  </button>
+                  {showProjectMenu === project.id && (
+                    <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg z-20 border">
+                      <button
+                        onClick={() => handleEditProject(project)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDeleteProject(project.id);
+                          setShowProjectMenu(null);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 text-red-600"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -399,6 +503,20 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                         {conversation.showProjectDropdown && (
                           <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10 border">
                             <div className="py-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveToProject(conversation.id!, null);
+                                  toggleProjectDropdown(conversation.id!);
+                                }}
+                                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                                  conversation.projectId === null ? 'bg-blue-50' : ''
+                                }`}
+                              >
+                                <span>📄</span>
+                                <span>No Project</span>
+                              </button>
+                              <div className="border-t my-1"></div>
                               {projects.map((project) => (
                                 <button
                                   key={project.id}
@@ -458,7 +576,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         {showProjectModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96">
-              <h3 className="text-lg font-semibold mb-4">Create New Project</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {editingProject ? 'Edit Project' : 'Create New Project'}
+              </h3>
               <input
                 type="text"
                 placeholder="Project name"
@@ -468,12 +588,20 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleCreateProject();
-                  if (e.key === 'Escape') setShowProjectModal(false);
+                  if (e.key === 'Escape') {
+                    setShowProjectModal(false);
+                    setEditingProject(null);
+                    setNewProjectName('');
+                  }
                 }}
               />
               <div className="flex gap-2 justify-end">
                 <button
-                  onClick={() => setShowProjectModal(false)}
+                  onClick={() => {
+                    setShowProjectModal(false);
+                    setEditingProject(null);
+                    setNewProjectName('');
+                  }}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800"
                 >
                   Cancel
@@ -482,7 +610,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                   onClick={handleCreateProject}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  Create
+                  {editingProject ? 'Update' : 'Create'}
                 </button>
               </div>
             </div>

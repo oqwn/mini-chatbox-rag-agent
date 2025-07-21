@@ -184,15 +184,10 @@ export class ProjectsController {
         return;
       }
 
-      if (checkResult.rows[0].name === 'General') {
-        res.status(400).json({ error: 'Cannot delete the default project' });
-        return;
-      }
-
-      // Move conversations to the default project
+      // Set conversations to have no project when deleting a project
       const updateConversationsQuery = `
         UPDATE conversations 
-        SET project_id = (SELECT id FROM projects WHERE name = 'General' LIMIT 1)
+        SET project_id = NULL
         WHERE project_id = $1
       `;
       await this.pool.query(updateConversationsQuery, [projectId]);
