@@ -606,11 +606,22 @@ export class ChatController {
       context += '\n';
     });
 
-    context += '=== END MULTIMODAL ATTACHMENTS ===\n';
+    context += '=== END MULTIMODAL ATTACHMENTS ===\n\n';
+
+    // Add specific guidance for handling attachments
+    context += '**IMPORTANT INSTRUCTIONS FOR HANDLING ATTACHMENTS:**\n';
     context +=
-      'Important: The user has shared these files with you. Please analyze and respond to them as appropriate. ';
-    context += 'If the files contain text content, it has been extracted and included above. ';
-    context += 'You can reference specific attachments by their filename in your response.\n';
+      '1. **OCR/Text Extraction**: When images contain text (screenshots, documents, etc.), the text has been automatically extracted and is shown in the "Extracted Text" field above.\n';
+    context +=
+      '2. **Always acknowledge what the user has shared** - describe the image/media briefly.\n';
+    context +=
+      '3. **Focus on the extracted text content** when answering questions about text in images.\n';
+    context +=
+      '4. **For screenshots or documents**, quote or reference the specific extracted text in your response.\n';
+    context +=
+      '5. **Be precise** - if the user asks about specific text in an image, use the exact extracted text.\n\n';
+    context +=
+      'The user has shared these files with you. Please analyze and respond to them appropriately, making full use of any extracted text content.\n';
 
     return context;
   }
