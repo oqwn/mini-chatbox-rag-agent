@@ -225,7 +225,7 @@ export class OpenAIService {
         requestParams.tool_choice = 'auto';
       }
 
-      const stream = await this.client.chat.completions.create(requestParams) as any;
+      const stream = (await this.client.chat.completions.create(requestParams)) as any;
 
       const toolCalls: any[] = [];
       let accumulatedContent = '';
@@ -315,13 +315,13 @@ export class OpenAIService {
           ];
 
           // Get the final response after tool execution - also streamed
-          const finalStream = await this.client.chat.completions.create({
+          const finalStream = (await this.client.chat.completions.create({
             model,
             messages: updatedMessages as any,
             temperature,
             max_tokens: maxTokens,
             stream: true,
-          }) as any;
+          })) as any;
 
           // Stream the final response
           for await (const finalChunk of finalStream) {
