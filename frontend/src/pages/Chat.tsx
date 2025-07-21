@@ -556,6 +556,16 @@ export const Chat: React.FC = () => {
     setError(null);
   };
 
+  const handleCurrentConversationDeleted = () => {
+    // Clear the current conversation and create a new one
+    setMessages([]);
+    setError(null);
+    // Create a new session
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentSessionId(newSessionId);
+    localStorage.setItem('currentSessionId', newSessionId);
+  };
+
   const handleInterrupt = () => {
     // Abort the current stream
     if (abortControllerRef.current) {
@@ -617,6 +627,7 @@ export const Chat: React.FC = () => {
           currentSessionId={currentSessionId}
           onSelectConversation={handleSelectConversation}
           onNewConversation={handleNewConversation}
+          onCurrentConversationDeleted={handleCurrentConversationDeleted}
         />
 
         {/* Main Chat Area */}

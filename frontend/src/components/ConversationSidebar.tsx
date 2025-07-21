@@ -16,6 +16,7 @@ interface ConversationSidebarProps {
   currentSessionId?: string;
   onSelectConversation: (sessionId: string) => void;
   onNewConversation: () => void;
+  onCurrentConversationDeleted?: () => void;
 }
 
 interface ConversationWithDropdown extends Conversation {
@@ -28,6 +29,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   currentSessionId,
   onSelectConversation,
   onNewConversation,
+  onCurrentConversationDeleted,
 }) => {
   const [conversations, setConversations] = useState<ConversationWithDropdown[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -199,6 +201,11 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         try {
           await conversationApiService.updateConversation(conversation.id!, { isArchived: true });
           loadConversations();
+          
+          // If we deleted the current conversation, notify the parent to clear the chat
+          if (currentSessionId === conversation.sessionId && onCurrentConversationDeleted) {
+            onCurrentConversationDeleted();
+          }
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to archive conversation');
         }
