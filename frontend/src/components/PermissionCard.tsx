@@ -128,7 +128,9 @@ export const PermissionCard: React.FC<PermissionCardProps> = ({
               {mcpAutoApprove ? '🤖' : decision === 'approve' ? '✅' : '❌'}
             </span>
             <span style={{ fontSize: '14px', fontWeight: 500, color: '#666' }}>
-              {mcpAutoApprove ? 'Auto-Approved' : `User ${decision === 'approve' ? 'Approved' : 'Cancelled'}`}
+              {mcpAutoApprove
+                ? 'Auto-Approved'
+                : `User ${decision === 'approve' ? 'Approved' : 'Cancelled'}`}
             </span>
           </div>
         </div>

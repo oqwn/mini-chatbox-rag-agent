@@ -224,15 +224,17 @@ export class ChatController {
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
             if (toolMatch) {
               try {
-                additionalContext =
-                  '\n\n' +
-                  this.promptService.getPrompt('mcp-permission-approved.md', {
-                    TOOL_NAME: toolMatch[1].trim(),
-                  });
-                
                 if (mcpAutoApprove) {
+                  // For auto-approval, don't force tool usage - just remove the permission request
                   this.logger.info(`Auto-approved MCP tool: ${toolMatch[1].trim()}`);
+                  additionalContext = ''; // No additional context needed
                 } else {
+                  // For manual approval, use the prompt that instructs to use the tool
+                  additionalContext =
+                    '\n\n' +
+                    this.promptService.getPrompt('mcp-permission-approved.md', {
+                      TOOL_NAME: toolMatch[1].trim(),
+                    });
                   this.logger.info(`User approved MCP tool: ${toolMatch[1].trim()}`);
                 }
               } catch (error) {
@@ -256,10 +258,12 @@ export class ChatController {
       let systemPrompt: string;
 
       try {
-        systemPrompt = this.promptService.getPrompt('mcp-system.md', {
+        // Use auto-approve prompt when mcpAutoApprove is enabled
+        const promptFile = mcpAutoApprove ? 'mcp-system-auto-approve.md' : 'mcp-system.md';
+        systemPrompt = this.promptService.getPrompt(promptFile, {
           TOOL_NAMES: toolNames,
         });
-        this.logger.info('Successfully loaded system prompt from file');
+        this.logger.info(`Successfully loaded system prompt from file: ${promptFile}`);
       } catch (error) {
         this.logger.error('Failed to load prompt from file, using fallback:', error);
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
@@ -408,15 +412,17 @@ export class ChatController {
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
             if (toolMatch) {
               try {
-                additionalContext =
-                  '\n\n' +
-                  this.promptService.getPrompt('mcp-permission-approved.md', {
-                    TOOL_NAME: toolMatch[1].trim(),
-                  });
-                
                 if (mcpAutoApprove) {
+                  // For auto-approval, don't force tool usage - just remove the permission request
                   this.logger.info(`Auto-approved MCP tool: ${toolMatch[1].trim()}`);
+                  additionalContext = ''; // No additional context needed
                 } else {
+                  // For manual approval, use the prompt that instructs to use the tool
+                  additionalContext =
+                    '\n\n' +
+                    this.promptService.getPrompt('mcp-permission-approved.md', {
+                      TOOL_NAME: toolMatch[1].trim(),
+                    });
                   this.logger.info(`User approved MCP tool: ${toolMatch[1].trim()}`);
                 }
               } catch (error) {
@@ -440,10 +446,12 @@ export class ChatController {
       let systemPrompt: string;
 
       try {
-        systemPrompt = this.promptService.getPrompt('mcp-system.md', {
+        // Use auto-approve prompt when mcpAutoApprove is enabled
+        const promptFile = mcpAutoApprove ? 'mcp-system-auto-approve.md' : 'mcp-system.md';
+        systemPrompt = this.promptService.getPrompt(promptFile, {
           TOOL_NAMES: toolNames,
         });
-        this.logger.info('Successfully loaded system prompt from file');
+        this.logger.info(`Successfully loaded system prompt from file: ${promptFile}`);
       } catch (error) {
         this.logger.error('Failed to load prompt from file, using fallback:', error);
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
