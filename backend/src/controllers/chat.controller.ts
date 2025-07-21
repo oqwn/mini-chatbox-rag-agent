@@ -268,6 +268,18 @@ export class ChatController {
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
       }
 
+      // Add agent tools formatting prompt if local tools are available
+      let agentToolsPrompt = '';
+      const hasLocalTools = mcpTools.some(tool => tool.serverId === 'local-tools');
+      if (hasLocalTools) {
+        try {
+          agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
+          this.logger.info('Added agent tools formatting prompt');
+        } catch (error) {
+          this.logger.warn('Failed to load agent tools prompt:', error);
+        }
+      }
+
       // Add RAG context to system prompt if available
       let ragSystemPrompt = '';
       if (ragContext) {
@@ -291,7 +303,7 @@ export class ChatController {
 
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt + additionalContext + ragSystemPrompt + multimodalContext,
+        content: systemPrompt + additionalContext + agentToolsPrompt + ragSystemPrompt + multimodalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -455,6 +467,18 @@ export class ChatController {
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
       }
 
+      // Add agent tools formatting prompt if local tools are available
+      let agentToolsPrompt = '';
+      const hasLocalTools = mcpTools.some(tool => tool.serverId === 'local-tools');
+      if (hasLocalTools) {
+        try {
+          agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
+          this.logger.info('Added agent tools formatting prompt');
+        } catch (error) {
+          this.logger.warn('Failed to load agent tools prompt:', error);
+        }
+      }
+
       // Add RAG context to system prompt if available
       let ragSystemPrompt = '';
       if (ragContext) {
@@ -478,7 +502,7 @@ export class ChatController {
 
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt + additionalContext + ragSystemPrompt + multimodalContext,
+        content: systemPrompt + additionalContext + agentToolsPrompt + ragSystemPrompt + multimodalContext,
       };
 
       // Add system message at the beginning if not already present

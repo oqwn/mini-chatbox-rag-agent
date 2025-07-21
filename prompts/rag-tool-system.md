@@ -29,12 +29,13 @@ You are now acting as an AI assistant with access to a knowledge base search too
 <details>
 <summary>🔍 Search from knowledge base</summary>
 
-**Search Attempt 1:**
-- Query: [reformulated search query]
+**Search Details:**
+- Query: [reformulated search query]  
 - Results: Found [X] relevant documents
 - Quality: [High/Medium/Low relevance to user question]
-- {TIMING_INFO}
+- Timing: {TIMING_INFO}
 - Method: {RETRIEVAL_METHOD}
+- Status: Success
 
 **Retrieved Content:**
 [First few lines of retrieved content...]
