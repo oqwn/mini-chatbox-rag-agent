@@ -22,6 +22,10 @@ export const ChatMultimodal: React.FC = () => {
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [selectedKnowledgeSource, setSelectedKnowledgeSource] = useState<number | null>(null);
 
+  // Feature toggles
+  const [mcpAutoApprove, setMcpAutoApprove] = useState(false);
+  const [agentModeEnabled, setAgentModeEnabled] = useState(false);
+
   // Multimodal state
   const [pendingAttachments, setPendingAttachments] = useState<MediaAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
@@ -651,22 +655,67 @@ export const ChatMultimodal: React.FC = () => {
                 }}
               />
 
-              {/* File input button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isStreaming || processingFiles}
-                className="absolute right-2 top-2 p-2 text-gray-400 hover:text-gray-600 disabled:text-gray-300"
-                title="Attach files"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                  />
-                </svg>
-              </button>
+              {/* Feature icons */}
+              <div className="absolute right-2 top-2 flex items-center gap-1">
+                {/* Auto Approve MCP icon */}
+                <button
+                  onClick={() => setMcpAutoApprove(!mcpAutoApprove)}
+                  disabled={isStreaming || processingFiles}
+                  className={`p-2 rounded-md transition-colors disabled:text-gray-300 ${
+                    mcpAutoApprove
+                      ? 'text-green-600 hover:text-green-700 bg-green-50'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                  title={`MCP Auto Approve: ${mcpAutoApprove ? 'Enabled' : 'Disabled'}`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </button>
+
+                {/* Agent Mode icon */}
+                <button
+                  onClick={() => setAgentModeEnabled(!agentModeEnabled)}
+                  disabled={isStreaming || processingFiles}
+                  className={`p-2 rounded-md transition-colors disabled:text-gray-300 ${
+                    agentModeEnabled
+                      ? 'text-blue-600 hover:text-blue-700 bg-blue-50'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                  title={`Agent Mode: ${agentModeEnabled ? 'Enabled' : 'Disabled'}`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </svg>
+                </button>
+
+                {/* File input button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isStreaming || processingFiles}
+                  className="p-2 text-gray-400 hover:text-gray-600 disabled:text-gray-300"
+                  title="Attach files"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                    />
+                  </svg>
+                </button>
+              </div>
 
               <input
                 ref={fileInputRef}
