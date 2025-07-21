@@ -152,12 +152,37 @@
   - [x] Speech vs music detection heuristics
 
 ### 2.5 Context Memory System
-- [ ] Design conversation memory structure
-- [ ] Implement short-term memory cache
-- [ ] Build long-term memory persistence
-- [ ] Create memory retrieval system
-- [ ] Develop memory pruning strategies
-- [ ] Implement context window management
+- [x] Design conversation memory structure
+  - [x] Created PostgreSQL schema with memory-specific tables
+  - [x] Added conversation summaries and context windows
+  - [x] Designed memory cache and pruning system
+- [x] Implement short-term memory cache
+  - [x] In-memory cache with TTL support
+  - [x] Persistent cache backup in PostgreSQL
+  - [x] Automatic cache cleanup and expiration
+- [x] Build long-term memory persistence
+  - [x] PostgreSQL-based conversation storage
+  - [x] Message persistence with metadata and embeddings
+  - [x] Conversation metadata tracking (token counts, importance scores)
+- [x] Create memory retrieval system
+  - [x] Context window management for token limits
+  - [x] Important message filtering by score
+  - [x] Recent message retrieval with pagination
+- [x] Develop memory pruning strategies
+  - [x] Automatic old message pruning
+  - [x] Conversation summarization support
+  - [x] Memory usage statistics and monitoring
+- [x] Implement context window management
+  - [x] Token-based context window sizing
+  - [x] Dynamic context window adjustment
+  - [x] Context window persistence and tracking
+- [x] Add sidebar for /chat functionality
+  - [x] Created ConversationSidebar component
+  - [x] Conversation history browsing and search
+  - [x] New conversation creation
+  - [x] Conversation archiving and management
+  - [x] Memory statistics display
+  - [x] PostgreSQL integration for conversation persistence
 
 ### 2.6 Agent Scripts & Quick Implementation
 - [ ] Design agent script DSL/format

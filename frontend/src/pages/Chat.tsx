@@ -4,7 +4,9 @@ import { ragApiService, KnowledgeSource } from '../services/rag-api';
 import { useNavigate } from 'react-router-dom';
 import { MCPToolsPanel } from '../components/MCPToolsPanel';
 import { StreamingMarkdown } from '../components/StreamingMarkdown';
+import { ConversationSidebar } from '../components/ConversationSidebar';
 import { StorageService } from '../services/storage';
+import { conversationApiService } from '../services/conversation-api';
 import '../styles/markdown.css';
 
 export const Chat: React.FC = () => {
@@ -14,10 +16,12 @@ export const Chat: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<string>('');
   const [showMCPTools, setShowMCPTools] = useState(false);
+  const [showConversationSidebar, setShowConversationSidebar] = useState(true);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [ragEnabled, setRagEnabled] = useState(false);
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [selectedKnowledgeSource, setSelectedKnowledgeSource] = useState<number | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingContentRef = useRef<string>('');
@@ -125,6 +129,16 @@ export const Chat: React.FC = () => {
   }, [isStreaming]);
 
   useEffect(() => {
+    // Initialize session ID
+    const initSession = () => {
+      let sessionId = localStorage.getItem('currentSessionId');
+      if (!sessionId) {
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('currentSessionId', sessionId);
+      }
+      setCurrentSessionId(sessionId);
+    };
+
     // Load current model from settings
     const loadModel = async () => {
       try {
@@ -145,8 +159,29 @@ export const Chat: React.FC = () => {
       }
     };
 
+    // Load conversation if exists
+    const loadConversation = async (sessionId: string) => {
+      try {
+        const { messages } = await conversationApiService.getMessages(sessionId);
+        const chatMessages: ChatMessage[] = messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+        }));
+        setMessages(chatMessages);
+      } catch (err) {
+        // Conversation doesn't exist yet, that's fine
+        console.log('No existing conversation found for session:', sessionId);
+      }
+    };
+
+    initSession();
     loadModel();
     loadKnowledgeSources();
+
+    // Load conversation after session is initialized
+    if (currentSessionId) {
+      loadConversation(currentSessionId);
+    }
 
     // Cleanup function to abort ongoing streams
     return () => {
@@ -154,14 +189,28 @@ export const Chat: React.FC = () => {
         abortControllerRef.current.abort();
       }
     };
-  }, []);
+  }, [currentSessionId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const persistMessage = async (message: ChatMessage) => {
+    if (!currentSessionId) return;
+    
+    try {
+      await conversationApiService.addMessage(currentSessionId, {
+        role: message.role,
+        content: message.content,
+        tokenCount: Math.floor(message.content.length / 4), // Rough token estimate
+      });
+    } catch (err) {
+      console.error('Failed to persist message:', err);
+    }
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || isStreaming) return;
+    if (!input.trim() || isStreaming || !currentSessionId) return;
 
     // Abort any existing stream
     if (abortControllerRef.current) {
@@ -179,6 +228,9 @@ export const Chat: React.FC = () => {
     setInput('');
     setError(null);
     setIsStreaming(true);
+
+    // Persist user message
+    await persistMessage(userMessage);
 
     const assistantMessage: ChatMessage = { role: 'assistant', content: '' };
     setMessages((prev) => [...prev, assistantMessage]);
@@ -220,18 +272,23 @@ export const Chat: React.FC = () => {
             }
           }
         },
-        () => {
+        async () => {
           if (abortController.signal.aborted) return;
 
           // Final update with complete content
+          const finalAssistantMessage: ChatMessage = {
+            role: 'assistant',
+            content: streamingContentRef.current,
+          };
+          
           setMessages((prev) => {
             const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = {
-              ...newMessages[newMessages.length - 1],
-              content: streamingContentRef.current,
-            };
+            newMessages[newMessages.length - 1] = finalAssistantMessage;
             return newMessages;
           });
+
+          // Persist assistant message
+          await persistMessage(finalAssistantMessage);
 
           setIsStreaming(false);
 
@@ -287,6 +344,33 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const handleSelectConversation = async (sessionId: string) => {
+    // Save current session and load selected conversation
+    setCurrentSessionId(sessionId);
+    localStorage.setItem('currentSessionId', sessionId);
+    
+    try {
+      const { messages } = await conversationApiService.getMessages(sessionId);
+      const chatMessages: ChatMessage[] = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+      setMessages(chatMessages);
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+      setError('Failed to load conversation');
+    }
+  };
+
+  const handleNewConversation = () => {
+    // Create new session
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentSessionId(newSessionId);
+    localStorage.setItem('currentSessionId', newSessionId);
+    setMessages([]);
+    setError(null);
+  };
+
   const handleMCPToolInvoke = async (
     toolName: string,
     serverId: string,
@@ -322,11 +406,48 @@ export const Chat: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
+    <div className="flex h-screen">
+      {/* Conversation Sidebar */}
+      <ConversationSidebar
+        isOpen={showConversationSidebar}
+        onToggle={() => setShowConversationSidebar(!showConversationSidebar)}
+        currentSessionId={currentSessionId}
+        onSelectConversation={handleSelectConversation}
+        onNewConversation={handleNewConversation}
+      />
+
+      {/* Sidebar Toggle Button (when collapsed) */}
+      {!showConversationSidebar && (
+        <div className="flex flex-col">
+          <button
+            onClick={() => setShowConversationSidebar(true)}
+            className="p-3 bg-gray-100 hover:bg-gray-200 border-r text-gray-600 hover:text-gray-900"
+            title="Show conversations"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex flex-col flex-1 h-screen">
+        {/* Header */}
+        <div className="bg-white border-b px-6 py-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-xl font-semibold">Chat</h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowConversationSidebar(!showConversationSidebar)}
+              className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+              title="Toggle conversation sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <h1 className="text-xl font-semibold">Chat</h1>
+          </div>
           <div className="flex items-center space-x-4">
             <button
               onClick={() => navigate('/chat/multimodal')}
@@ -534,12 +655,13 @@ export const Chat: React.FC = () => {
         </div>
       </div>
 
-      {/* MCP Tools Panel */}
-      <MCPToolsPanel
-        isOpen={showMCPTools}
-        onClose={() => setShowMCPTools(false)}
-        onToolInvoke={handleMCPToolInvoke}
-      />
+        {/* MCP Tools Panel */}
+        <MCPToolsPanel
+          isOpen={showMCPTools}
+          onClose={() => setShowMCPTools(false)}
+          onToolInvoke={handleMCPToolInvoke}
+        />
+      </div>
     </div>
   );
 };
