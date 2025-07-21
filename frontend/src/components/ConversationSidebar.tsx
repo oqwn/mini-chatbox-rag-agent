@@ -270,6 +270,14 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             </button>
           </div>
           <div className="space-y-1">
+            <button
+              onClick={() => setSelectedProjectId(undefined)}
+              className={`w-full text-left px-2 py-1 rounded text-sm ${
+                selectedProjectId === undefined ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+              }`}
+            >
+              📋 All Conversations
+            </button>
             {projects.map((project) => (
               <div
                 key={project.id}
