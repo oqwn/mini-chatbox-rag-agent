@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { conversationApiService, Conversation } from '../services/conversation-api';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface Project {
   id: number;
@@ -39,6 +40,13 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'starred' | 'recent'>('recent');
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showProjectMenu, setShowProjectMenu] = useState<number | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type?: 'danger' | 'warning' | 'info';
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   useEffect(() => {
     if (isOpen) {
@@ -144,24 +152,25 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   };
 
   const handleDeleteProject = async (projectId: number) => {
-    if (
-      !window.confirm(
-        'Are you sure you want to delete this project? Conversations will not be deleted.'
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await conversationApiService.deleteProject(projectId);
-      await loadProjects();
-      await loadConversations();
-      if (selectedProjectId === projectId) {
-        setSelectedProjectId(null);
-      }
-    } catch (err) {
-      console.error('Failed to delete project:', err);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Project',
+      message: 'Are you sure you want to delete this project? Conversations will not be deleted.',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await conversationApiService.deleteProject(projectId);
+          await loadProjects();
+          await loadConversations();
+          if (selectedProjectId === projectId) {
+            setSelectedProjectId(null);
+          }
+        } catch (err) {
+          console.error('Failed to delete project:', err);
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
+      },
+    });
   };
 
   const handleEditProject = (project: Project) => {
@@ -181,14 +190,21 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
   const handleDeleteConversation = async (e: React.MouseEvent, conversation: Conversation) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to archive this conversation?')) {
-      try {
-        await conversationApiService.updateConversation(conversation.id!, { isArchived: true });
-        loadConversations();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to archive conversation');
-      }
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Archive Conversation',
+      message: 'Are you sure you want to archive this conversation?',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          await conversationApiService.updateConversation(conversation.id!, { isArchived: true });
+          loadConversations();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to archive conversation');
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
+      },
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -608,6 +624,16 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             </div>
           </div>
         )}
+
+        {/* Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        />
       </div>
     </div>
   );

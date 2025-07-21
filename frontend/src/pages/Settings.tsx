@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiService, SettingsResponse } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { StorageService } from '../services/storage';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +28,13 @@ export const Settings: React.FC = () => {
   const [hasStoredRerankKey, setHasStoredRerankKey] = useState(false);
   const [showStoredRerankKey, setShowStoredRerankKey] = useState(false);
   const [storedRerankApiKey, setStoredRerankApiKey] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type?: 'danger' | 'warning' | 'info';
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   useEffect(() => {
     // Load from local storage first
@@ -455,7 +463,12 @@ export const Settings: React.FC = () => {
 
           <button
             onClick={() => {
-              if (confirm('Are you sure you want to clear all stored settings?')) {
+              setConfirmDialog({
+                isOpen: true,
+                title: 'Clear All Settings',
+                message: 'Are you sure you want to clear all stored settings?',
+                type: 'danger',
+                onConfirm: () => {
                 StorageService.clearAll();
                 setApiKey('');
                 setBaseUrl('');
@@ -474,7 +487,9 @@ export const Settings: React.FC = () => {
                 setStoredRerankApiKey('');
                 setShowStoredRerankKey(false);
                 setMessage({ type: 'success', text: 'Settings cleared from local storage' });
-              }
+                setConfirmDialog({ ...confirmDialog, isOpen: false });
+                },
+              });
             }}
             className="px-4 py-2 text-red-600 hover:text-red-800 border border-red-300 rounded-md hover:bg-red-50"
           >
@@ -637,6 +652,16 @@ export const Settings: React.FC = () => {
             <li>• All settings are stored securely and persistently in your browser</li>
           </ul>
         </div>
+
+        {/* Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        />
       </div>
     </div>
   );

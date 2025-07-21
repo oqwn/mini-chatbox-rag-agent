@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import {
   ragApiService,
   KnowledgeSource,
@@ -197,16 +198,31 @@ export const RagManagement: React.FC = () => {
     }
   };
 
-  const handleDeleteDocument = async (id: number, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type?: 'danger' | 'warning' | 'info';
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
-    try {
-      await ragApiService.deleteDocument(id);
-      setSuccess('Document deleted successfully');
-      loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete document');
-    }
+  const handleDeleteDocument = async (id: number, title: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Document',
+      message: `Are you sure you want to delete "${title}"?`,
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await ragApiService.deleteDocument(id);
+          setSuccess('Document deleted successfully');
+          loadData();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to delete document');
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
+      },
+    });
   };
 
   const handleMoveDocument = async (documentId: number, newKnowledgeSourceId: number | null) => {
@@ -1041,6 +1057,16 @@ export const RagManagement: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        />
       </div>
     </div>
   );

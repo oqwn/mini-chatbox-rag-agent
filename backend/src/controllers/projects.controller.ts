@@ -29,7 +29,7 @@ export class ProjectsController {
     });
   }
 
-  async getProjects(req: Request, res: Response): Promise<void> {
+  async getProjects(_req: Request, res: Response): Promise<void> {
     try {
       const query = `
         SELECT id, name, description, color, icon, created_at, updated_at
@@ -69,12 +69,7 @@ export class ProjectsController {
         VALUES ($1, $2, $3, $4)
         RETURNING id, name, description, color, icon, created_at, updated_at
       `;
-      const values = [
-        name,
-        description || null,
-        color || '#3B82F6',
-        icon || 'folder',
-      ];
+      const values = [name, description || null, color || '#3B82F6', icon || 'folder'];
 
       const result = await this.pool.query(query, values);
       const project = {
