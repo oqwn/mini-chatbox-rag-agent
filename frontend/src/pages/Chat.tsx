@@ -591,25 +591,6 @@ export const Chat: React.FC = () => {
           onNewConversation={handleNewConversation}
         />
 
-        {/* Sidebar Toggle Button (when collapsed) */}
-        {!showConversationSidebar && (
-          <div className="flex flex-col">
-            <button
-              onClick={() => setShowConversationSidebar(true)}
-              className="p-3 bg-gray-100 hover:bg-gray-200 border-r text-gray-600 hover:text-gray-900"
-              title="Show conversations"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
 
         {/* Main Chat Area */}
         <div className="flex flex-col flex-1 h-screen">
