@@ -151,14 +151,15 @@ class ApiService {
     onError: (error: string) => void,
     onDone: () => void,
     signal?: AbortSignal,
-    ragEnabled?: boolean
+    ragEnabled?: boolean,
+    mcpAutoApprove?: boolean
   ): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ messages, options, ragEnabled }),
+      body: JSON.stringify({ messages, options, ragEnabled, mcpAutoApprove }),
       signal,
     });
 
@@ -313,7 +314,8 @@ class ApiService {
     onError: (error: string) => void,
     onDone: () => void,
     signal?: AbortSignal,
-    ragEnabled?: boolean
+    ragEnabled?: boolean,
+    mcpAutoApprove?: boolean
   ): Promise<void> {
     // Process media files first if any
     const processedAttachments = [];
@@ -372,7 +374,8 @@ class ApiService {
       onError,
       onDone,
       signal,
-      ragEnabled
+      ragEnabled,
+      mcpAutoApprove
     );
   }
 }

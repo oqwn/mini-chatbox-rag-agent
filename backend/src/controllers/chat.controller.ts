@@ -164,7 +164,7 @@ export class ChatController {
 
   public async chat(req: Request, res: Response): Promise<void> {
     try {
-      const { messages, options, ragEnabled } = req.body;
+      const { messages, options, ragEnabled, mcpAutoApprove } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
         res.status(400).json({ error: 'Messages array is required' });
@@ -215,9 +215,11 @@ export class ChatController {
           lastUserMsg.role === 'user'
         ) {
           const userResponse = lastUserMsg.content.toLowerCase();
-          if (
-            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) => userResponse.includes(word))
-          ) {
+          const isApproved = 
+            mcpAutoApprove || 
+            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) => userResponse.includes(word));
+          
+          if (isApproved) {
             // Extract tool name from permission request
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
             if (toolMatch) {
@@ -227,12 +229,19 @@ export class ChatController {
                   this.promptService.getPrompt('mcp-permission-approved.md', {
                     TOOL_NAME: toolMatch[1].trim(),
                   });
+                
+                if (mcpAutoApprove) {
+                  this.logger.info(`Auto-approved MCP tool: ${toolMatch[1].trim()}`);
+                } else {
+                  this.logger.info(`User approved MCP tool: ${toolMatch[1].trim()}`);
+                }
               } catch (error) {
                 this.logger.warn(
                   'Failed to load permission approved prompt, using fallback:',
                   error
                 );
-                additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
+                const approvalType = mcpAutoApprove ? 'auto-approved' : 'approved';
+                additionalContext = `\n\nIMPORTANT: The user ${approvalType} your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
               }
             }
           }
@@ -327,7 +336,7 @@ export class ChatController {
 
   public async chatStream(req: Request, res: Response): Promise<void> {
     try {
-      const { messages, options, ragEnabled } = req.body;
+      const { messages, options, ragEnabled, mcpAutoApprove } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
         res.status(400).json({ error: 'Messages array is required' });
@@ -390,9 +399,11 @@ export class ChatController {
           lastUserMsg.role === 'user'
         ) {
           const userResponse = lastUserMsg.content.toLowerCase();
-          if (
-            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) => userResponse.includes(word))
-          ) {
+          const isApproved = 
+            mcpAutoApprove || 
+            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) => userResponse.includes(word));
+          
+          if (isApproved) {
             // Extract tool name from permission request
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
             if (toolMatch) {
@@ -402,12 +413,19 @@ export class ChatController {
                   this.promptService.getPrompt('mcp-permission-approved.md', {
                     TOOL_NAME: toolMatch[1].trim(),
                   });
+                
+                if (mcpAutoApprove) {
+                  this.logger.info(`Auto-approved MCP tool: ${toolMatch[1].trim()}`);
+                } else {
+                  this.logger.info(`User approved MCP tool: ${toolMatch[1].trim()}`);
+                }
               } catch (error) {
                 this.logger.warn(
                   'Failed to load permission approved prompt, using fallback:',
                   error
                 );
-                additionalContext = `\n\nIMPORTANT: The user just approved your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
+                const approvalType = mcpAutoApprove ? 'auto-approved' : 'approved';
+                additionalContext = `\n\nIMPORTANT: The user ${approvalType} your request to use "${toolMatch[1].trim()}". You MUST call this tool NOW in your response and show the results.`;
               }
             }
           }

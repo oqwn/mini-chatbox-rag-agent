@@ -130,7 +130,8 @@ export const Chat: React.FC = () => {
                 setIsStreaming(false);
               },
               abortController.signal,
-              ragEnabled
+              ragEnabled,
+              mcpAutoApprove
             );
           } catch (err) {
             if (!abortController.signal.aborted) {
@@ -402,7 +403,8 @@ export const Chat: React.FC = () => {
             }
           },
           abortController.signal,
-          ragEnabled
+          ragEnabled,
+          mcpAutoApprove
         );
       } else {
         // Use regular text streaming
@@ -474,7 +476,8 @@ export const Chat: React.FC = () => {
             }
           },
           abortController.signal,
-          ragEnabled
+          ragEnabled,
+          mcpAutoApprove
         );
       }
     } catch (err) {
