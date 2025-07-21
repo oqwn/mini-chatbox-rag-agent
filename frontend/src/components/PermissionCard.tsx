@@ -4,12 +4,14 @@ interface PermissionCardProps {
   toolName: string;
   description: string;
   purpose: string;
+  mcpAutoApprove?: boolean;
 }
 
 export const PermissionCard: React.FC<PermissionCardProps> = ({
   toolName,
   description,
   purpose,
+  mcpAutoApprove = false,
 }) => {
   const [decision, setDecision] = useState<'approve' | 'cancel' | null>(null);
 
@@ -103,8 +105,8 @@ export const PermissionCard: React.FC<PermissionCardProps> = ({
         <p style={{ margin: 0, color: '#666', lineHeight: 1.4, fontSize: '13px' }}>{purpose}</p>
       </div>
 
-      {decision ? (
-        // Show decision result
+      {decision || mcpAutoApprove ? (
+        // Show decision result or auto-approval status
         <div
           style={{
             background: '#fafafa',
@@ -122,9 +124,11 @@ export const PermissionCard: React.FC<PermissionCardProps> = ({
               gap: '6px',
             }}
           >
-            <span style={{ fontSize: '14px' }}>{decision === 'approve' ? '✅' : '❌'}</span>
+            <span style={{ fontSize: '14px' }}>
+              {mcpAutoApprove ? '🤖' : decision === 'approve' ? '✅' : '❌'}
+            </span>
             <span style={{ fontSize: '14px', fontWeight: 500, color: '#666' }}>
-              User {decision === 'approve' ? 'Approved' : 'Cancelled'}
+              {mcpAutoApprove ? 'Auto-Approved' : `User ${decision === 'approve' ? 'Approved' : 'Cancelled'}`}
             </span>
           </div>
         </div>

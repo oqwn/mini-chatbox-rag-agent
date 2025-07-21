@@ -46,21 +46,96 @@ export const Chat: React.FC = () => {
 
   useEffect(() => {
     // Auto-approve MCP requests if enabled
-    const autoApproveIfEnabled = () => {
+    const autoApproveIfEnabled = async () => {
       if (mcpAutoApprove && !isStreaming && messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
         if (
           lastMessage.role === 'assistant' &&
           lastMessage.content.includes('[MCP_PERMISSION_REQUEST]')
         ) {
-          // Auto-approve by dispatching the approve event
-          window.dispatchEvent(new CustomEvent('mcp-permission', { detail: 'approve' }));
+          // Directly handle auto-approval without dispatching event
+          handleAutoApproval();
         }
       }
     };
 
-    // Check for auto-approval when messages change
-    autoApproveIfEnabled();
+    // Function to handle auto-approval
+    const handleAutoApproval = async () => {
+      if (!isStreaming && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        
+        if (
+          lastMessage.role === 'assistant' &&
+          lastMessage.content.includes('[MCP_PERMISSION_REQUEST]')
+        ) {
+          setError(null);
+          setIsStreaming(true);
+
+          // Create a hidden user message for the backend to understand the approval
+          const hiddenUserMessage: ChatMessage = { role: 'user', content: 'approve' };
+          const messagesToSend = [...messages, hiddenUserMessage];
+
+          // Continue streaming to the existing assistant message
+          const abortController = new AbortController();
+          abortControllerRef.current = abortController;
+
+          const currentContent = lastMessage.content;
+
+          // Update the message to add space for the continued response
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: currentContent + '\n\n',
+            };
+            return newMessages;
+          });
+
+          // Set the streaming content to start after the current content
+          streamingContentRef.current = currentContent + '\n\n';
+
+          try {
+            const model = currentModel || (await apiService.getSettings()).openai.model;
+            await apiService.streamMessage(
+              messagesToSend,
+              { model },
+              (content) => {
+                if (abortController.signal.aborted) return;
+                streamingContentRef.current += content;
+                setMessages((prev) => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1].content = streamingContentRef.current;
+                  return newMessages;
+                });
+              },
+              (error) => {
+                if (abortController.signal.aborted) return;
+                setError(error);
+                setIsStreaming(false);
+              },
+              () => {
+                if (abortController.signal.aborted) return;
+                streamingContentRef.current = '';
+                setIsStreaming(false);
+              },
+              abortController.signal,
+              ragEnabled,
+              mcpAutoApprove
+            );
+          } catch (err) {
+            if (!abortController.signal.aborted) {
+              setError(err instanceof Error ? err.message : 'Unknown error');
+              setIsStreaming(false);
+            }
+          }
+        }
+      }
+    };
+
+    // Check for auto-approval when messages change with a small delay
+    const timeoutId = setTimeout(() => {
+      autoApproveIfEnabled();
+    }, 100);
 
     // Listen for permission button clicks
     const handlePermission = async (event: Event) => {
@@ -146,6 +221,7 @@ export const Chat: React.FC = () => {
     window.addEventListener('mcp-permission', handlePermission);
     return () => {
       window.removeEventListener('mcp-permission', handlePermission);
+      clearTimeout(timeoutId);
     };
   }, [messages, isStreaming, currentModel, mcpAutoApprove]);
 
@@ -769,6 +845,7 @@ export const Chat: React.FC = () => {
                         <StreamingMarkdown
                           content={message.content}
                           isStreaming={isStreamingMessage}
+                          mcpAutoApprove={mcpAutoApprove}
                         />
 
                         {/* Always show copy button and token counter at bottom when there's content */}

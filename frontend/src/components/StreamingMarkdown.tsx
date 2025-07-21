@@ -9,11 +9,12 @@ import 'highlight.js/styles/github.css';
 interface StreamingMarkdownProps {
   content: string;
   isStreaming?: boolean;
+  mcpAutoApprove?: boolean;
   className?: string;
 }
 
 export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
-  ({ content, isStreaming = false, className = '' }) => {
+  ({ content, isStreaming = false, mcpAutoApprove = false, className = '' }) => {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showReferences, setShowReferences] = useState(false);
 
@@ -53,6 +54,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
             toolName={tool.trim()}
             description={description.trim()}
             purpose={purpose.trim()}
+            mcpAutoApprove={mcpAutoApprove}
           />
           {afterPermission && (
             <ReactMarkdown
