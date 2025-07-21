@@ -38,7 +38,7 @@ const logger = winston.createLogger({
 const configService = new ConfigService();
 const openAIService = new OpenAIService(configService, logger);
 const promptService = new PromptService(logger);
-const mcpService = new MCPService();
+const mcpService = new MCPService(logger);
 
 // Initialize RAG services
 const vectorDbService = new VectorDbService(logger);

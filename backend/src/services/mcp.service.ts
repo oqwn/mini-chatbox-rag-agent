@@ -1,5 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+import { ToolRegistry } from '../tools/tool-registry';
+import { Logger } from 'winston';
 
 export interface MCPServerConfig {
   command: string;
@@ -51,6 +53,34 @@ export interface MCPServerStatus {
 export class MCPService extends EventEmitter {
   private servers: Map<string, MCPServerStatus> = new Map();
   private messageId = 1;
+  private toolRegistry: ToolRegistry;
+  private readonly LOCAL_TOOLS_SERVER_ID = 'local-tools';
+
+  constructor(logger: Logger) {
+    super();
+    this.toolRegistry = new ToolRegistry(logger);
+    this.initializeLocalTools();
+  }
+
+  private initializeLocalTools(): void {
+    // Create a virtual server for local tools
+    const localToolsServer: MCPServerStatus = {
+      id: this.LOCAL_TOOLS_SERVER_ID,
+      name: 'Local Agent Tools',
+      connected: true,
+      tools: this.toolRegistry.getToolDefinitions().map(def => ({
+        name: def.name,
+        description: def.description,
+        inputSchema: def.parameters,
+        serverId: this.LOCAL_TOOLS_SERVER_ID,
+      })),
+      resources: [],
+      prompts: [],
+    };
+
+    this.servers.set(this.LOCAL_TOOLS_SERVER_ID, localToolsServer);
+    this.emit('serverConnected', this.LOCAL_TOOLS_SERVER_ID, localToolsServer);
+  }
 
   async connectToServer(serverId: string, config: MCPServerConfig): Promise<void> {
     const status: MCPServerStatus = {
@@ -297,6 +327,11 @@ export class MCPService extends EventEmitter {
     parameters: Record<string, any>,
     timeoutMs?: number
   ): Promise<any> {
+    // Handle local tools
+    if (serverId === this.LOCAL_TOOLS_SERVER_ID) {
+      return this.toolRegistry.executeTool(toolName, parameters);
+    }
+
     const server = this.servers.get(serverId);
     if (!server || !server.connected) {
       throw new Error(`Server ${serverId} is not connected`);
