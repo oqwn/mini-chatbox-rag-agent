@@ -609,19 +609,42 @@ export class ChatController {
     context += '=== END MULTIMODAL ATTACHMENTS ===\n\n';
 
     // Add specific guidance for handling attachments
-    context += '**IMPORTANT INSTRUCTIONS FOR HANDLING ATTACHMENTS:**\n';
-    context +=
-      '1. **OCR/Text Extraction**: When images contain text (screenshots, documents, etc.), the text has been automatically extracted and is shown in the "Extracted Text" field above.\n';
-    context +=
-      '2. **Always acknowledge what the user has shared** - describe the image/media briefly.\n';
-    context +=
-      '3. **Focus on the extracted text content** when answering questions about text in images.\n';
-    context +=
-      '4. **For screenshots or documents**, quote or reference the specific extracted text in your response.\n';
-    context +=
-      '5. **Be precise** - if the user asks about specific text in an image, use the exact extracted text.\n\n';
-    context +=
-      'The user has shared these files with you. Please analyze and respond to them appropriately, making full use of any extracted text content.\n';
+    context += '**IMPORTANT INSTRUCTIONS FOR HANDLING ATTACHMENTS:**\n\n';
+    
+    context += '1. **OCR/Text Extraction**: When images contain text (screenshots, documents, etc.), the text has been automatically extracted and is shown in the "Extracted Text" field above.\n\n';
+    
+    context += '2. **When user asks to extract text from image**, present it in this format:\n\n';
+    context += '<details>\n';
+    context += '<summary>📝 Extracted Text from Image</summary>\n\n';
+    context += '**OCR Processing:**\n';
+    context += '- Status: [Successful/Partial/Failed]\n';
+    context += '- Text Quality: [Clear/Readable/Poor]\n';
+    context += '- Language: [English/Chinese/Mixed/Other]\n\n';
+    context += '**Extracted Content:**\n';
+    context += '```\n';
+    context += '[Show the full extracted text here]\n';
+    context += '```\n\n';
+    context += '**Summary:**\n';
+    context += '[2-3 sentence summary of the extracted text]\n\n';
+    context += '**Key Points:**\n';
+    context += '- [Important point 1]\n';
+    context += '- [Important point 2]\n';
+    context += '- [Important point 3]\n';
+    context += '</details>\n\n';
+    
+    context += '3. **OCR Capabilities**:\n';
+    context += '   - Supports English, Simplified Chinese, and Traditional Chinese\n';
+    context += '   - Pre-processes images for better accuracy\n';
+    context += '   - Works best with clear text on contrasting backgrounds\n\n';
+    
+    context += '4. **General Guidelines**:\n';
+    context += '   - Always acknowledge what the user has shared\n';
+    context += '   - Focus on the extracted text content when answering questions\n';
+    context += '   - Quote or reference specific extracted text in responses\n';
+    context += '   - Be precise - use the exact extracted text\n';
+    context += '   - If OCR quality is poor, suggest image improvements\n\n';
+    
+    context += 'The user has shared these files with you. Analyze and respond appropriately, making full use of any extracted text content.\n';
 
     return context;
   }
