@@ -45,6 +45,23 @@ export const Chat: React.FC = () => {
   }, [messages]);
 
   useEffect(() => {
+    // Auto-approve MCP requests if enabled
+    const autoApproveIfEnabled = () => {
+      if (mcpAutoApprove && !isStreaming && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        if (
+          lastMessage.role === 'assistant' &&
+          lastMessage.content.includes('[MCP_PERMISSION_REQUEST]')
+        ) {
+          // Auto-approve by dispatching the approve event
+          window.dispatchEvent(new CustomEvent('mcp-permission', { detail: 'approve' }));
+        }
+      }
+    };
+
+    // Check for auto-approval when messages change
+    autoApproveIfEnabled();
+
     // Listen for permission button clicks
     const handlePermission = async (event: Event) => {
       const customEvent = event as CustomEvent;
@@ -129,7 +146,7 @@ export const Chat: React.FC = () => {
     return () => {
       window.removeEventListener('mcp-permission', handlePermission);
     };
-  }, [messages, isStreaming, currentModel]);
+  }, [messages, isStreaming, currentModel, mcpAutoApprove]);
 
   // Scroll to bottom while streaming
   useEffect(() => {
