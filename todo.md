@@ -82,6 +82,10 @@
   - [x] Sync tools from global API endpoint to server statuses
   - [x] Add periodic sync to keep tools up to date
   - [x] Fix MCPService singleton issue in backend
+- [ ] Fix streaming issues with MCP tool execution
+  - [x] Implement proper streaming support for tool calls in OpenAI service
+  - [ ] Test and verify streaming works correctly after tool execution
+  - [ ] Handle edge cases for multiple tool calls in sequence
 
 ### 2.3 RAG (Retrieval-Augmented Generation) System ✅
 - [x] Design vector database schema

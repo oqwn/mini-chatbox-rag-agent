@@ -195,29 +195,141 @@ export class OpenAIService {
       temperature = 0.7,
       maxTokens = 1000,
       tools,
+      onToolCall,
     } = options;
 
     try {
-      // For now, if tools are provided, use non-streaming approach
-      // TODO: Implement proper streaming with tool support
-      if (tools && tools.length > 0) {
-        const result = await this.chat(messages, options);
-        yield result;
-        return;
-      }
+      // Convert MCP tools to OpenAI function format
+      const functions = tools?.map((tool) => ({
+        type: 'function' as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.inputSchema || {
+            type: 'object',
+            properties: {},
+          },
+        },
+      }));
 
-      const stream = await this.client.chat.completions.create({
+      const requestParams: any = {
         model,
         messages,
         temperature,
         max_tokens: maxTokens,
         stream: true,
-      });
+      };
+
+      if (functions && functions.length > 0) {
+        requestParams.tools = functions;
+        requestParams.tool_choice = 'auto';
+      }
+
+      const stream = await this.client.chat.completions.create(requestParams) as any;
+
+      const toolCalls: any[] = [];
+      let accumulatedContent = '';
 
       for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content;
-        if (content) {
-          yield content;
+        const delta = chunk.choices[0]?.delta;
+
+        // Handle regular content
+        if (delta?.content) {
+          accumulatedContent += delta.content;
+          yield delta.content;
+        }
+
+        // Handle tool calls
+        if (delta?.tool_calls) {
+          for (const toolCallDelta of delta.tool_calls) {
+            const index = toolCallDelta.index;
+
+            // Initialize tool call if needed
+            if (!toolCalls[index]) {
+              toolCalls[index] = {
+                id: toolCallDelta.id || '',
+                type: 'function',
+                function: {
+                  name: toolCallDelta.function?.name || '',
+                  arguments: '',
+                },
+              };
+            }
+
+            // Update tool call data
+            if (toolCallDelta.id) {
+              toolCalls[index].id = toolCallDelta.id;
+            }
+            if (toolCallDelta.function?.name) {
+              toolCalls[index].function.name = toolCallDelta.function.name;
+            }
+            if (toolCallDelta.function?.arguments) {
+              toolCalls[index].function.arguments += toolCallDelta.function.arguments;
+            }
+          }
+        }
+
+        // Check if we've finished receiving the initial response
+        if (
+          chunk.choices[0]?.finish_reason === 'tool_calls' &&
+          onToolCall &&
+          toolCalls.length > 0
+        ) {
+          // Execute all tool calls
+          this.logger.info(
+            `AI requested ${toolCalls.length} tool calls:`,
+            toolCalls.map((tc) => tc.function.name)
+          );
+
+          const toolResults = await Promise.all(
+            toolCalls.map(async (toolCall) => {
+              try {
+                const result = await onToolCall(
+                  toolCall.function.name,
+                  JSON.parse(toolCall.function.arguments)
+                );
+                return {
+                  tool_call_id: toolCall.id,
+                  role: 'tool' as const,
+                  content: JSON.stringify(result),
+                };
+              } catch (error) {
+                return {
+                  tool_call_id: toolCall.id,
+                  role: 'tool' as const,
+                  content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                };
+              }
+            })
+          );
+
+          // Add the assistant's message with tool calls
+          const updatedMessages = [
+            ...messages,
+            {
+              role: 'assistant' as const,
+              content: accumulatedContent || null,
+              tool_calls: toolCalls,
+            },
+            ...toolResults,
+          ];
+
+          // Get the final response after tool execution - also streamed
+          const finalStream = await this.client.chat.completions.create({
+            model,
+            messages: updatedMessages as any,
+            temperature,
+            max_tokens: maxTokens,
+            stream: true,
+          }) as any;
+
+          // Stream the final response
+          for await (const finalChunk of finalStream) {
+            const finalContent = finalChunk.choices[0]?.delta?.content;
+            if (finalContent) {
+              yield finalContent;
+            }
+          }
         }
       }
     } catch (error) {
