@@ -610,9 +610,10 @@ export class ChatController {
 
     // Add specific guidance for handling attachments
     context += '**IMPORTANT INSTRUCTIONS FOR HANDLING ATTACHMENTS:**\n\n';
-    
-    context += '1. **OCR/Text Extraction**: When images contain text (screenshots, documents, etc.), the text has been automatically extracted and is shown in the "Extracted Text" field above.\n\n';
-    
+
+    context +=
+      '1. **OCR/Text Extraction**: When images contain text (screenshots, documents, etc.), the text has been automatically extracted and is shown in the "Extracted Text" field above.\n\n';
+
     context += '2. **When user asks to extract text from image**, present it in this format:\n\n';
     context += '<details>\n';
     context += '<summary>📝 Extracted Text from Image</summary>\n\n';
@@ -631,20 +632,21 @@ export class ChatController {
     context += '- [Important point 2]\n';
     context += '- [Important point 3]\n';
     context += '</details>\n\n';
-    
+
     context += '3. **OCR Capabilities**:\n';
     context += '   - Supports English, Simplified Chinese, and Traditional Chinese\n';
     context += '   - Pre-processes images for better accuracy\n';
     context += '   - Works best with clear text on contrasting backgrounds\n\n';
-    
+
     context += '4. **General Guidelines**:\n';
     context += '   - Always acknowledge what the user has shared\n';
     context += '   - Focus on the extracted text content when answering questions\n';
     context += '   - Quote or reference specific extracted text in responses\n';
     context += '   - Be precise - use the exact extracted text\n';
     context += '   - If OCR quality is poor, suggest image improvements\n\n';
-    
-    context += 'The user has shared these files with you. Analyze and respond appropriately, making full use of any extracted text content.\n';
+
+    context +=
+      'The user has shared these files with you. Analyze and respond appropriately, making full use of any extracted text content.\n';
 
     return context;
   }

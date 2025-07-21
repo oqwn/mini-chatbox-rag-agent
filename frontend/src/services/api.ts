@@ -4,29 +4,29 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:20001/api
 // More accurate than character/4 but less complex than full tokenization
 export const estimateTokenCount = (text: string): number => {
   if (!text) return 0;
-  
+
   // Remove extra whitespace and normalize
   const normalizedText = text.replace(/\s+/g, ' ').trim();
-  
+
   // Basic tokenization approximation:
   // - Average 4 characters per token for English
   // - Account for punctuation and special characters
   // - Add overhead for markdown formatting
   const baseTokens = Math.ceil(normalizedText.length / 4);
-  
+
   // Adjustments for common patterns
   const codeBlocks = (text.match(/```[\s\S]*?```/g) || []).length;
   const inlineCode = (text.match(/`[^`]+`/g) || []).length;
   const markdownLinks = (text.match(/\[([^\]]+)\]\(([^)]+)\)/g) || []).length;
   const markdownBold = (text.match(/\*\*[^*]+\*\*/g) || []).length;
-  
+
   // Add overhead for formatting
   let adjustedTokens = baseTokens;
   adjustedTokens += codeBlocks * 2; // Code blocks tend to use more tokens
   adjustedTokens += inlineCode * 0.5;
   adjustedTokens += markdownLinks * 1;
   adjustedTokens += markdownBold * 0.2;
-  
+
   return Math.max(1, Math.round(adjustedTokens));
 };
 

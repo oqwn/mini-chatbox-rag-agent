@@ -110,9 +110,12 @@ export class ConversationMemoryService {
 
   private startCacheCleanup(): void {
     // Clean expired cache entries every 5 minutes
-    setInterval(() => {
-      this.cleanExpiredCache();
-    }, 5 * 60 * 1000);
+    setInterval(
+      () => {
+        this.cleanExpiredCache();
+      },
+      5 * 60 * 1000
+    );
   }
 
   // Conversation Management
@@ -178,7 +181,7 @@ export class ConversationMemoryService {
     `;
     const result = await this.pool.query(query, [limit, offset]);
 
-    return result.rows.map(row => this.mapRowToConversation(row));
+    return result.rows.map((row) => this.mapRowToConversation(row));
   }
 
   async updateConversation(sessionId: string, updates: Partial<Conversation>): Promise<void> {
@@ -242,11 +245,7 @@ export class ConversationMemoryService {
     return result.rows[0].id;
   }
 
-  async getMessages(
-    conversationId: number,
-    limit?: number,
-    offset?: number
-  ): Promise<Message[]> {
+  async getMessages(conversationId: number, limit?: number, offset?: number): Promise<Message[]> {
     let query = `
       SELECT id, conversation_id, role, content, metadata, token_count,
              importance_score, is_summarized, created_at
@@ -266,13 +265,10 @@ export class ConversationMemoryService {
     }
 
     const result = await this.pool.query(query, values);
-    return result.rows.map(row => this.mapRowToMessage(row));
+    return result.rows.map((row) => this.mapRowToMessage(row));
   }
 
-  async getRecentMessages(
-    conversationId: number,
-    tokenLimit: number = 4000
-  ): Promise<Message[]> {
+  async getRecentMessages(conversationId: number, tokenLimit: number = 4000): Promise<Message[]> {
     const query = `
       WITH recent_messages AS (
         SELECT id, conversation_id, role, content, metadata, token_count,
@@ -293,7 +289,7 @@ export class ConversationMemoryService {
     `;
 
     const result = await this.pool.query(query, [conversationId, tokenLimit]);
-    return result.rows.map(row => this.mapRowToMessage(row));
+    return result.rows.map((row) => this.mapRowToMessage(row));
   }
 
   async getImportantMessages(
@@ -311,7 +307,7 @@ export class ConversationMemoryService {
     `;
 
     const result = await this.pool.query(query, [conversationId, importanceThreshold, limit]);
-    return result.rows.map(row => this.mapRowToMessage(row));
+    return result.rows.map((row) => this.mapRowToMessage(row));
   }
 
   // Context Window Management
@@ -380,7 +376,7 @@ export class ConversationMemoryService {
     `;
     const result = await this.pool.query(query, [conversationId]);
 
-    return result.rows.map(row => ({
+    return result.rows.map((row) => ({
       id: row.id,
       conversationId: row.conversation_id,
       summaryText: row.summary_text,
@@ -395,7 +391,7 @@ export class ConversationMemoryService {
   // Memory Cache (In-Memory + Persistent)
   async setCache(key: string, data: any, ttlMinutes: number = 60): Promise<void> {
     const ttl = new Date(Date.now() + ttlMinutes * 60 * 1000);
-    
+
     // Store in memory cache
     this.memoryCache.set(key, { data, ttl });
 
@@ -431,7 +427,7 @@ export class ConversationMemoryService {
     }
 
     const data = result.rows[0].cache_data;
-    
+
     // Update memory cache
     const ttl = new Date(Date.now() + 60 * 60 * 1000); // 1 hour default
     this.memoryCache.set(key, { data, ttl });
@@ -448,7 +444,7 @@ export class ConversationMemoryService {
     }
 
     // Clean persistent cache
-    this.pool.query('SELECT clean_expired_cache()').catch(error => {
+    this.pool.query('SELECT clean_expired_cache()').catch((error) => {
       this.logger.error('Failed to clean expired cache:', error);
     });
   }
@@ -464,8 +460,11 @@ export class ConversationMemoryService {
       ORDER BY created_at DESC
       OFFSET $2
     `;
-    const messagesToDelete = await this.pool.query(messagesQuery, [conversationId, keepRecentCount]);
-    
+    const messagesToDelete = await this.pool.query(messagesQuery, [
+      conversationId,
+      keepRecentCount,
+    ]);
+
     if (messagesToDelete.rows.length === 0) {
       return {
         conversationId,
@@ -476,8 +475,8 @@ export class ConversationMemoryService {
       };
     }
 
-    const messageIds = messagesToDelete.rows.map(row => row.id);
-    
+    const messageIds = messagesToDelete.rows.map((row) => row.id);
+
     // Calculate tokens saved
     const tokenQuery = `
       SELECT COALESCE(SUM(token_count), SUM(LENGTH(content) / 4)) as total_tokens
@@ -504,7 +503,9 @@ export class ConversationMemoryService {
       tokensSaved,
     ]);
 
-    this.logger.info(`Pruned ${messageIds.length} messages from conversation ${conversationId}, saved ${tokensSaved} tokens`);
+    this.logger.info(
+      `Pruned ${messageIds.length} messages from conversation ${conversationId}, saved ${tokensSaved} tokens`
+    );
 
     return {
       id: logResult.rows[0].id,

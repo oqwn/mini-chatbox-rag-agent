@@ -103,8 +103,12 @@ export class ConversationController {
       const { sessionId } = req.params;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
-      const tokenLimit = req.query.tokenLimit ? parseInt(req.query.tokenLimit as string) : undefined;
-      const importanceThreshold = req.query.importanceThreshold ? parseFloat(req.query.importanceThreshold as string) : undefined;
+      const tokenLimit = req.query.tokenLimit
+        ? parseInt(req.query.tokenLimit as string)
+        : undefined;
+      const importanceThreshold = req.query.importanceThreshold
+        ? parseFloat(req.query.importanceThreshold as string)
+        : undefined;
 
       const conversation = await this.conversationMemoryService.getConversation(sessionId);
       if (!conversation) {
@@ -202,7 +206,8 @@ export class ConversationController {
   createSummary = async (req: Request, res: Response): Promise<void> => {
     try {
       const { sessionId } = req.params;
-      const { summaryText, messageRangeStart, messageRangeEnd, tokenCount, compressionRatio } = req.body;
+      const { summaryText, messageRangeStart, messageRangeEnd, tokenCount, compressionRatio } =
+        req.body;
 
       if (!summaryText) {
         res.status(400).json({ error: 'Summary text is required' });

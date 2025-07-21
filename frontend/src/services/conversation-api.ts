@@ -60,15 +60,12 @@ export interface ConversationsResponse {
 export class ConversationApiService {
   // Get all conversations
   async getConversations(limit: number = 50, offset: number = 0): Promise<ConversationsResponse> {
-    const response = await fetch(
-      `${API_BASE_URL}/conversations?limit=${limit}&offset=${offset}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/conversations?limit=${limit}&offset=${offset}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to get conversations: ${response.statusText}`);

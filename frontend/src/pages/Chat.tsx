@@ -5,6 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import { MCPToolsPanel } from '../components/MCPToolsPanel';
 import { StreamingMarkdown } from '../components/StreamingMarkdown';
 import { ConversationSidebar } from '../components/ConversationSidebar';
+import { MediaDropZone } from '../components/MediaDropZone';
+import { MediaAttachmentPreview } from '../components/MediaAttachmentPreview';
+import { MediaAttachment } from '../types/multimodal';
 import { StorageService } from '../services/storage';
 import { conversationApiService } from '../services/conversation-api';
 import '../styles/markdown.css';
@@ -22,9 +25,15 @@ export const Chat: React.FC = () => {
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [selectedKnowledgeSource, setSelectedKnowledgeSource] = useState<number | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string>('');
+
+  // Multimodal state
+  const [pendingAttachments, setPendingAttachments] = useState<MediaAttachment[]>([]);
+  const [processingFiles, setProcessingFiles] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingContentRef = useRef<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -163,7 +172,7 @@ export const Chat: React.FC = () => {
     const loadConversation = async (sessionId: string) => {
       try {
         const { messages } = await conversationApiService.getMessages(sessionId);
-        const chatMessages: ChatMessage[] = messages.map(msg => ({
+        const chatMessages: ChatMessage[] = messages.map((msg) => ({
           role: msg.role,
           content: msg.content,
           tokenCount: msg.tokenCount || estimateTokenCount(msg.content),
@@ -196,9 +205,49 @@ export const Chat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleFilesSelected = (files: File[]) => {
+    const newAttachments: MediaAttachment[] = files.map((file) => ({
+      id: Math.random().toString(36).substr(2, 9),
+      file,
+      type: getMediaType(file.name),
+      name: file.name,
+      size: file.size,
+      url: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+      processing: false,
+      processed: false,
+    }));
+
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
+  };
+
+  const getMediaType = (filename: string): 'image' | 'video' | 'audio' | 'document' => {
+    const ext = filename.toLowerCase().split('.').pop() || '';
+
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg'].includes(ext)) {
+      return 'image';
+    }
+    if (['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', 'm4v'].includes(ext)) {
+      return 'video';
+    }
+    if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'].includes(ext)) {
+      return 'audio';
+    }
+    return 'document';
+  };
+
+  const removeAttachment = (id: string) => {
+    setPendingAttachments((prev) => {
+      const attachment = prev.find((att) => att.id === id);
+      if (attachment?.url) {
+        URL.revokeObjectURL(attachment.url);
+      }
+      return prev.filter((att) => att.id !== id);
+    });
+  };
+
   const persistMessage = async (message: ChatMessage) => {
     if (!currentSessionId) return;
-    
+
     try {
       await conversationApiService.addMessage(currentSessionId, {
         role: message.role,
@@ -211,7 +260,13 @@ export const Chat: React.FC = () => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isStreaming || !currentSessionId) return;
+    if (
+      (!input.trim() && pendingAttachments.length === 0) ||
+      isStreaming ||
+      processingFiles ||
+      !currentSessionId
+    )
+      return;
 
     // Abort any existing stream
     if (abortControllerRef.current) {
@@ -222,10 +277,16 @@ export const Chat: React.FC = () => {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const userMessage: ChatMessage = { 
-      role: 'user', 
-      content: input.trim(),
-      tokenCount: estimateTokenCount(input.trim())
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: input.trim() || '[Media files attached]',
+      tokenCount: estimateTokenCount(input.trim() || '[Media files attached]'),
+      attachments: pendingAttachments.map((att) => ({
+        id: att.id,
+        name: att.name,
+        type: att.type,
+        size: att.size,
+      })),
     };
     const messagesToSend = [...messages, userMessage];
 
@@ -233,6 +294,7 @@ export const Chat: React.FC = () => {
     setInput('');
     setError(null);
     setIsStreaming(true);
+    setProcessingFiles(true);
 
     // Persist user message
     await persistMessage(userMessage);
@@ -244,74 +306,156 @@ export const Chat: React.FC = () => {
     streamingContentRef.current = '';
 
     try {
-      await apiService.streamMessage(
-        messagesToSend,
-        currentModel ? { model: currentModel } : undefined,
-        (content) => {
-          // Check if this stream was aborted
-          if (abortController.signal.aborted) return;
+      // Extract files from attachments
+      const files = pendingAttachments.map((att) => att.file);
 
-          // Accumulate content in ref
-          streamingContentRef.current += content;
+      // Clear pending attachments
+      setPendingAttachments([]);
 
-          // Update UI immediately for better streaming experience
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = {
-              ...newMessages[newMessages.length - 1],
+      // Use multimodal streaming if files are present
+      if (files.length > 0) {
+        await apiService.streamMessageWithMedia(
+          messagesToSend,
+          files,
+          currentModel ? { model: currentModel } : undefined,
+          (content) => {
+            // Check if this stream was aborted
+            if (abortController.signal.aborted) return;
+
+            // Accumulate content in ref
+            streamingContentRef.current += content;
+
+            // Update UI immediately for better streaming experience
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1] = {
+                ...newMessages[newMessages.length - 1],
+                content: streamingContentRef.current,
+                tokenCount: estimateTokenCount(streamingContentRef.current),
+              };
+              return newMessages;
+            });
+          },
+          (error) => {
+            if (abortController.signal.aborted) return;
+            setError(error);
+            setIsStreaming(false);
+            setProcessingFiles(false);
+
+            // Check if error indicates no function calling support
+            if (error.includes('404 No endpoints found that support tool use')) {
+              // Store that this model doesn't support function calling
+              if (currentModel) {
+                StorageService.setModelCapability(currentModel, false);
+              }
+            }
+          },
+          async () => {
+            if (abortController.signal.aborted) return;
+
+            // Final update with complete content and token count
+            const finalAssistantMessage: ChatMessage = {
+              role: 'assistant',
               content: streamingContentRef.current,
               tokenCount: estimateTokenCount(streamingContentRef.current),
             };
-            return newMessages;
-          });
-        },
-        (error) => {
-          if (abortController.signal.aborted) return;
-          setError(error);
-          setIsStreaming(false);
 
-          // Check if error indicates no function calling support
-          if (error.includes('404 No endpoints found that support tool use')) {
-            // Store that this model doesn't support function calling
-            if (currentModel) {
-              StorageService.setModelCapability(currentModel, false);
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1] = finalAssistantMessage;
+              return newMessages;
+            });
+
+            // Persist assistant message
+            await persistMessage(finalAssistantMessage);
+
+            setIsStreaming(false);
+            setProcessingFiles(false);
+
+            // If we got here successfully, the model supports function calling
+            if (currentModel && !error) {
+              const capability = StorageService.getModelCapability(currentModel);
+              if (!capability) {
+                StorageService.setModelCapability(currentModel, true);
+              }
             }
-          }
-        },
-        async () => {
-          if (abortController.signal.aborted) return;
+          },
+          abortController.signal,
+          ragEnabled
+        );
+      } else {
+        // Use regular text streaming
+        await apiService.streamMessage(
+          messagesToSend,
+          currentModel ? { model: currentModel } : undefined,
+          (content) => {
+            // Check if this stream was aborted
+            if (abortController.signal.aborted) return;
 
-          // Final update with complete content and token count
-          const finalAssistantMessage: ChatMessage = {
-            role: 'assistant',
-            content: streamingContentRef.current,
-            tokenCount: estimateTokenCount(streamingContentRef.current),
-          };
-          
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = finalAssistantMessage;
-            return newMessages;
-          });
+            // Accumulate content in ref
+            streamingContentRef.current += content;
 
-          // Persist assistant message
-          await persistMessage(finalAssistantMessage);
+            // Update UI immediately for better streaming experience
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1] = {
+                ...newMessages[newMessages.length - 1],
+                content: streamingContentRef.current,
+                tokenCount: estimateTokenCount(streamingContentRef.current),
+              };
+              return newMessages;
+            });
+          },
+          (error) => {
+            if (abortController.signal.aborted) return;
+            setError(error);
+            setIsStreaming(false);
+            setProcessingFiles(false);
 
-          setIsStreaming(false);
-
-          // If we got here successfully, the model supports function calling
-          // (or at least didn't throw the specific error)
-          if (currentModel && !error) {
-            const capability = StorageService.getModelCapability(currentModel);
-            if (!capability) {
-              // Only set to true if we haven't recorded it before
-              StorageService.setModelCapability(currentModel, true);
+            // Check if error indicates no function calling support
+            if (error.includes('404 No endpoints found that support tool use')) {
+              // Store that this model doesn't support function calling
+              if (currentModel) {
+                StorageService.setModelCapability(currentModel, false);
+              }
             }
-          }
-        },
-        abortController.signal,
-        ragEnabled
-      );
+          },
+          async () => {
+            if (abortController.signal.aborted) return;
+
+            // Final update with complete content and token count
+            const finalAssistantMessage: ChatMessage = {
+              role: 'assistant',
+              content: streamingContentRef.current,
+              tokenCount: estimateTokenCount(streamingContentRef.current),
+            };
+
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1] = finalAssistantMessage;
+              return newMessages;
+            });
+
+            // Persist assistant message
+            await persistMessage(finalAssistantMessage);
+
+            setIsStreaming(false);
+            setProcessingFiles(false);
+
+            // If we got here successfully, the model supports function calling
+            // (or at least didn't throw the specific error)
+            if (currentModel && !error) {
+              const capability = StorageService.getModelCapability(currentModel);
+              if (!capability) {
+                // Only set to true if we haven't recorded it before
+                StorageService.setModelCapability(currentModel, true);
+              }
+            }
+          },
+          abortController.signal,
+          ragEnabled
+        );
+      }
     } catch (err) {
       if (abortController.signal.aborted) return;
 
@@ -331,6 +475,7 @@ export const Chat: React.FC = () => {
         }
       }
       setIsStreaming(false);
+      setProcessingFiles(false);
     }
   };
 
@@ -359,10 +504,10 @@ export const Chat: React.FC = () => {
     // Save current session and load selected conversation
     setCurrentSessionId(sessionId);
     localStorage.setItem('currentSessionId', sessionId);
-    
+
     try {
       const { messages } = await conversationApiService.getMessages(sessionId);
-      const chatMessages: ChatMessage[] = messages.map(msg => ({
+      const chatMessages: ChatMessage[] = messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
         tokenCount: msg.tokenCount || estimateTokenCount(msg.content),
@@ -388,11 +533,11 @@ export const Chat: React.FC = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // Update state
     setIsStreaming(false);
     setError(null);
-    
+
     // Persist the partial message if it has content
     const lastMessage = messages[messages.length - 1];
     if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content.trim()) {
@@ -435,321 +580,447 @@ export const Chat: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen">
-      {/* Conversation Sidebar */}
-      <ConversationSidebar
-        isOpen={showConversationSidebar}
-        onToggle={() => setShowConversationSidebar(!showConversationSidebar)}
-        currentSessionId={currentSessionId}
-        onSelectConversation={handleSelectConversation}
-        onNewConversation={handleNewConversation}
-      />
+    <MediaDropZone onFilesSelected={handleFilesSelected} disabled={isStreaming || processingFiles}>
+      <div className="flex h-screen">
+        {/* Conversation Sidebar */}
+        <ConversationSidebar
+          isOpen={showConversationSidebar}
+          onToggle={() => setShowConversationSidebar(!showConversationSidebar)}
+          currentSessionId={currentSessionId}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+        />
 
-      {/* Sidebar Toggle Button (when collapsed) */}
-      {!showConversationSidebar && (
-        <div className="flex flex-col">
-          <button
-            onClick={() => setShowConversationSidebar(true)}
-            className="p-3 bg-gray-100 hover:bg-gray-200 border-r text-gray-600 hover:text-gray-900"
-            title="Show conversations"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* Main Chat Area */}
-      <div className="flex flex-col flex-1 h-screen">
-        {/* Header */}
-        <div className="bg-white border-b px-6 py-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
+        {/* Sidebar Toggle Button (when collapsed) */}
+        {!showConversationSidebar && (
+          <div className="flex flex-col">
             <button
-              onClick={() => setShowConversationSidebar(!showConversationSidebar)}
-              className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
-              title="Toggle conversation sidebar"
+              onClick={() => setShowConversationSidebar(true)}
+              className="p-3 bg-gray-100 hover:bg-gray-200 border-r text-gray-600 hover:text-gray-900"
+              title="Show conversations"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                />
               </svg>
             </button>
-            <h1 className="text-xl font-semibold">Chat</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/chat/multimodal')}
-              className="text-blue-600 hover:text-blue-800 font-medium"
-              title="Switch to multimodal chat with file support"
-            >
-              Multimodal
-            </button>
-            <button
-              onClick={() => setShowMCPTools(true)}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              Tools
-            </button>
-            <button onClick={() => navigate('/rag')} className="text-gray-600 hover:text-gray-900">
-              RAG
-            </button>
-            <button onClick={() => navigate('/mcp')} className="text-gray-600 hover:text-gray-900">
-              MCP
-            </button>
-            <button
-              onClick={() => navigate('/settings')}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              Settings
-            </button>
-          </div>
-        </div>
-
-        {/* RAG Controls */}
-        <div className="mt-3 flex items-center space-x-4">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={ragEnabled}
-              onChange={(e) => setRagEnabled(e.target.checked)}
-              className="mr-2"
-            />
-            <span className="text-sm text-gray-700">Enable RAG</span>
-          </label>
-
-          {ragEnabled && knowledgeSources.length > 0 && (
-            <select
-              value={selectedKnowledgeSource || ''}
-              onChange={(e) =>
-                setSelectedKnowledgeSource(e.target.value ? Number(e.target.value) : null)
-              }
-              className="text-sm border border-gray-300 rounded px-2 py-1"
-            >
-              <option value="">All sources</option>
-              {knowledgeSources.map((source) => (
-                <option key={source.id} value={source.id}>
-                  {source.name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {ragEnabled && (
-            <span className="text-xs text-green-600">
-              ✓ RAG enabled - using knowledge base for context
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4">
-        {messages.length === 0 && (
-          <div className="text-center text-gray-500 mt-20">
-            <p className="text-lg mb-2">Welcome to Mini Chatbox!</p>
-            <p>Start a conversation by typing a message below.</p>
           </div>
         )}
 
-        {messages.map((message, index) => {
-          const isLastMessage = index === messages.length - 1;
-          const isStreamingMessage = isLastMessage && message.role === 'assistant' && isStreaming;
-
-          return (
-            <div
-              key={index}
-              className={`mb-4 ${message.role === 'user' ? 'text-right px-6' : message.role === 'system' ? 'px-6' : ''}`}
-            >
-              <div
-                className={`${
-                  message.role === 'user'
-                    ? 'inline-block px-4 py-2 rounded-lg max-w-2xl'
-                    : message.role === 'assistant'
-                      ? 'px-4 py-3 rounded-lg'
-                      : 'inline-block px-4 py-2 rounded-lg max-w-2xl'
-                } ${
-                  message.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : message.role === 'system'
-                      ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                      : 'bg-gray-100 text-black'
-                }`}
-              >
-                {message.role === 'assistant' ? (
-                  <div className="relative">
-                    {/* Vertical line indicator during streaming */}
-                    {isStreamingMessage && (
-                      <div className="absolute -left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full opacity-75 animate-pulse" />
-                    )}
-                    
-                    <StreamingMarkdown content={message.content} isStreaming={isStreamingMessage} />
-                    
-                    {/* Always show copy button and token counter at bottom when there's content */}
-                    {message.content && (
-                      <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
-                        {/* Token counter */}
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                          </svg>
-                          <span className="font-mono">
-                            {isStreamingMessage && message.tokenCount 
-                              ? `~${message.tokenCount} tokens`
-                              : `${message.tokenCount || 0} tokens`
-                            }
-                          </span>
-                        </div>
-
-                        {/* Copy button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent interrupting stream
-                            handleCopy(message.content, index);
-                          }}
-                          className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2 transition-colors px-2 py-1 rounded hover:bg-gray-50"
-                          title="Copy response"
-                        >
-                          {copiedIndex === index ? (
-                            <>
-                              <svg
-                                className="w-4 h-4 text-green-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                              <span className="text-green-600">Copied!</span>
-                            </>
-                          ) : (
-                            <>
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                />
-                              </svg>
-                              Copy
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <div className="whitespace-pre-wrap break-words">{message.content}</div>
-                    {/* Show token count for user messages too */}
-                    {message.role === 'user' && message.tokenCount && (
-                      <div className="mt-2 text-xs text-blue-200 font-mono text-right">
-                        {message.tokenCount} tokens
-                      </div>
-                    )}
-                  </div>
-                )}
+        {/* Main Chat Area */}
+        <div className="flex flex-col flex-1 h-screen">
+          {/* Header */}
+          <div className="bg-white border-b px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setShowConversationSidebar(!showConversationSidebar)}
+                  className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+                  title="Toggle conversation sidebar"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </button>
+                <h1 className="text-xl font-semibold">
+                  Chat <span className="text-sm text-blue-600 font-normal">(Multimodal)</span>
+                </h1>
               </div>
-            </div>
-          );
-        })}
-
-        {error && (
-          <div className="mb-4 px-6">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-              {error.includes('not configured') && (
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setShowMCPTools(true)}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Tools
+                </button>
+                <button
+                  onClick={() => navigate('/rag')}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  RAG
+                </button>
+                <button
+                  onClick={() => navigate('/mcp')}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  MCP
+                </button>
                 <button
                   onClick={() => navigate('/settings')}
-                  className="ml-2 underline hover:no-underline"
+                  className="text-gray-600 hover:text-gray-900"
                 >
-                  Go to Settings
+                  Settings
                 </button>
+              </div>
+            </div>
+
+            {/* RAG Controls */}
+            <div className="mt-3 flex items-center space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={ragEnabled}
+                  onChange={(e) => setRagEnabled(e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Enable RAG</span>
+              </label>
+
+              {ragEnabled && knowledgeSources.length > 0 && (
+                <select
+                  value={selectedKnowledgeSource || ''}
+                  onChange={(e) =>
+                    setSelectedKnowledgeSource(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="text-sm border border-gray-300 rounded px-2 py-1"
+                >
+                  <option value="">All sources</option>
+                  {knowledgeSources.map((source) => (
+                    <option key={source.id} value={source.id}>
+                      {source.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {ragEnabled && (
+                <span className="text-xs text-green-600">
+                  ✓ RAG enabled - using knowledge base for context
+                </span>
               )}
             </div>
           </div>
-        )}
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="border-t px-6 py-4 bg-white">
-        {/* Status indicator during streaming */}
-        {isStreaming && (
-          <div className="mb-3 text-xs text-gray-500 flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span>AI is responding...</span>
-            </div>
-            <span className="text-gray-400">•</span>
-            <span>Press Enter or click Stop to interrupt</span>
-          </div>
-        )}
-        <div className="flex space-x-4">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={isStreaming ? "Type your next message..." : "Type your message..."}
-            rows={1}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            style={{ minHeight: '44px', maxHeight: '120px' }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto';
-              target.style.height = target.scrollHeight + 'px';
-            }}
-          />
-          <button
-            onClick={isStreaming ? handleInterrupt : handleSend}
-            disabled={!isStreaming && !input.trim()}
-            className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
-              isStreaming
-                ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
-                : !input.trim()
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            {isStreaming ? (
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
-                </svg>
-                Stop
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                Send
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto py-4">
+            {messages.length === 0 && (
+              <div className="text-center text-gray-500 mt-20">
+                <p className="text-lg mb-2">Welcome to Multimodal Chat!</p>
+                <p>Start a conversation by typing a message or uploading files below.</p>
+                <p className="text-sm mt-2 text-gray-400">
+                  Supports images, videos, audio, and documents with OCR and analysis.
+                </p>
               </div>
             )}
-          </button>
+
+            {messages.map((message, index) => {
+              const isLastMessage = index === messages.length - 1;
+              const isStreamingMessage =
+                isLastMessage && message.role === 'assistant' && isStreaming;
+
+              return (
+                <div
+                  key={index}
+                  className={`mb-4 ${message.role === 'user' ? 'text-right px-6' : message.role === 'system' ? 'px-6' : ''}`}
+                >
+                  <div
+                    className={`${
+                      message.role === 'user'
+                        ? 'inline-block px-4 py-2 rounded-lg max-w-2xl'
+                        : message.role === 'assistant'
+                          ? 'px-4 py-3 rounded-lg'
+                          : 'inline-block px-4 py-2 rounded-lg max-w-2xl'
+                    } ${
+                      message.role === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : message.role === 'system'
+                          ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                          : 'bg-gray-100 text-black'
+                    }`}
+                  >
+                    {/* Attachments for user messages */}
+                    {message.role === 'user' &&
+                      message.attachments &&
+                      message.attachments.length > 0 && (
+                        <div className="mb-3 space-y-2">
+                          {message.attachments.map((attachment) => (
+                            <div
+                              key={attachment.id}
+                              className="text-sm bg-blue-500 bg-opacity-20 rounded p-2"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">{attachment.name}</span>
+                                <span className="text-xs opacity-75">({attachment.type})</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    {message.role === 'assistant' ? (
+                      <div className="relative">
+                        {/* Vertical line indicator during streaming */}
+                        {isStreamingMessage && (
+                          <div className="absolute -left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full opacity-75 animate-pulse" />
+                        )}
+
+                        <StreamingMarkdown
+                          content={message.content}
+                          isStreaming={isStreamingMessage}
+                        />
+
+                        {/* Always show copy button and token counter at bottom when there's content */}
+                        {message.content && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
+                            {/* Token counter */}
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                                />
+                              </svg>
+                              <span className="font-mono">
+                                {isStreamingMessage && message.tokenCount
+                                  ? `~${message.tokenCount} tokens`
+                                  : `${message.tokenCount || 0} tokens`}
+                              </span>
+                            </div>
+
+                            {/* Copy button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent interrupting stream
+                                handleCopy(message.content, index);
+                              }}
+                              className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2 transition-colors px-2 py-1 rounded hover:bg-gray-50"
+                              title="Copy response"
+                            >
+                              {copiedIndex === index ? (
+                                <>
+                                  <svg
+                                    className="w-4 h-4 text-green-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                  <span className="text-green-600">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                  Copy
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                        {/* Show token count for user messages too */}
+                        {message.role === 'user' && message.tokenCount && (
+                          <div className="mt-2 text-xs text-blue-200 font-mono text-right">
+                            {message.tokenCount} tokens
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {error && (
+              <div className="mb-4 px-6">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                  {error}
+                  {error.includes('not configured') && (
+                    <button
+                      onClick={() => navigate('/settings')}
+                      className="ml-2 underline hover:no-underline"
+                    >
+                      Go to Settings
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Pending Attachments */}
+          {pendingAttachments.length > 0 && (
+            <div className="border-t px-6 py-3 bg-gray-50">
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-700">
+                  Attachments ({pendingAttachments.length})
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {pendingAttachments.map((attachment) => (
+                    <MediaAttachmentPreview
+                      key={attachment.id}
+                      attachment={attachment}
+                      onRemove={() => removeAttachment(attachment.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Input */}
+          <div className="border-t px-6 py-4 bg-white">
+            {/* Status indicator during streaming */}
+            {isStreaming && (
+              <div className="mb-3 text-xs text-gray-500 flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span>AI is responding...</span>
+                </div>
+                <span className="text-gray-400">•</span>
+                <span>Press Enter or click Stop to interrupt</span>
+              </div>
+            )}
+            <div className="flex space-x-4">
+              <div className="flex-1 relative">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    pendingAttachments.length > 0
+                      ? 'Add a message to your attachments...'
+                      : isStreaming
+                        ? 'Type your next message...'
+                        : 'Type your message or drag files here...'
+                  }
+                  disabled={isStreaming || processingFiles}
+                  rows={1}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  style={{ minHeight: '44px', maxHeight: '120px' }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = target.scrollHeight + 'px';
+                  }}
+                />
+
+                {/* File input button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isStreaming || processingFiles}
+                  className="absolute right-2 top-2 p-2 text-gray-400 hover:text-gray-600 disabled:text-gray-300"
+                  title="Attach files"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                    />
+                  </svg>
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      handleFilesSelected(Array.from(e.target.files));
+                    }
+                  }}
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.json,.csv"
+                />
+              </div>
+              <button
+                onClick={isStreaming ? handleInterrupt : handleSend}
+                disabled={
+                  (!isStreaming && !input.trim() && pendingAttachments.length === 0) ||
+                  processingFiles
+                }
+                className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isStreaming
+                    ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
+                    : (!input.trim() && pendingAttachments.length === 0) || processingFiles
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                {processingFiles ? (
+                  'Processing...'
+                ) : isStreaming ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 10h6v4H9z"
+                      />
+                    </svg>
+                    Stop
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
+                    </svg>
+                    Send
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* MCP Tools Panel */}
+          <MCPToolsPanel
+            isOpen={showMCPTools}
+            onClose={() => setShowMCPTools(false)}
+            onToolInvoke={handleMCPToolInvoke}
+          />
         </div>
       </div>
-
-        {/* MCP Tools Panel */}
-        <MCPToolsPanel
-          isOpen={showMCPTools}
-          onClose={() => setShowMCPTools(false)}
-          onToolInvoke={handleMCPToolInvoke}
-        />
-      </div>
-    </div>
+    </MediaDropZone>
   );
 };
