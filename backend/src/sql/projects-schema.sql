@@ -19,7 +19,4 @@ CREATE INDEX IF NOT EXISTS idx_conversations_project_id ON conversations(project
 CREATE INDEX IF NOT EXISTS idx_conversations_is_starred ON conversations(is_starred);
 CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at DESC);
 
--- Default project
-INSERT INTO projects (name, description, color, icon)
-VALUES ('General', 'Default project for conversations', '#6B7280', 'inbox')
-ON CONFLICT DO NOTHING;
+-- No default projects - start with empty project list

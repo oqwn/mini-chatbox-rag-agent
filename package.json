@@ -10,6 +10,8 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "setup": "./scripts/setup.sh",
+    "db:reset": "./scripts/reset-db.sh",
+    "db:restart": "./scripts/restart-db.sh",
     "docker:dev": "docker-compose -f docker/docker-compose.dev.yml up",
     "docker:prod": "docker-compose -f docker/docker-compose.yml up",
     "docker:build": "docker-compose -f docker/docker-compose.yml build"
