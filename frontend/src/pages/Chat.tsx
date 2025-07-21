@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { apiService, ChatMessage } from '../services/api';
+import { apiService, ChatMessage, estimateTokenCount } from '../services/api';
 import { ragApiService, KnowledgeSource } from '../services/rag-api';
 import { useNavigate } from 'react-router-dom';
 import { MCPToolsPanel } from '../components/MCPToolsPanel';
@@ -166,6 +166,7 @@ export const Chat: React.FC = () => {
         const chatMessages: ChatMessage[] = messages.map(msg => ({
           role: msg.role,
           content: msg.content,
+          tokenCount: msg.tokenCount || estimateTokenCount(msg.content),
         }));
         setMessages(chatMessages);
       } catch (err) {
@@ -221,7 +222,11 @@ export const Chat: React.FC = () => {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const userMessage: ChatMessage = { role: 'user', content: input.trim() };
+    const userMessage: ChatMessage = { 
+      role: 'user', 
+      content: input.trim(),
+      tokenCount: estimateTokenCount(input.trim())
+    };
     const messagesToSend = [...messages, userMessage];
 
     setMessages((prev) => [...prev, userMessage]);
@@ -232,7 +237,7 @@ export const Chat: React.FC = () => {
     // Persist user message
     await persistMessage(userMessage);
 
-    const assistantMessage: ChatMessage = { role: 'assistant', content: '' };
+    const assistantMessage: ChatMessage = { role: 'assistant', content: '', tokenCount: 0 };
     setMessages((prev) => [...prev, assistantMessage]);
 
     // Reset streaming content ref
@@ -255,6 +260,7 @@ export const Chat: React.FC = () => {
             newMessages[newMessages.length - 1] = {
               ...newMessages[newMessages.length - 1],
               content: streamingContentRef.current,
+              tokenCount: estimateTokenCount(streamingContentRef.current),
             };
             return newMessages;
           });
@@ -275,10 +281,11 @@ export const Chat: React.FC = () => {
         async () => {
           if (abortController.signal.aborted) return;
 
-          // Final update with complete content
+          // Final update with complete content and token count
           const finalAssistantMessage: ChatMessage = {
             role: 'assistant',
             content: streamingContentRef.current,
+            tokenCount: estimateTokenCount(streamingContentRef.current),
           };
           
           setMessages((prev) => {
@@ -330,7 +337,11 @@ export const Chat: React.FC = () => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (isStreaming) {
+        handleInterrupt();
+      } else if (input.trim()) {
+        handleSend();
+      }
     }
   };
 
@@ -354,6 +365,7 @@ export const Chat: React.FC = () => {
       const chatMessages: ChatMessage[] = messages.map(msg => ({
         role: msg.role,
         content: msg.content,
+        tokenCount: msg.tokenCount || estimateTokenCount(msg.content),
       }));
       setMessages(chatMessages);
     } catch (err) {
@@ -369,6 +381,23 @@ export const Chat: React.FC = () => {
     localStorage.setItem('currentSessionId', newSessionId);
     setMessages([]);
     setError(null);
+  };
+
+  const handleInterrupt = () => {
+    // Abort the current stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Update state
+    setIsStreaming(false);
+    setError(null);
+    
+    // Persist the partial message if it has content
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content.trim()) {
+      persistMessage(lastMessage);
+    }
   };
 
   const handleMCPToolInvoke = async (
@@ -548,13 +577,37 @@ export const Chat: React.FC = () => {
                 }`}
               >
                 {message.role === 'assistant' ? (
-                  <>
+                  <div className="relative">
+                    {/* Vertical line indicator during streaming */}
+                    {isStreamingMessage && (
+                      <div className="absolute -left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-300 rounded-full opacity-75 animate-pulse" />
+                    )}
+                    
                     <StreamingMarkdown content={message.content} isStreaming={isStreamingMessage} />
-                    {!isStreamingMessage && message.content && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
+                    
+                    {/* Always show copy button and token counter at bottom when there's content */}
+                    {message.content && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
+                        {/* Token counter */}
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                          </svg>
+                          <span className="font-mono">
+                            {isStreamingMessage && message.tokenCount 
+                              ? `~${message.tokenCount} tokens`
+                              : `${message.tokenCount || 0} tokens`
+                            }
+                          </span>
+                        </div>
+
+                        {/* Copy button */}
                         <button
-                          onClick={() => handleCopy(message.content, index)}
-                          className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent interrupting stream
+                            handleCopy(message.content, index);
+                          }}
+                          className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2 transition-colors px-2 py-1 rounded hover:bg-gray-50"
                           title="Copy response"
                         >
                           {copiedIndex === index ? (
@@ -595,9 +648,17 @@ export const Chat: React.FC = () => {
                         </button>
                       </div>
                     )}
-                  </>
+                  </div>
                 ) : (
-                  <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                  <div>
+                    <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                    {/* Show token count for user messages too */}
+                    {message.role === 'user' && message.tokenCount && (
+                      <div className="mt-2 text-xs text-blue-200 font-mono text-right">
+                        {message.tokenCount} tokens
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -625,15 +686,25 @@ export const Chat: React.FC = () => {
 
       {/* Input */}
       <div className="border-t px-6 py-4 bg-white">
+        {/* Status indicator during streaming */}
+        {isStreaming && (
+          <div className="mb-3 text-xs text-gray-500 flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span>AI is responding...</span>
+            </div>
+            <span className="text-gray-400">•</span>
+            <span>Press Enter or click Stop to interrupt</span>
+          </div>
+        )}
         <div className="flex space-x-4">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
-            disabled={isStreaming}
+            placeholder={isStreaming ? "Type your next message..." : "Type your message..."}
             rows={1}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             style={{ minHeight: '44px', maxHeight: '120px' }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;
@@ -642,15 +713,32 @@ export const Chat: React.FC = () => {
             }}
           />
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || isStreaming}
-            className={`px-6 py-2 rounded-lg font-medium ${
-              !input.trim() || isStreaming
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+            onClick={isStreaming ? handleInterrupt : handleSend}
+            disabled={!isStreaming && !input.trim()}
+            className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+              isStreaming
+                ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
+                : !input.trim()
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
-            Send
+            {isStreaming ? (
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
+                </svg>
+                Stop
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                Send
+              </div>
+            )}
           </button>
         </div>
       </div>
