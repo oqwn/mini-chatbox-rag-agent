@@ -21,6 +21,7 @@ import { createSettingsRoutes } from '@/routes/settings.routes';
 import { createMCPRoutes } from '@/routes/mcp.routes';
 import { createRagRoutes } from '@/routes/rag.routes';
 import conversationRoutes from '@/routes/conversation.routes';
+import { createProjectsRoutes } from '@/routes/projects.routes';
 
 // Configure logger
 const logger = winston.createLogger({
@@ -133,6 +134,7 @@ app.use('/api', createSettingsRoutes(settingsController));
 app.use('/api', createMCPRoutes(mcpController));
 app.use('/api/rag', createRagRoutes(ragController));
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/projects', createProjectsRoutes(logger));
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

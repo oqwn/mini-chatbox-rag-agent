@@ -84,11 +84,17 @@ export class ConversationController {
   // Update conversation
   updateConversation = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { sessionId } = req.params;
+      const { id } = req.params;
+      const conversationId = parseInt(id);
       const updates = req.body;
 
-      await this.conversationMemoryService.updateConversation(sessionId, updates);
-      const conversation = await this.conversationMemoryService.getConversation(sessionId);
+      if (isNaN(conversationId)) {
+        res.status(400).json({ error: 'Invalid conversation ID' });
+        return;
+      }
+
+      await this.conversationMemoryService.updateConversationById(conversationId, updates);
+      const conversation = await this.conversationMemoryService.getConversationById(conversationId);
 
       res.json({ conversation });
     } catch (error) {

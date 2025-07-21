@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { conversationApiService, Conversation, MemoryStats } from '../services/conversation-api';
+import { conversationApiService, Conversation } from '../services/conversation-api';
+
+interface Project {
+  id: number;
+  name: string;
+  description?: string;
+  color: string;
+  icon: string;
+}
 
 interface ConversationSidebarProps {
   isOpen: boolean;
@@ -9,6 +17,10 @@ interface ConversationSidebarProps {
   onNewConversation: () => void;
 }
 
+interface ConversationWithDropdown extends Conversation {
+  showProjectDropdown?: boolean;
+}
+
 export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   isOpen,
   onToggle,
@@ -16,18 +28,22 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onSelectConversation,
   onNewConversation,
 }) => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [stats, setStats] = useState<MemoryStats | null>(null);
+  const [conversations, setConversations] = useState<ConversationWithDropdown[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'recent' | 'archived'>('all');
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'starred' | 'recent'>('recent');
 
   useEffect(() => {
     if (isOpen) {
       loadConversations();
+      loadProjects();
     }
-  }, [isOpen, selectedFilter]);
+  }, [isOpen]);
 
   const loadConversations = async () => {
     setLoading(true);
@@ -36,11 +52,66 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     try {
       const response = await conversationApiService.getConversations(100, 0);
       setConversations(response.conversations);
-      setStats(response.stats);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProjects = async () => {
+    try {
+      const projectsData = await conversationApiService.getProjects();
+      setProjects(projectsData);
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+    }
+  };
+
+  const handleStarConversation = async (e: React.MouseEvent, conversation: Conversation) => {
+    e.stopPropagation();
+    try {
+      await conversationApiService.updateConversation(conversation.id!, {
+        isStarred: !conversation.isStarred,
+      });
+      await loadConversations();
+    } catch (err) {
+      console.error('Failed to star conversation:', err);
+    }
+  };
+
+  const handleMoveToProject = async (conversationId: number, projectId: number) => {
+    try {
+      await conversationApiService.updateConversation(conversationId, { projectId });
+      await loadConversations();
+    } catch (err) {
+      console.error('Failed to move conversation:', err);
+    }
+  };
+
+  const toggleProjectDropdown = (conversationId: number) => {
+    setConversations((convs) =>
+      convs.map((conv) => ({
+        ...conv,
+        showProjectDropdown: conv.id === conversationId ? !conv.showProjectDropdown : false,
+      }))
+    );
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+
+    try {
+      await conversationApiService.createProject({
+        name: newProjectName,
+        color: '#' + Math.floor(Math.random() * 16777215).toString(16),
+        icon: 'folder',
+      });
+      setNewProjectName('');
+      setShowProjectModal(false);
+      await loadProjects();
+    } catch (err) {
+      console.error('Failed to create project:', err);
     }
   };
 
@@ -52,10 +123,11 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     onNewConversation();
   };
 
-  const handleDeleteConversation = async (sessionId: string) => {
+  const handleDeleteConversation = async (e: React.MouseEvent, conversation: Conversation) => {
+    e.stopPropagation();
     if (window.confirm('Are you sure you want to archive this conversation?')) {
       try {
-        await conversationApiService.updateConversation(sessionId, { isArchived: true });
+        await conversationApiService.updateConversation(conversation.id!, { isArchived: true });
         loadConversations();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to archive conversation');
@@ -74,20 +146,23 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
   const filteredConversations = conversations
     .filter((conv) => {
-      if (selectedFilter === 'archived') return conv.isArchived;
+      if (selectedFilter === 'starred') return conv.isStarred && !conv.isArchived;
       if (selectedFilter === 'recent') return !conv.isArchived;
-      return true;
+      return !conv.isArchived;
     })
-    .filter(
-      (conv) =>
-        conv.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conv.sessionId.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort(
-      (a, b) =>
+    .filter((conv) => {
+      if (selectedProjectId !== null && conv.projectId !== selectedProjectId) return false;
+      return conv.title?.toLowerCase().includes(searchTerm.toLowerCase());
+    })
+    .sort((a, b) => {
+      // Starred conversations first
+      if (a.isStarred !== b.isStarred) return a.isStarred ? -1 : 1;
+      // Then by last activity
+      return (
         new Date(b.lastActivity || b.createdAt || '').getTime() -
         new Date(a.lastActivity || a.createdAt || '').getTime()
-    );
+      );
+    });
 
   return (
     <div
@@ -115,24 +190,62 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           </button>
         </div>
 
-        {/* Stats */}
-        {stats && (
-          <div className="px-4 py-3 bg-gray-50 border-b">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <div className="text-gray-500">Total Conversations</div>
-                <div className="font-semibold">{stats.totalConversations}</div>
-              </div>
-              <div>
-                <div className="text-gray-500">Total Messages</div>
-                <div className="font-semibold">{stats.totalMessages}</div>
-              </div>
-            </div>
+        {/* Projects Section */}
+        <div className="px-4 py-3 border-b bg-gray-50">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-700">Projects</h3>
+            <button
+              onClick={() => setShowProjectModal(true)}
+              className="text-blue-600 hover:text-blue-800"
+              title="Create new project"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </button>
           </div>
-        )}
+          <div className="space-y-1">
+            <button
+              onClick={() => setSelectedProjectId(null)}
+              className={`w-full text-left px-2 py-1 rounded text-sm ${
+                selectedProjectId === null ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+              }`}
+            >
+              📁 All Projects
+            </button>
+            {projects.map((project) => (
+              <button
+                key={project.id}
+                onClick={() => setSelectedProjectId(project.id)}
+                className={`w-full text-left px-2 py-1 rounded text-sm flex items-center gap-2 ${
+                  selectedProjectId === project.id
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <span style={{ color: project.color }}>{project.icon}</span>
+                <span className="truncate">{project.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Controls */}
         <div className="p-4 border-b space-y-3">
+          {/* Search */}
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+
           {/* New Conversation Button */}
           <button
             onClick={handleNewConversation}
@@ -149,25 +262,39 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             New Conversation
           </button>
 
-          {/* Search */}
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
           {/* Filter */}
-          <select
-            value={selectedFilter}
-            onChange={(e) => setSelectedFilter(e.target.value as any)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Conversations</option>
-            <option value="recent">Recent</option>
-            <option value="archived">Archived</option>
-          </select>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedFilter('recent')}
+              className={`flex-1 px-3 py-1 text-sm rounded-lg ${
+                selectedFilter === 'recent'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              Recent
+            </button>
+            <button
+              onClick={() => setSelectedFilter('starred')}
+              className={`flex-1 px-3 py-1 text-sm rounded-lg ${
+                selectedFilter === 'starred'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              ⭐ Starred
+            </button>
+            <button
+              onClick={() => setSelectedFilter('all')}
+              className={`flex-1 px-3 py-1 text-sm rounded-lg ${
+                selectedFilter === 'all'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              All
+            </button>
+          </div>
         </div>
 
         {/* Conversation List */}
@@ -204,10 +331,12 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 truncate">
-                        {conversation.title || 'Untitled Conversation'}
+                      <div className="flex items-center gap-2">
+                        {conversation.isStarred && <span className="text-yellow-500">⭐</span>}
+                        <div className="font-medium text-gray-900 truncate flex-1">
+                          {conversation.title || 'Untitled Conversation'}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500 truncate">{conversation.sessionId}</div>
                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
                         <span>{conversation.messageCount || 0} messages</span>
                         <span>
@@ -224,10 +353,74 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                     {/* Actions */}
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteConversation(conversation.sessionId);
-                        }}
+                        onClick={(e) => handleStarConversation(e, conversation)}
+                        className={`p-1 hover:text-yellow-500 ${
+                          conversation.isStarred ? 'text-yellow-500' : 'text-gray-400'
+                        }`}
+                        title={conversation.isStarred ? 'Unstar conversation' : 'Star conversation'}
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill={conversation.isStarred ? 'currentColor' : 'none'}
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                          />
+                        </svg>
+                      </button>
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleProjectDropdown(conversation.id!);
+                          }}
+                          className="p-1 text-gray-400 hover:text-blue-600"
+                          title="Move to project"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                            />
+                          </svg>
+                        </button>
+                        {conversation.showProjectDropdown && (
+                          <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10 border">
+                            <div className="py-1">
+                              {projects.map((project) => (
+                                <button
+                                  key={project.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveToProject(conversation.id!, project.id);
+                                    toggleProjectDropdown(conversation.id!);
+                                  }}
+                                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                                    conversation.projectId === project.id ? 'bg-blue-50' : ''
+                                  }`}
+                                >
+                                  <span style={{ color: project.color }}>{project.icon}</span>
+                                  <span>{project.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => handleDeleteConversation(e, conversation)}
                         className="p-1 text-gray-400 hover:text-red-600"
                         title="Archive conversation"
                       >
@@ -261,17 +454,40 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t bg-gray-50">
-          <div className="text-xs text-gray-500">
-            {stats && (
-              <>
-                {stats.activeConversations} active conversations •
-                {stats.totalTokensUsed.toLocaleString()} tokens used
-              </>
-            )}
+        {/* Project Modal */}
+        {showProjectModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96">
+              <h3 className="text-lg font-semibold mb-4">Create New Project</h3>
+              <input
+                type="text"
+                placeholder="Project name"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateProject();
+                  if (e.key === 'Escape') setShowProjectModal(false);
+                }}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setShowProjectModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateProject}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

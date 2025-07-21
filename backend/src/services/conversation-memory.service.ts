@@ -10,6 +10,8 @@ export interface Conversation {
   messageCount?: number;
   lastActivity?: Date;
   isArchived?: boolean;
+  projectId?: number;
+  isStarred?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -141,7 +143,8 @@ export class ConversationMemoryService {
   async getConversation(sessionId: string): Promise<Conversation | null> {
     const query = `
       SELECT id, session_id, title, memory_summary, context_window_size, 
-             message_count, last_activity, is_archived, created_at, updated_at
+             message_count, last_activity, is_archived, project_id, is_starred,
+             created_at, updated_at
       FROM conversations
       WHERE session_id = $1
     `;
@@ -157,7 +160,8 @@ export class ConversationMemoryService {
   async getConversationById(id: number): Promise<Conversation | null> {
     const query = `
       SELECT id, session_id, title, memory_summary, context_window_size, 
-             message_count, last_activity, is_archived, created_at, updated_at
+             message_count, last_activity, is_archived, project_id, is_starred,
+             created_at, updated_at
       FROM conversations
       WHERE id = $1
     `;
@@ -173,7 +177,8 @@ export class ConversationMemoryService {
   async getConversations(limit: number = 50, offset: number = 0): Promise<Conversation[]> {
     const query = `
       SELECT id, session_id, title, memory_summary, context_window_size, 
-             message_count, last_activity, is_archived, created_at, updated_at
+             message_count, last_activity, is_archived, project_id, is_starred,
+             created_at, updated_at
       FROM conversations
       WHERE is_archived = false
       ORDER BY last_activity DESC
@@ -205,6 +210,14 @@ export class ConversationMemoryService {
       updateFields.push(`is_archived = $${paramCount++}`);
       values.push(updates.isArchived);
     }
+    if (updates.projectId !== undefined) {
+      updateFields.push(`project_id = $${paramCount++}`);
+      values.push(updates.projectId);
+    }
+    if (updates.isStarred !== undefined) {
+      updateFields.push(`is_starred = $${paramCount++}`);
+      values.push(updates.isStarred);
+    }
 
     if (updateFields.length === 0) {
       return;
@@ -217,6 +230,52 @@ export class ConversationMemoryService {
       UPDATE conversations 
       SET ${updateFields.join(', ')}
       WHERE session_id = $${paramCount}
+    `;
+
+    await this.pool.query(query, values);
+  }
+
+  async updateConversationById(id: number, updates: Partial<Conversation>): Promise<void> {
+    const updateFields: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (updates.title !== undefined) {
+      updateFields.push(`title = $${paramCount++}`);
+      values.push(updates.title);
+    }
+    if (updates.memorySummary !== undefined) {
+      updateFields.push(`memory_summary = $${paramCount++}`);
+      values.push(updates.memorySummary);
+    }
+    if (updates.contextWindowSize !== undefined) {
+      updateFields.push(`context_window_size = $${paramCount++}`);
+      values.push(updates.contextWindowSize);
+    }
+    if (updates.isArchived !== undefined) {
+      updateFields.push(`is_archived = $${paramCount++}`);
+      values.push(updates.isArchived);
+    }
+    if (updates.projectId !== undefined) {
+      updateFields.push(`project_id = $${paramCount++}`);
+      values.push(updates.projectId);
+    }
+    if (updates.isStarred !== undefined) {
+      updateFields.push(`is_starred = $${paramCount++}`);
+      values.push(updates.isStarred);
+    }
+
+    if (updateFields.length === 0) {
+      return;
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
+
+    const query = `
+      UPDATE conversations 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
     `;
 
     await this.pool.query(query, values);
@@ -555,6 +614,8 @@ export class ConversationMemoryService {
       messageCount: row.message_count,
       lastActivity: row.last_activity,
       isArchived: row.is_archived,
+      projectId: row.project_id,
+      isStarred: row.is_starred,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

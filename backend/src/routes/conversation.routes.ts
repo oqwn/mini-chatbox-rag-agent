@@ -31,7 +31,7 @@ router.get('/stats', conversationController.getStats);
 
 // Specific conversation routes
 router.get('/:sessionId', conversationController.getConversation);
-router.put('/:sessionId', conversationController.updateConversation);
+router.put('/:id', conversationController.updateConversation);
 
 // Message routes
 router.get('/:sessionId/messages', conversationController.getMessages);

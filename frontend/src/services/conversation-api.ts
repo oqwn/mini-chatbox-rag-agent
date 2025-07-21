@@ -9,6 +9,18 @@ export interface Conversation {
   messageCount?: number;
   lastActivity?: string;
   isArchived?: boolean;
+  projectId?: number;
+  isStarred?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  description?: string;
+  color: string;
+  icon: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -123,10 +135,10 @@ export class ConversationApiService {
 
   // Update conversation
   async updateConversation(
-    sessionId: string,
+    conversationId: number,
     updates: Partial<Conversation>
   ): Promise<{ conversation: Conversation }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -314,6 +326,78 @@ export class ConversationApiService {
     }
 
     return response.json();
+  }
+
+  // Get all projects
+  async getProjects(): Promise<Project[]> {
+    const response = await fetch(`${API_BASE_URL}/projects`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get projects: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.projects || [];
+  }
+
+  // Create new project
+  async createProject(project: {
+    name: string;
+    description?: string;
+    color?: string;
+    icon?: string;
+  }): Promise<Project> {
+    const response = await fetch(`${API_BASE_URL}/projects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(project),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create project: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.project;
+  }
+
+  // Update project
+  async updateProject(projectId: number, updates: Partial<Project>): Promise<Project> {
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update project: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.project;
+  }
+
+  // Delete project
+  async deleteProject(projectId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete project: ${response.statusText}`);
+    }
   }
 }
 
