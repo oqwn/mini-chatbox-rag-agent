@@ -101,7 +101,9 @@ export class MultimodalFactoryService {
       result.type = mediaType;
       result.processingTime = Date.now() - startTime;
 
-      this.logger.info(`Completed processing ${mediaType} file: ${filename} in ${result.processingTime}ms`);
+      this.logger.info(
+        `Completed processing ${mediaType} file: ${filename} in ${result.processingTime}ms`
+      );
       return result;
     } catch (error) {
       this.logger.error(`Failed to process ${mediaType} file ${filename}:`, error);
@@ -159,7 +161,7 @@ export class MultimodalFactoryService {
       additionalFiles.push(videoResult.thumbnailPath);
     }
     if (videoResult.frames) {
-      additionalFiles.push(...videoResult.frames.map(f => f.filePath));
+      additionalFiles.push(...videoResult.frames.map((f) => f.filePath));
     }
     if (videoResult.audioPath) {
       additionalFiles.push(videoResult.audioPath);
@@ -228,7 +230,7 @@ export class MultimodalFactoryService {
   private async processDocument(filePath: string, filename: string): Promise<MultimodalResult> {
     // Import the existing file parser service
     const { fileParserService } = await import('./file-parser.service');
-    
+
     const parseResult = await fileParserService.parseFile(filePath, filename);
 
     return {
@@ -247,7 +249,10 @@ export class MultimodalFactoryService {
   /**
    * Validate media file
    */
-  async validateMedia(filePath: string, filename: string): Promise<{ isValid: boolean; error?: string }> {
+  async validateMedia(
+    filePath: string,
+    filename: string
+  ): Promise<{ isValid: boolean; error?: string }> {
     const mediaType = this.getMediaType(filename);
 
     try {
@@ -281,10 +286,27 @@ export class MultimodalFactoryService {
       video: ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv', '.m4v'],
       audio: ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma'],
       document: [
-        '.pdf', '.docx', '.doc', '.txt', '.md', '.rtf',
-        '.json', '.csv', '.xml', '.yaml', '.yml',
-        '.js', '.ts', '.py', '.java', '.cpp', '.c',
-        '.html', '.css', '.sql', '.log'
+        '.pdf',
+        '.docx',
+        '.doc',
+        '.txt',
+        '.md',
+        '.rtf',
+        '.json',
+        '.csv',
+        '.xml',
+        '.yaml',
+        '.yml',
+        '.js',
+        '.ts',
+        '.py',
+        '.java',
+        '.cpp',
+        '.c',
+        '.html',
+        '.css',
+        '.sql',
+        '.log',
       ],
     };
   }
@@ -295,16 +317,17 @@ export class MultimodalFactoryService {
   isSupported(filename: string): boolean {
     const extension = this.getFileExtension(filename).toLowerCase();
     const supportedExtensions = this.getSupportedExtensions();
-    
-    return Object.values(supportedExtensions).some(extensions => 
-      extensions.includes(extension)
-    );
+
+    return Object.values(supportedExtensions).some((extensions) => extensions.includes(extension));
   }
 
   /**
    * Get media info without full processing
    */
-  async getMediaInfo(filePath: string, filename: string): Promise<{
+  async getMediaInfo(
+    filePath: string,
+    filename: string
+  ): Promise<{
     type: MediaType;
     size: string;
     info: any;

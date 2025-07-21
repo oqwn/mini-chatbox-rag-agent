@@ -78,13 +78,14 @@ export class ImageProcessingService {
         try {
           const ocrResult = await this.extractTextFromImage(imagePath);
           result.ocrText = ocrResult.text;
-          
+
           // Analyze if this looks like a document
-          if (!result.features) result.features = { 
-            isDocument: false, 
-            hasText: false, 
-            dominantColors: [] 
-          };
+          if (!result.features)
+            result.features = {
+              isDocument: false,
+              hasText: false,
+              dominantColors: [],
+            };
           result.features.hasText = ocrResult.text.trim().length > 0;
           result.features.isDocument = this.isDocumentImage(ocrResult);
         } catch (error) {
@@ -96,11 +97,12 @@ export class ImageProcessingService {
       if (options.analyzeContent) {
         try {
           const analysis = await this.analyzeImageContent(imagePath);
-          if (!result.features) result.features = { 
-            isDocument: false, 
-            hasText: false, 
-            dominantColors: [] 
-          };
+          if (!result.features)
+            result.features = {
+              isDocument: false,
+              hasText: false,
+              dominantColors: [],
+            };
           result.features.dominantColors = analysis.dominantColors;
         } catch (error) {
           this.logger.warn(`Content analysis failed for ${imagePath}:`, error);
@@ -200,12 +202,7 @@ export class ImageProcessingService {
     const preprocessedPath = path.join(dir, `${name}_ocr_preprocessed.png`);
 
     try {
-      await sharp(imagePath)
-        .greyscale()
-        .normalize()
-        .sharpen()
-        .png()
-        .toFile(preprocessedPath);
+      await sharp(imagePath).greyscale().normalize().sharpen().png().toFile(preprocessedPath);
 
       return preprocessedPath;
     } catch (error) {
@@ -222,7 +219,7 @@ export class ImageProcessingService {
     avgBrightness: number;
   }> {
     const image = sharp(imagePath);
-    
+
     // Get dominant colors by analyzing pixels
     const { data, info } = await image
       .resize(100, 100, { fit: 'inside' })
@@ -243,17 +240,17 @@ export class ImageProcessingService {
    */
   private extractDominantColors(data: Buffer, channels: number): string[] {
     const colorCounts = new Map<string, number>();
-    
+
     for (let i = 0; i < data.length; i += channels) {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
-      
+
       // Group similar colors (reduce precision)
       const groupedR = Math.floor(r / 32) * 32;
       const groupedG = Math.floor(g / 32) * 32;
       const groupedB = Math.floor(b / 32) * 32;
-      
+
       const color = `rgb(${groupedR},${groupedG},${groupedB})`;
       colorCounts.set(color, (colorCounts.get(color) || 0) + 1);
     }
@@ -276,7 +273,7 @@ export class ImageProcessingService {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
-      
+
       // Calculate luminance
       const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
       totalBrightness += brightness;
@@ -291,12 +288,14 @@ export class ImageProcessingService {
    */
   private isDocumentImage(ocrResult: OCRResult): boolean {
     const text = ocrResult.text.toLowerCase();
-    
+
     // Simple heuristics for document detection
     const hasSignificantText = text.length > 50;
-    const hasDocumentKeywords = /\b(page|document|article|title|header|footer|paragraph)\b/.test(text);
+    const hasDocumentKeywords = /\b(page|document|article|title|header|footer|paragraph)\b/.test(
+      text
+    );
     const hasStructuredText = text.includes('\n') && text.split('\n').length > 3;
-    
+
     return hasSignificantText && (hasDocumentKeywords || hasStructuredText);
   }
 
@@ -306,7 +305,7 @@ export class ImageProcessingService {
   async validateImage(filePath: string): Promise<{ isValid: boolean; error?: string }> {
     try {
       const stats = await fs.stat(filePath);
-      
+
       // Check file size (50MB limit)
       if (stats.size > 50 * 1024 * 1024) {
         return { isValid: false, error: 'Image file too large (max 50MB)' };
@@ -315,7 +314,7 @@ export class ImageProcessingService {
       // Try to read image metadata to validate format
       const image = sharp(filePath);
       const metadata = await image.metadata();
-      
+
       if (!metadata.width || !metadata.height) {
         return { isValid: false, error: 'Invalid image format' };
       }

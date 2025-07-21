@@ -8,7 +8,7 @@ import { RagRetrievalService } from '@/services/rag-retrieval.service';
 import { MultimodalFactoryService } from '@/services/multimodal-factory.service';
 import multer from 'multer';
 import { promises as fs } from 'fs';
-import { FILE_CONFIG, getAllSupportedExtensions, getFileExtension } from '../config/file-types';
+import { FILE_CONFIG, getAllMultimodalExtensions, getFileExtension } from '../config/file-types';
 
 // Utility function to fix UTF-8 encoding issues in filenames
 function fixFilenameEncoding(filename: string): string {
@@ -43,7 +43,9 @@ const upload = multer({
     // Fix UTF-8 encoding for Chinese filenames
     file.originalname = fixFilenameEncoding(file.originalname);
 
-    const allowedTypes = getAllSupportedExtensions();
+    // For now, always allow multimodal extensions to support the chat interface
+    // We'll check the multimodal parameter in the handler instead
+    const allowedTypes = getAllMultimodalExtensions();
     const ext = getFileExtension(file.originalname);
 
     // Handle files without extension
@@ -179,26 +181,31 @@ export class RagController {
 
         // Check if this is a multimodal file (image, video, audio)
         const mediaType = this.multimodalService.getMediaType(originalFileName);
-        const isMultimodal = multimodal === 'true' || ['image', 'video', 'audio'].includes(mediaType);
+        const isMultimodal =
+          multimodal === 'true' || ['image', 'video', 'audio'].includes(mediaType);
 
         let result;
 
         if (isMultimodal && mediaType !== 'document') {
           // Process as multimodal content
           this.logger.info(`Processing multimodal ${mediaType} file: ${originalFileName}`);
-          
-          const multimodalResult = await this.multimodalService.processMedia(filePath, originalFileName, {
-            extractText: true,
-            generateThumbnail: true,
-            analyzeContent: true,
-            transcribe: mediaType === 'audio' || mediaType === 'video',
-            extractFrames: mediaType === 'video',
-            frameCount: 5,
-          });
+
+          const multimodalResult = await this.multimodalService.processMedia(
+            filePath,
+            originalFileName,
+            {
+              extractText: true,
+              generateThumbnail: true,
+              analyzeContent: true,
+              transcribe: mediaType === 'audio' || mediaType === 'video',
+              extractFrames: mediaType === 'video',
+              frameCount: 5,
+            }
+          );
 
           // Extract text content for RAG ingestion
           let contentForIngestion = multimodalResult.textContent || '';
-          
+
           // Add metadata as searchable content
           if (multimodalResult.analysis) {
             const analysisText = JSON.stringify(multimodalResult.analysis).replace(/[{}",]/g, ' ');
@@ -208,7 +215,7 @@ export class RagController {
           // Add media info as content
           const mediaInfo = await this.multimodalService.getMediaInfo(filePath, originalFileName);
           contentForIngestion += `\n\nMedia Type: ${mediaInfo.type}\nFile Size: ${mediaInfo.size}`;
-          
+
           if (mediaInfo.info) {
             const infoText = JSON.stringify(mediaInfo.info).replace(/[{}",]/g, ' ');
             contentForIngestion += `\nMedia Info: ${infoText}`;

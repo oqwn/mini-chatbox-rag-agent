@@ -114,7 +114,10 @@ export class MCPService extends EventEmitter {
     await this.initializeMCPHandshake(serverId, childProcess);
   }
 
-  private async initializeMCPHandshake(_serverId: string, childProcess: ChildProcess): Promise<void> {
+  private async initializeMCPHandshake(
+    _serverId: string,
+    childProcess: ChildProcess
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('MCP handshake timeout'));

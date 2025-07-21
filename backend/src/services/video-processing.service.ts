@@ -117,8 +117,8 @@ export class VideoProcessingService {
           return;
         }
 
-        const videoStream = metadata.streams.find(s => s.codec_type === 'video');
-        const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+        const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
+        const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
         if (!videoStream) {
           reject(new Error('No video stream found'));
@@ -317,7 +317,7 @@ export class VideoProcessingService {
   async validateVideo(filePath: string): Promise<{ isValid: boolean; error?: string }> {
     try {
       const stats = await fs.stat(filePath);
-      
+
       // Check file size (500MB limit)
       if (stats.size > 500 * 1024 * 1024) {
         return { isValid: false, error: 'Video file too large (max 500MB)' };
@@ -325,7 +325,7 @@ export class VideoProcessingService {
 
       // Try to get metadata to validate format
       const metadata = await this.getVideoMetadata(filePath);
-      
+
       if (!metadata.width || !metadata.height || metadata.duration <= 0) {
         return { isValid: false, error: 'Invalid video format or corrupted file' };
       }

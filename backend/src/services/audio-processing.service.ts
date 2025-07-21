@@ -137,7 +137,7 @@ export class AudioProcessingService {
           return;
         }
 
-        const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+        const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
         if (!audioStream) {
           reject(new Error('No audio stream found'));
@@ -236,7 +236,7 @@ export class AudioProcessingService {
     try {
       // Get basic audio statistics using ffmpeg
       const stats = await this.getAudioStats(audioPath);
-      
+
       // Basic analysis based on metadata and simple heuristics
       const analysis: AudioAnalysis = {
         loudness: {
@@ -284,7 +284,7 @@ export class AudioProcessingService {
           // Parse volumedetect output
           const meanMatch = stderrLine.match(/mean_volume: ([-\d.]+) dB/);
           const maxMatch = stderrLine.match(/max_volume: ([-\d.]+) dB/);
-          
+
           if (meanMatch) meanVolume = parseFloat(meanMatch[1]);
           if (maxMatch) maxVolume = parseFloat(maxMatch[1]);
         })
@@ -308,9 +308,7 @@ export class AudioProcessingService {
 
     return new Promise((resolve, reject) => {
       ffmpeg(audioPath)
-        .audioFilters([
-          'showwavespic=s=800x200:colors=blue'
-        ])
+        .audioFilters(['showwavespic=s=800x200:colors=blue'])
         .frames(1)
         .output(waveformPath)
         .on('end', () => resolve(waveformPath))
@@ -368,7 +366,7 @@ export class AudioProcessingService {
   async validateAudio(filePath: string): Promise<{ isValid: boolean; error?: string }> {
     try {
       const stats = await fs.stat(filePath);
-      
+
       // Check file size (100MB limit)
       if (stats.size > 100 * 1024 * 1024) {
         return { isValid: false, error: 'Audio file too large (max 100MB)' };
@@ -376,7 +374,7 @@ export class AudioProcessingService {
 
       // Try to get metadata to validate format
       const metadata = await this.getAudioMetadata(filePath);
-      
+
       if (metadata.duration <= 0 || metadata.sampleRate === 0) {
         return { isValid: false, error: 'Invalid audio format or corrupted file' };
       }
@@ -401,7 +399,7 @@ export class AudioProcessingService {
   private detectSpeech(stats: { meanVolume?: number; maxVolume?: number }): boolean {
     // Simple heuristic: speech typically has moderate volume levels
     if (!stats.meanVolume || !stats.maxVolume) return false;
-    
+
     const dynamicRange = stats.maxVolume - stats.meanVolume;
     return dynamicRange > 10 && dynamicRange < 40 && stats.meanVolume > -40;
   }
@@ -412,7 +410,7 @@ export class AudioProcessingService {
   private detectMusic(stats: { meanVolume?: number; maxVolume?: number }): boolean {
     // Simple heuristic: music typically has wider dynamic range
     if (!stats.meanVolume || !stats.maxVolume) return false;
-    
+
     const dynamicRange = stats.maxVolume - stats.meanVolume;
     return dynamicRange > 30 && stats.meanVolume > -30;
   }
@@ -441,7 +439,12 @@ export class AudioProcessingService {
       duration: this.formatDuration(metadata.duration),
       format: metadata.format,
       sampleRate: `${metadata.sampleRate} Hz`,
-      channels: metadata.channels === 1 ? 'Mono' : metadata.channels === 2 ? 'Stereo' : `${metadata.channels} channels`,
+      channels:
+        metadata.channels === 1
+          ? 'Mono'
+          : metadata.channels === 2
+            ? 'Stereo'
+            : `${metadata.channels} channels`,
       fileSize: this.formatFileSize(metadata.size),
     };
   }

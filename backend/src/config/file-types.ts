@@ -10,6 +10,9 @@ export interface SupportedFileTypesConfig {
     data: FileTypeCategory;
     code: FileTypeCategory;
     other: FileTypeCategory;
+    images: FileTypeCategory;
+    videos: FileTypeCategory;
+    audio: FileTypeCategory;
   };
   limits: {
     maxFileSize: number;
@@ -71,6 +74,18 @@ export const FILE_CONFIG: SupportedFileTypesConfig = {
       extensions: ['.log', '.gitignore', '.env', '.properties', '.cfg'],
       description: 'Other text files',
     },
+    images: {
+      extensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.svg'],
+      description: 'Image files',
+    },
+    videos: {
+      extensions: ['.mp4', '.avi', '.mov', '.wmv', '.webm', '.mkv', '.m4v'],
+      description: 'Video files',
+    },
+    audio: {
+      extensions: ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma'],
+      description: 'Audio files',
+    },
   },
   limits: {
     maxFileSize: 52428800,
@@ -79,7 +94,7 @@ export const FILE_CONFIG: SupportedFileTypesConfig = {
   },
 };
 
-// Helper function to get all supported extensions
+// Helper function to get all supported extensions (documents only - for RAG)
 export function getAllSupportedExtensions(): string[] {
   const { supportedFileTypes } = FILE_CONFIG;
   return [
@@ -87,6 +102,20 @@ export function getAllSupportedExtensions(): string[] {
     ...supportedFileTypes.data.extensions,
     ...supportedFileTypes.code.extensions,
     ...supportedFileTypes.other.extensions,
+  ];
+}
+
+// Helper function to get all multimodal extensions (includes media files)
+export function getAllMultimodalExtensions(): string[] {
+  const { supportedFileTypes } = FILE_CONFIG;
+  return [
+    ...supportedFileTypes.documents.extensions,
+    ...supportedFileTypes.data.extensions,
+    ...supportedFileTypes.code.extensions,
+    ...supportedFileTypes.other.extensions,
+    ...supportedFileTypes.images.extensions,
+    ...supportedFileTypes.videos.extensions,
+    ...supportedFileTypes.audio.extensions,
   ];
 }
 

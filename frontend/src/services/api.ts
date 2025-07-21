@@ -3,6 +3,13 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:20001/api
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+    analysis?: any;
+  }>;
 }
 
 export interface ChatOptions {
@@ -230,6 +237,112 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ model }),
     });
+  }
+
+  // Multimodal support
+  async processMediaFile(file: File): Promise<{
+    success: boolean;
+    mediaType: string;
+    multimodal: boolean;
+    textExtracted: boolean;
+    extractedText?: string;
+    analysis?: any;
+    error?: string;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('multimodal', 'true');
+
+    const response = await fetch(`${API_BASE_URL}/rag/ingest/file`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Media processing failed');
+    }
+
+    return response.json();
+  }
+
+  async getMediaInfo(filename: string): Promise<{
+    mediaType: string;
+    isSupported: boolean;
+    multimodalCapabilities: any;
+  }> {
+    return this.request(`/rag/media/info?filename=${encodeURIComponent(filename)}`);
+  }
+
+  async streamMessageWithMedia(
+    messages: ChatMessage[],
+    files: File[],
+    options: ChatOptions | undefined,
+    onMessage: (content: string) => void,
+    onError: (error: string) => void,
+    onDone: () => void,
+    signal?: AbortSignal,
+    ragEnabled?: boolean
+  ): Promise<void> {
+    // Process media files first if any
+    const processedAttachments = [];
+
+    if (files.length > 0) {
+      for (const file of files) {
+        try {
+          const result = await this.processMediaFile(file);
+          processedAttachments.push({
+            id: Math.random().toString(36).substr(2, 9),
+            name: file.name,
+            type: result.mediaType,
+            size: file.size,
+            analysis: {
+              extractedText: result.extractedText,
+              ...result.analysis,
+            },
+          });
+        } catch (error) {
+          console.error(`Failed to process ${file.name}:`, error);
+          processedAttachments.push({
+            id: Math.random().toString(36).substr(2, 9),
+            name: file.name,
+            type: 'unknown',
+            size: file.size,
+            error: error instanceof Error ? error.message : 'Processing failed',
+          });
+        }
+      }
+    }
+
+    // Add attachments to the last user message
+    const messagesWithAttachments = [...messages];
+    if (processedAttachments.length > 0 && messagesWithAttachments.length > 0) {
+      const lastMessage = messagesWithAttachments[messagesWithAttachments.length - 1];
+      if (lastMessage.role === 'user') {
+        lastMessage.attachments = processedAttachments;
+
+        // Add extracted text to message content
+        const extractedTexts = processedAttachments
+          .map((att) => att.analysis?.extractedText)
+          .filter((text) => text && text.trim())
+          .join('\n\n');
+
+        if (extractedTexts) {
+          lastMessage.content += `\n\n[Attached media content]:\n${extractedTexts}`;
+        }
+      }
+    }
+
+    // Use regular streaming with enhanced messages
+    return this.streamMessage(
+      messagesWithAttachments,
+      options,
+      onMessage,
+      onError,
+      onDone,
+      signal,
+      ragEnabled
+    );
   }
 }
 

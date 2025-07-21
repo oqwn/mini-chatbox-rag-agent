@@ -329,6 +329,13 @@ export const Chat: React.FC = () => {
           <h1 className="text-xl font-semibold">Chat</h1>
           <div className="flex items-center space-x-4">
             <button
+              onClick={() => navigate('/chat/multimodal')}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+              title="Switch to multimodal chat with file support"
+            >
+              Multimodal
+            </button>
+            <button
               onClick={() => setShowMCPTools(true)}
               className="text-gray-600 hover:text-gray-900"
             >

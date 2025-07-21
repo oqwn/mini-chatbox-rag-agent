@@ -194,6 +194,15 @@ export class ChatController {
         ragContext = await this.performRagRetrieval(lastUserMessage.content);
       }
 
+      // Check for multimodal attachments in the last user message
+      let multimodalContext = '';
+      if (lastUserMessage?.attachments && lastUserMessage.attachments.length > 0) {
+        multimodalContext = this.buildMultimodalContext(lastUserMessage.attachments);
+        this.logger.info(
+          `Added multimodal context for ${lastUserMessage.attachments.length} attachments`
+        );
+      }
+
       // Check if the last assistant message contains a permission request
       let additionalContext = '';
       if (messages.length >= 2) {
@@ -270,7 +279,7 @@ export class ChatController {
 
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt + additionalContext + ragSystemPrompt,
+        content: systemPrompt + additionalContext + ragSystemPrompt + multimodalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -360,6 +369,15 @@ export class ChatController {
         this.logger.info(`RAG retrieval result: ${ragContext ? 'SUCCESS' : 'FAILED'}`);
       }
 
+      // Check for multimodal attachments in the last user message
+      let multimodalContext = '';
+      if (lastUserMessage?.attachments && lastUserMessage.attachments.length > 0) {
+        multimodalContext = this.buildMultimodalContext(lastUserMessage.attachments);
+        this.logger.info(
+          `Added multimodal context for ${lastUserMessage.attachments.length} attachments`
+        );
+      }
+
       // Check if the last assistant message contains a permission request
       let additionalContext = '';
       if (messages.length >= 2) {
@@ -436,7 +454,7 @@ export class ChatController {
 
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt + additionalContext + ragSystemPrompt,
+        content: systemPrompt + additionalContext + ragSystemPrompt + multimodalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -552,5 +570,64 @@ export class ChatController {
       this.logger.error('Model capability test error:', error);
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
+  }
+
+  /**
+   * Build multimodal context from message attachments
+   */
+  private buildMultimodalContext(attachments: any[]): string {
+    if (!attachments || attachments.length === 0) {
+      return '';
+    }
+
+    let context = '\n\n=== MULTIMODAL ATTACHMENTS ===\n';
+    context += `The user has attached ${attachments.length} file(s) to their message:\n\n`;
+
+    attachments.forEach((attachment, index) => {
+      context += `**Attachment ${index + 1}: ${attachment.name}**\n`;
+      context += `- Type: ${attachment.type}\n`;
+      context += `- Size: ${this.formatFileSize(attachment.size)}\n`;
+
+      if (attachment.analysis) {
+        if (attachment.analysis.extractedText) {
+          context += `- Extracted Text: ${attachment.analysis.extractedText.substring(0, 500)}${attachment.analysis.extractedText.length > 500 ? '...' : ''}\n`;
+        }
+
+        if (attachment.analysis.description) {
+          context += `- Analysis: ${attachment.analysis.description}\n`;
+        }
+
+        if (attachment.analysis.metadata) {
+          const metadata = JSON.stringify(attachment.analysis.metadata);
+          context += `- Metadata: ${metadata.substring(0, 200)}${metadata.length > 200 ? '...' : ''}\n`;
+        }
+      }
+
+      context += '\n';
+    });
+
+    context += '=== END MULTIMODAL ATTACHMENTS ===\n';
+    context +=
+      'Important: The user has shared these files with you. Please analyze and respond to them as appropriate. ';
+    context += 'If the files contain text content, it has been extracted and included above. ';
+    context += 'You can reference specific attachments by their filename in your response.\n';
+
+    return context;
+  }
+
+  /**
+   * Format file size in human readable format
+   */
+  private formatFileSize(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
   }
 }
