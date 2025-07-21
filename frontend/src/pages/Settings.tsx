@@ -469,25 +469,25 @@ export const Settings: React.FC = () => {
                 message: 'Are you sure you want to clear all stored settings?',
                 type: 'danger',
                 onConfirm: () => {
-                StorageService.clearAll();
-                setApiKey('');
-                setBaseUrl('');
-                setModel('');
-                setHasStoredApiKey(false);
-                setStoredApiKey('');
-                setShowStoredKey(false);
-                setModelSupportsTools(null);
-                // Clear RAG settings
-                setRagEmbeddingModel('');
-                setRagEmbeddingEndpoint('');
-                setRagRerankEndpoint('');
-                setRagRerankApiKey('');
-                setRagRerankForceLocal('');
-                setHasStoredRerankKey(false);
-                setStoredRerankApiKey('');
-                setShowStoredRerankKey(false);
-                setMessage({ type: 'success', text: 'Settings cleared from local storage' });
-                setConfirmDialog({ ...confirmDialog, isOpen: false });
+                  StorageService.clearAll();
+                  setApiKey('');
+                  setBaseUrl('');
+                  setModel('');
+                  setHasStoredApiKey(false);
+                  setStoredApiKey('');
+                  setShowStoredKey(false);
+                  setModelSupportsTools(null);
+                  // Clear RAG settings
+                  setRagEmbeddingModel('');
+                  setRagEmbeddingEndpoint('');
+                  setRagRerankEndpoint('');
+                  setRagRerankApiKey('');
+                  setRagRerankForceLocal('');
+                  setHasStoredRerankKey(false);
+                  setStoredRerankApiKey('');
+                  setShowStoredRerankKey(false);
+                  setMessage({ type: 'success', text: 'Settings cleared from local storage' });
+                  setConfirmDialog({ ...confirmDialog, isOpen: false });
                 },
               });
             }}
