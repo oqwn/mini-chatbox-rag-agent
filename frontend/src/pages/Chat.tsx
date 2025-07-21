@@ -132,6 +132,28 @@ export const Chat: React.FC = () => {
     };
   }, [messages, isStreaming, currentModel, mcpAutoApprove]);
 
+  // Auto-approve permission requests when mcpAutoApprove is enabled
+  useEffect(() => {
+    if (mcpAutoApprove && !isStreaming && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      
+      // Check if the last message contains a permission request
+      if (
+        lastMessage.role === 'assistant' &&
+        lastMessage.content.includes('[MCP_PERMISSION_REQUEST]') &&
+        lastMessage.content.includes('[/MCP_PERMISSION_REQUEST]')
+      ) {
+        // Trigger auto-approval after a short delay to show the card
+        const timer = setTimeout(() => {
+          const event = new CustomEvent('mcp-permission', { detail: 'approve' });
+          window.dispatchEvent(event);
+        }, 500); // 500ms delay to show the card briefly
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [messages, mcpAutoApprove, isStreaming]);
+
   // Scroll to bottom while streaming
   useEffect(() => {
     if (isStreaming) {

@@ -258,12 +258,11 @@ export class ChatController {
       let systemPrompt: string;
 
       try {
-        // Use auto-approve prompt when mcpAutoApprove is enabled
-        const promptFile = mcpAutoApprove ? 'mcp-system-auto-approve.md' : 'mcp-system.md';
-        systemPrompt = this.promptService.getPrompt(promptFile, {
+        // Always use the standard prompt - auto-approval is handled in frontend
+        systemPrompt = this.promptService.getPrompt('mcp-system.md', {
           TOOL_NAMES: toolNames,
         });
-        this.logger.info(`Successfully loaded system prompt from file: ${promptFile}`);
+        this.logger.info('Successfully loaded system prompt from file');
       } catch (error) {
         this.logger.error('Failed to load prompt from file, using fallback:', error);
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
@@ -446,12 +445,11 @@ export class ChatController {
       let systemPrompt: string;
 
       try {
-        // Use auto-approve prompt when mcpAutoApprove is enabled
-        const promptFile = mcpAutoApprove ? 'mcp-system-auto-approve.md' : 'mcp-system.md';
-        systemPrompt = this.promptService.getPrompt(promptFile, {
+        // Always use the standard prompt - auto-approval is handled in frontend
+        systemPrompt = this.promptService.getPrompt('mcp-system.md', {
           TOOL_NAMES: toolNames,
         });
-        this.logger.info(`Successfully loaded system prompt from file: ${promptFile}`);
+        this.logger.info('Successfully loaded system prompt from file');
       } catch (error) {
         this.logger.error('Failed to load prompt from file, using fallback:', error);
         systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
