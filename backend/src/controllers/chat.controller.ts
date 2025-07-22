@@ -255,6 +255,26 @@ export class ChatController {
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
       let systemPrompt = '';
+      
+      // Check if user is asking about HTML/Canvas
+      const userMessages = messages.filter(m => m.role === 'user');
+      const lastUserMsg = userMessages[userMessages.length - 1];
+      const isCanvasRequest = lastUserMsg && (
+        lastUserMsg.content.toLowerCase().includes('html') ||
+        lastUserMsg.content.toLowerCase().includes('canvas') ||
+        lastUserMsg.content.toLowerCase().includes('webpage') ||
+        lastUserMsg.content.toLowerCase().includes('interactive')
+      );
+      
+      if (isCanvasRequest) {
+        try {
+          const canvasPrompt = this.promptService.getPrompt('canvas-system.md');
+          systemPrompt += canvasPrompt + '\n\n';
+          this.logger.info('Added Canvas HTML generation prompt');
+        } catch (error) {
+          this.logger.warn('Failed to load canvas prompt:', error);
+        }
+      }
 
       // Check if we have any true MCP tools (not just local agent tools)
       const trueMcpTools = mcpTools.filter((tool) => tool.serverId !== 'local-tools');
@@ -470,6 +490,26 @@ export class ChatController {
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
       let systemPrompt = '';
+      
+      // Check if user is asking about HTML/Canvas
+      const userMessages = messages.filter(m => m.role === 'user');
+      const lastUserMsg = userMessages[userMessages.length - 1];
+      const isCanvasRequest = lastUserMsg && (
+        lastUserMsg.content.toLowerCase().includes('html') ||
+        lastUserMsg.content.toLowerCase().includes('canvas') ||
+        lastUserMsg.content.toLowerCase().includes('webpage') ||
+        lastUserMsg.content.toLowerCase().includes('interactive')
+      );
+      
+      if (isCanvasRequest) {
+        try {
+          const canvasPrompt = this.promptService.getPrompt('canvas-system.md');
+          systemPrompt += canvasPrompt + '\n\n';
+          this.logger.info('Added Canvas HTML generation prompt');
+        } catch (error) {
+          this.logger.warn('Failed to load canvas prompt:', error);
+        }
+      }
 
       // Check if we have any true MCP tools (not just local agent tools)
       const trueMcpTools = mcpTools.filter((tool) => tool.serverId !== 'local-tools');
