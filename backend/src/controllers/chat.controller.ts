@@ -252,20 +252,29 @@ export class ChatController {
 
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
-      const toolNames =
-        mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n') || 'No tools available';
-      this.logger.info(`Tool names for prompt: ${toolNames}`);
-      let systemPrompt: string;
+      let systemPrompt = '';
+      
+      // Check if we have any true MCP tools (not just local agent tools)
+      const trueMcpTools = mcpTools.filter(tool => tool.serverId !== 'local-tools');
+      
+      if (trueMcpTools.length > 0) {
+        const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
+        this.logger.info(`Tool names for prompt: ${toolNames}`);
 
-      try {
-        // Always use the standard prompt - auto-approval is handled in frontend
-        systemPrompt = this.promptService.getPrompt('mcp-system.md', {
-          TOOL_NAMES: toolNames,
-        });
-        this.logger.info('Successfully loaded system prompt from file');
-      } catch (error) {
-        this.logger.error('Failed to load prompt from file, using fallback:', error);
-        systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
+        try {
+          // Load MCP system prompt since we have MCP tools
+          systemPrompt = this.promptService.getPrompt('mcp-system.md', {
+            TOOL_NAMES: toolNames,
+          });
+          this.logger.info('Successfully loaded MCP system prompt from file');
+        } catch (error) {
+          this.logger.error('Failed to load MCP prompt from file, using fallback:', error);
+          systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
+        }
+      } else {
+        this.logger.info('No MCP tools available, skipping MCP system prompt');
+        // Don't load MCP-related prompts, but keep base system prompt empty to be combined with other prompts
+        systemPrompt = '';
       }
 
       // Add agent tools formatting prompt if local tools are available
@@ -454,20 +463,29 @@ export class ChatController {
 
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
-      const toolNames =
-        mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n') || 'No tools available';
-      this.logger.info(`Tool names for prompt: ${toolNames}`);
-      let systemPrompt: string;
+      let systemPrompt = '';
+      
+      // Check if we have any true MCP tools (not just local agent tools)
+      const trueMcpTools = mcpTools.filter(tool => tool.serverId !== 'local-tools');
+      
+      if (trueMcpTools.length > 0) {
+        const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
+        this.logger.info(`Tool names for prompt: ${toolNames}`);
 
-      try {
-        // Always use the standard prompt - auto-approval is handled in frontend
-        systemPrompt = this.promptService.getPrompt('mcp-system.md', {
-          TOOL_NAMES: toolNames,
-        });
-        this.logger.info('Successfully loaded system prompt from file');
-      } catch (error) {
-        this.logger.error('Failed to load prompt from file, using fallback:', error);
-        systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
+        try {
+          // Load MCP system prompt since we have MCP tools
+          systemPrompt = this.promptService.getPrompt('mcp-system.md', {
+            TOOL_NAMES: toolNames,
+          });
+          this.logger.info('Successfully loaded MCP system prompt from file');
+        } catch (error) {
+          this.logger.error('Failed to load MCP prompt from file, using fallback:', error);
+          systemPrompt = `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
+        }
+      } else {
+        this.logger.info('No MCP tools available, skipping MCP system prompt');
+        // Don't load MCP-related prompts, but keep base system prompt empty to be combined with other prompts
+        systemPrompt = '';
       }
 
       // Add agent tools formatting prompt if local tools are available
