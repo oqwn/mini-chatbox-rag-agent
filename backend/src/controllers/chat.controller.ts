@@ -697,7 +697,10 @@ export class ChatController {
       context += `- Type: ${attachment.type}\n`;
       context += `- Size: ${this.formatFileSize(attachment.size)}\n`;
 
-      if (attachment.analysis) {
+      if (attachment.error) {
+        context += `- **ERROR**: Failed to process file: ${attachment.error}\n`;
+        context += `- Note: The file could not be processed. Please check if the file is valid and try again.\n`;
+      } else if (attachment.analysis) {
         if (attachment.analysis.extractedText) {
           context += `- Extracted Text: ${attachment.analysis.extractedText.substring(0, 500)}${attachment.analysis.extractedText.length > 500 ? '...' : ''}\n`;
         }
@@ -719,6 +722,8 @@ export class ChatController {
 
     // Add specific guidance for handling attachments
     context += '**IMPORTANT INSTRUCTIONS FOR HANDLING ATTACHMENTS:**\n\n';
+    
+    context += '**CRITICAL**: You do NOT have direct file system access. Never attempt to read files using paths like "cv.pdf" or "/tmp/file.pdf". All file content has already been extracted and provided in the attachment information above.\n\n';
 
     context +=
       '1. **OCR/Text Extraction**: When images contain text (screenshots, documents, etc.), the text has been automatically extracted and is shown in the "Extracted Text" field above.\n\n';
