@@ -1,7 +1,7 @@
 {
   "name": "mini-chatbox-rag-frontend",
   "version": "1.0.0",
-  "description": "Frontend for Mini-Chatbox RAG Agent",
+  "description": "Multimodal Chatbox - Frontend for Mini-Chatbox RAG Agent with advanced multimodal capabilities",
   "private": true,
   "scripts": {
     "dev": "vite",

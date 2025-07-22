@@ -835,7 +835,7 @@ export const Chat: React.FC = () => {
                     </svg>
                   </button>
                   <h1 className="text-xl font-semibold">
-                    Chat <span className="text-sm text-blue-600 font-normal">(Multimodal)</span>
+                    <span className="text-blue-600">Multimodal</span> Chatbox
                   </h1>
                 </div>
                 <div className="flex items-center space-x-4">
