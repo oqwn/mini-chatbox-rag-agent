@@ -382,25 +382,42 @@ export class RagController {
         } else {
           // Process as regular document
           this.logger.info(`Processing document for chat: ${originalFileName}`);
+          this.logger.info(`Document file path: ${filePath}`);
 
           let text = '';
           try {
+            // Double-check file exists before parsing
+            try {
+              const stats = await fs.stat(filePath);
+              this.logger.info(`File stats: size=${stats.size}, isFile=${stats.isFile()}`);
+            } catch (statError) {
+              this.logger.error(`File stat failed for ${filePath}:`, statError);
+              throw new Error(`File not found: ${filePath}`);
+            }
+            
             const parsedFile = await fileParserService.parseFile(filePath, originalFileName);
             text = parsedFile.content || '';
+            this.logger.info(`Successfully extracted ${text.length} characters from ${originalFileName}`);
           } catch (parseError) {
-            this.logger.error(`Failed to parse file ${originalFileName}:`, parseError);
+            this.logger.error(`Failed to parse file ${originalFileName} at ${filePath}:`, parseError);
             // Return a more informative error
-            throw new Error(`Failed to parse ${originalFileName}: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+            const errorMsg = parseError instanceof Error ? parseError.message : 'Unknown error';
+            throw new Error(`Failed to parse ${originalFileName}: ${errorMsg}`);
           }
 
           result = {
             success: true,
             filename: originalFileName,
+            mediaType: 'document',
             processedText: text,
             extractedText: text,
             metadata: {
               wordCount: text.split(/\s+/).length,
               characterCount: text.length,
+            },
+            analysis: {
+              mediaType: 'document',
+              extractedText: text,
             },
             multimodal: false,
             textExtracted: true,
@@ -423,7 +440,12 @@ export class RagController {
       }
     } catch (error) {
       this.logger.error('Failed to process chat file:', error);
-      res.status(500).json({ error: 'Failed to process file' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process file';
+      res.status(500).json({ 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : undefined,
+        filename: req.file?.originalname
+      });
     }
   }
 
