@@ -366,16 +366,7 @@ class ApiService {
       const lastMessage = messagesWithAttachments[messagesWithAttachments.length - 1];
       if (lastMessage.role === 'user') {
         lastMessage.attachments = processedAttachments;
-
-        // Add extracted text to message content
-        const extractedTexts = processedAttachments
-          .map((att) => att.analysis?.extractedText)
-          .filter((text) => text && text.trim())
-          .join('\n\n');
-
-        if (extractedTexts) {
-          lastMessage.content += `\n\n[Attached media content]:\n${extractedTexts}`;
-        }
+        // Don't append extracted text to the message - let the AI handle it through the attachment context
       }
     }
 
