@@ -17,6 +17,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
   ({ content, isStreaming = false, mcpAutoApprove = false, className = '' }) => {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showReferences, setShowReferences] = useState(false);
+    const [expandedCanvas, setExpandedCanvas] = useState<number | null>(null);
 
     const handleCopyCode = (code: string, index: number) => {
       navigator.clipboard.writeText(code);
@@ -33,6 +34,13 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
     const referencesRegex = /\n\n--- References ---\n(.+?)$/s;
     const referencesMatch = content.match(referencesRegex);
 
+    // Check if content contains canvas mode blocks
+    const canvasRegex = /\[canvas mode\]([\s\S]*?)\[\/canvas mode\]/g;
+    const processedContent = content.replace(canvasRegex, (_match, htmlContent, offset) => {
+      const canvasId = `canvas-${offset}`;
+      return `<div data-canvas-id="${canvasId}" data-canvas-html="${encodeURIComponent(htmlContent.trim())}"></div>`;
+    });
+
     if (permissionMatch) {
       // Extract permission request details
       const [fullMatch, tool, description, purpose] = permissionMatch;
@@ -45,7 +53,12 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeRaw, rehypeHighlight]}
-              components={markdownComponents(handleCopyCode, copiedIndex)}
+              components={markdownComponents(
+                handleCopyCode,
+                copiedIndex,
+                expandedCanvas,
+                setExpandedCanvas
+              )}
             >
               {beforePermission}
             </ReactMarkdown>
@@ -60,7 +73,12 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeRaw, rehypeHighlight]}
-              components={markdownComponents(handleCopyCode, copiedIndex)}
+              components={markdownComponents(
+                handleCopyCode,
+                copiedIndex,
+                expandedCanvas,
+                setExpandedCanvas
+              )}
             >
               {afterPermission}
             </ReactMarkdown>
@@ -115,7 +133,12 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeRaw, rehypeHighlight]}
-            components={markdownComponents(handleCopyCode, copiedIndex)}
+            components={markdownComponents(
+              handleCopyCode,
+              copiedIndex,
+              expandedCanvas,
+              setExpandedCanvas
+            )}
           >
             {mainContent}
           </ReactMarkdown>
@@ -193,9 +216,14 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw, rehypeHighlight]}
-          components={markdownComponents(handleCopyCode, copiedIndex)}
+          components={markdownComponents(
+            handleCopyCode,
+            copiedIndex,
+            expandedCanvas,
+            setExpandedCanvas
+          )}
         >
-          {content}
+          {processedContent}
         </ReactMarkdown>
         {isStreaming && <span className="animate-pulse ml-1 text-black">▊</span>}
       </div>
@@ -209,7 +237,9 @@ let codeBlockIndex = 0;
 // Markdown component customizations
 const markdownComponents = (
   handleCopyCode: (code: string, index: number) => void,
-  copiedIndex: number | null
+  copiedIndex: number | null,
+  expandedCanvas?: number | null,
+  setExpandedCanvas?: (id: number | null) => void
 ) => {
   // Reset index on each render
   codeBlockIndex = 0;
@@ -322,5 +352,91 @@ const markdownComponents = (
     ),
     strong: ({ children }: any) => <strong className="font-semibold">{children}</strong>,
     em: ({ children }: any) => <em className="italic">{children}</em>,
+    div: ({ node: _node, ...props }: any) => {
+      // Check if this is a canvas block
+      const canvasId = props['data-canvas-id'];
+      const canvasHtml = props['data-canvas-html'];
+
+      if (canvasId && canvasHtml) {
+        const decodedHtml = decodeURIComponent(canvasHtml);
+        const canvasIndex = parseInt(canvasId.split('-')[1]);
+        const isExpanded = expandedCanvas === canvasIndex;
+
+        return (
+          <div className="my-4">
+            <div
+              className="relative bg-gradient-to-r from-purple-500 to-pink-500 p-[2px] rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-[1.02] hover:shadow-xl"
+              onClick={() => setExpandedCanvas?.(isExpanded ? null : canvasIndex)}
+            >
+              <div className="bg-white rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
+                      <svg
+                        className="w-6 h-6 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Canvas Preview</h3>
+                      <p className="text-sm text-gray-500">
+                        Click to {isExpanded ? 'collapse' : 'expand'} HTML preview
+                      </p>
+                    </div>
+                  </div>
+                  <svg
+                    className={`w-5 h-5 text-gray-400 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+
+                {isExpanded && (
+                  <div className="mt-4 border-t pt-4">
+                    <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
+                        {decodedHtml}
+                      </pre>
+                    </div>
+                    <button
+                      className="mt-3 w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 px-4 rounded-lg font-medium hover:shadow-lg transform transition-all duration-200 hover:scale-[1.02]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Dispatch custom event to open canvas
+                        const event = new CustomEvent('open-canvas', {
+                          detail: { html: decodedHtml, title: 'Canvas Preview' },
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                    >
+                      Open in Canvas
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return <div {...props} />;
+    },
   };
 };
