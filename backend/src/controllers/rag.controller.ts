@@ -9,6 +9,7 @@ import { MultimodalFactoryService } from '@/services/multimodal-factory.service'
 import { fileParserService } from '@/services/file-parser.service';
 import multer from 'multer';
 import { promises as fs } from 'fs';
+import path from 'path';
 import { FILE_CONFIG, getAllMultimodalExtensions, getFileExtension } from '../config/file-types';
 
 // Utility function to fix UTF-8 encoding issues in filenames
@@ -33,9 +34,13 @@ function fixFilenameEncoding(filename: string): string {
   return filename;
 }
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+fs.mkdir(uploadsDir, { recursive: true }).catch(() => {});
+
 // Configure multer for file uploads using shared config
 const upload = multer({
-  dest: 'uploads/',
+  dest: uploadsDir,
   limits: {
     fileSize: FILE_CONFIG.limits.maxFileSize,
     fieldSize: 1024 * 1024, // 1MB field limit
@@ -301,10 +306,31 @@ export class RagController {
         return;
       }
 
-      const filePath = req.file.path;
+      // Get absolute path to ensure consistency
+      const filePath = path.resolve(req.file.path);
       const originalFileName = fixFilenameEncoding(req.file.originalname);
+      
+      // Debug logging
+      this.logger.info('Processing chat file upload:', {
+        originalName: originalFileName,
+        filePath: filePath,
+        relativePath: req.file.path,
+        filename: req.file.filename,
+        destination: req.file.destination,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
 
       try {
+        // Ensure file exists at the expected path
+        try {
+          await fs.access(filePath);
+          this.logger.info(`File exists at: ${filePath}`);
+        } catch (accessError) {
+          this.logger.error(`File not found at path: ${filePath}`, accessError);
+          throw new Error(`File not found at path: ${filePath}`);
+        }
+        
         // Check if this is a multimodal file (image, video, audio)
         const mediaType = this.multimodalService.getMediaType(originalFileName);
         const isMultimodal = ['image', 'video', 'audio'].includes(mediaType);
@@ -357,8 +383,15 @@ export class RagController {
           // Process as regular document
           this.logger.info(`Processing document for chat: ${originalFileName}`);
 
-          const parsedFile = await fileParserService.parseFile(filePath, originalFileName);
-          const text = parsedFile.content || '';
+          let text = '';
+          try {
+            const parsedFile = await fileParserService.parseFile(filePath, originalFileName);
+            text = parsedFile.content || '';
+          } catch (parseError) {
+            this.logger.error(`Failed to parse file ${originalFileName}:`, parseError);
+            // Return a more informative error
+            throw new Error(`Failed to parse ${originalFileName}: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+          }
 
           result = {
             success: true,
