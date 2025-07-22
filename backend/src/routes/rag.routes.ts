@@ -23,6 +23,13 @@ export function createRagRoutes(ragController: RagController): Router {
     ragController.ingestFile,
     ragController.handleFileIngestion.bind(ragController)
   );
+  
+  // Process file for chat (without storing in knowledge base)
+  router.post(
+    '/process/chat-file',
+    ragController.ingestFile,
+    ragController.processChatFile.bind(ragController)
+  );
 
   // Document management
   router.get('/documents', ragController.getDocuments.bind(ragController));

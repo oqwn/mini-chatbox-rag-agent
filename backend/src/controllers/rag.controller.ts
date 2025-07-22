@@ -6,6 +6,7 @@ import { IEmbeddingService } from '@/services/embedding-factory.service';
 import { DocumentIngestionService } from '@/services/document-ingestion.service';
 import { RagRetrievalService } from '@/services/rag-retrieval.service';
 import { MultimodalFactoryService } from '@/services/multimodal-factory.service';
+import { fileParserService } from '@/services/file-parser.service';
 import multer from 'multer';
 import { promises as fs } from 'fs';
 import { FILE_CONFIG, getAllMultimodalExtensions, getFileExtension } from '../config/file-types';
@@ -289,6 +290,107 @@ export class RagController {
     } catch (error) {
       this.logger.error('Failed to ingest file:', error);
       res.status(500).json({ error: 'Failed to ingest file' });
+    }
+  }
+
+  // Process file for chat without storing in knowledge base
+  public async processChatFile(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
+      }
+
+      const filePath = req.file.path;
+      const originalFileName = fixFilenameEncoding(req.file.originalname);
+
+      try {
+        // Check if this is a multimodal file (image, video, audio)
+        const mediaType = this.multimodalService.getMediaType(originalFileName);
+        const isMultimodal = ['image', 'video', 'audio'].includes(mediaType);
+
+        let result;
+
+        if (isMultimodal && mediaType !== 'document') {
+          // Process as multimodal content
+          this.logger.info(`Processing multimodal ${mediaType} file for chat: ${originalFileName}`);
+
+          const multimodalResult = await this.multimodalService.processMedia(
+            filePath,
+            originalFileName,
+            {
+              extractText: true,
+              generateThumbnail: true,
+              analyzeContent: true,
+              transcribe: mediaType === 'audio' || mediaType === 'video',
+              extractFrames: mediaType === 'video',
+              frameCount: 5,
+            }
+          );
+
+          // Extract text content
+          let contentForChat = multimodalResult.textContent || '';
+
+          // Add analysis description to content if available
+          if (multimodalResult.analysis?.description) {
+            contentForChat = `Description: ${multimodalResult.analysis.description}\n\n${contentForChat}`;
+          }
+
+          result = {
+            success: true,
+            filename: originalFileName,
+            processedText: contentForChat,
+            extractedText: multimodalResult.textContent,
+            metadata: multimodalResult.metadata,
+            thumbnail: multimodalResult.thumbnailPath,
+            analysis: {
+              ...multimodalResult.analysis,
+              mediaType: mediaType,
+              extractedText: multimodalResult.textContent,
+              metadata: multimodalResult.metadata,
+            },
+            multimodal: true,
+            textExtracted: !!multimodalResult.textContent,
+            // Do NOT include documentId or knowledgeSourceId
+          };
+        } else {
+          // Process as regular document
+          this.logger.info(`Processing document for chat: ${originalFileName}`);
+
+          const parsedFile = await fileParserService.parseFile(filePath, originalFileName);
+          const text = parsedFile.content || '';
+
+          result = {
+            success: true,
+            filename: originalFileName,
+            processedText: text,
+            extractedText: text,
+            metadata: {
+              wordCount: text.split(/\s+/).length,
+              characterCount: text.length,
+            },
+            multimodal: false,
+            textExtracted: true,
+            // Do NOT include documentId or knowledgeSourceId
+          };
+        }
+
+        // Clean up the temporary file
+        await fs.unlink(filePath);
+
+        res.json(result);
+      } catch (error) {
+        // Ensure temp file is cleaned up on error
+        try {
+          await fs.unlink(filePath);
+        } catch (unlinkError) {
+          this.logger.error('Failed to clean up temp file:', unlinkError);
+        }
+        throw error;
+      }
+    } catch (error) {
+      this.logger.error('Failed to process chat file:', error);
+      res.status(500).json({ error: 'Failed to process file' });
     }
   }
 

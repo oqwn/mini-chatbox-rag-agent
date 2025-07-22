@@ -297,7 +297,8 @@ class ApiService {
     formData.append('file', file);
     formData.append('multimodal', 'true');
 
-    const response = await fetch(`${API_BASE_URL}/rag/ingest/file`, {
+    // Use the new endpoint that doesn't store in knowledge base
+    const response = await fetch(`${API_BASE_URL}/rag/process/chat-file`, {
       method: 'POST',
       body: formData,
     });
