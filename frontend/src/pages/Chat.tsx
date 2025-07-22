@@ -10,8 +10,6 @@ import { MediaAttachmentPreview } from '../components/MediaAttachmentPreview';
 import { MediaAttachment } from '../types/multimodal';
 import { StorageService } from '../services/storage';
 import { conversationApiService } from '../services/conversation-api';
-import { Canvas } from '../components/Canvas';
-import { Palette } from 'lucide-react';
 import '../styles/markdown.css';
 
 export const Chat: React.FC = () => {
@@ -35,11 +33,6 @@ export const Chat: React.FC = () => {
   // Multimodal state
   const [pendingAttachments, setPendingAttachments] = useState<MediaAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
-  
-  // Canvas state
-  const [showCanvas, setShowCanvas] = useState(false);
-  const [canvasHtml, setCanvasHtml] = useState('');
-  const [canvasTitle, setCanvasTitle] = useState('Canvas');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -49,52 +42,9 @@ export const Chat: React.FC = () => {
     ((sessionId: string, userMessage?: string) => void) | null
   >(null);
   const navigate = useNavigate();
-  
-  // Function to extract HTML from message content
-  const extractHtmlFromMessage = (content: string): string | null => {
-    // Look for HTML code blocks
-    const htmlBlockMatch = content.match(/```html\n([\s\S]*?)\n```/);
-    if (htmlBlockMatch) {
-      return htmlBlockMatch[1];
-    }
-    
-    // Look for complete HTML documents
-    const htmlDocMatch = content.match(/<!DOCTYPE html[\s\S]*<\/html>/);
-    if (htmlDocMatch) {
-      return htmlDocMatch[0];
-    }
-    
-    // Look for HTML fragments with style and script
-    const htmlFragmentMatch = content.match(/<(html|body|div)[\s\S]*<\/(html|body|div)>/);
-    if (htmlFragmentMatch && (content.includes('<style>') || content.includes('<script>'))) {
-      return htmlFragmentMatch[0];
-    }
-    
-    return null;
-  };
 
   useEffect(() => {
     scrollToBottom();
-    
-    // Check if the latest AI message contains HTML
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === 'assistant') {
-        const html = extractHtmlFromMessage(lastMessage.content);
-        if (html && html !== canvasHtml) {
-          setCanvasHtml(html);
-          // Extract title from HTML if possible
-          const titleMatch = html.match(/<title>([^<]*)<\/title>/);
-          if (titleMatch) {
-            setCanvasTitle(titleMatch[1] || 'Canvas');
-          }
-          // Auto-show canvas when new HTML is generated
-          if (showCanvas) {
-            setShowCanvas(true);
-          }
-        }
-      }
-    }
   }, [messages]);
 
   useEffect(() => {
@@ -736,19 +686,6 @@ export const Chat: React.FC = () => {
                   Tools
                 </button>
                 <button
-                  onClick={() => {
-                    setShowCanvas(true);
-                    // Ask AI to create HTML if canvas is empty
-                    if (!canvasHtml && !isStreaming) {
-                      setInput('Create an interactive HTML page with inline CSS and JavaScript. Make it visually appealing with a gradient background, some animations, and interactive elements.');
-                    }
-                  }}
-                  className="text-gray-600 hover:text-gray-900 flex items-center space-x-1"
-                >
-                  <Palette className="w-4 h-4" />
-                  <span>Canvas</span>
-                </button>
-                <button
                   onClick={() => navigate('/rag')}
                   className="text-gray-600 hover:text-gray-900"
                 >
@@ -1166,16 +1103,6 @@ export const Chat: React.FC = () => {
             onClose={() => setShowMCPTools(false)}
             onToolInvoke={handleMCPToolInvoke}
           />
-          
-          {/* Canvas for HTML Preview */}
-          {showCanvas && (
-            <Canvas
-              html={canvasHtml}
-              title={canvasTitle}
-              onClose={() => setShowCanvas(false)}
-              onUpdate={(newHtml) => setCanvasHtml(newHtml)}
-            />
-          )}
         </div>
       </div>
     </MediaDropZone>
