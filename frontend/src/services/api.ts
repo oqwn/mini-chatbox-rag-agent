@@ -152,14 +152,15 @@ class ApiService {
     onDone: () => void,
     signal?: AbortSignal,
     ragEnabled?: boolean,
-    mcpAutoApprove?: boolean
+    mcpAutoApprove?: boolean,
+    canvasMode?: boolean
   ): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ messages, options, ragEnabled, mcpAutoApprove }),
+      body: JSON.stringify({ messages, options, ragEnabled, mcpAutoApprove, canvasMode }),
       signal,
     });
 
@@ -328,7 +329,8 @@ class ApiService {
     onDone: () => void,
     signal?: AbortSignal,
     ragEnabled?: boolean,
-    mcpAutoApprove?: boolean
+    mcpAutoApprove?: boolean,
+    canvasMode?: boolean
   ): Promise<void> {
     // Process media files first if any
     const processedAttachments = [];
@@ -379,7 +381,8 @@ class ApiService {
       onDone,
       signal,
       ragEnabled,
-      mcpAutoApprove
+      mcpAutoApprove,
+      canvasMode
     );
   }
 }
