@@ -16,6 +16,7 @@ export interface ChatCompletionOptions {
   tools?: any[];
   onToolCall?: (toolName: string, parameters: any) => Promise<any>;
   signal?: AbortSignal;
+  maxToolRounds?: number; // Maximum number of tool calling rounds (default: 5)
 }
 
 interface ModelResponse {
@@ -96,6 +97,7 @@ export class OpenAIService {
       maxTokens = 1000,
       tools,
       onToolCall,
+      maxToolRounds = 5,
     } = options;
 
     try {
@@ -112,83 +114,95 @@ export class OpenAIService {
         },
       }));
 
-      if (functions && functions.length > 0) {
-        this.logger.info(
-          `Sending ${functions.length} tools to AI:`,
-          functions.map((f) => f.function.name)
-        );
-      }
+      // Recursive function to handle multiple rounds of tool calls
+      const executeWithTools = async (
+        currentMessages: any[],
+        roundsRemaining: number
+      ): Promise<string> => {
+        // Safety check to prevent infinite loops
+        if (roundsRemaining <= 0) {
+          this.logger.warn('Maximum tool calling rounds reached');
+          // Make final call without tools to get a response
+          const finalCompletion = await this.client!.chat.completions.create({
+            model,
+            messages: currentMessages,
+            temperature,
+            max_tokens: maxTokens,
+          });
+          return finalCompletion.choices[0]?.message?.content || '';
+        }
 
-      const requestParams: any = {
-        model,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-      };
-
-      if (functions && functions.length > 0) {
-        requestParams.tools = functions;
-        requestParams.tool_choice = 'auto';
-      }
-
-      const completion = await this.client.chat.completions.create(requestParams);
-      const message = completion.choices[0]?.message;
-
-      if (!message) {
-        return '';
-      }
-
-      // Handle tool calls
-      if (message.tool_calls && message.tool_calls.length > 0 && onToolCall) {
-        this.logger.info(
-          `AI requested ${message.tool_calls.length} tool calls:`,
-          message.tool_calls.map((tc) => tc.function.name)
-        );
-        const toolResults = await Promise.all(
-          message.tool_calls.map(async (toolCall) => {
-            try {
-              const result = await onToolCall(
-                toolCall.function.name,
-                JSON.parse(toolCall.function.arguments)
-              );
-              return {
-                tool_call_id: toolCall.id,
-                role: 'tool' as const,
-                content: JSON.stringify(result),
-              };
-            } catch (error) {
-              return {
-                tool_call_id: toolCall.id,
-                role: 'tool' as const,
-                content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              };
-            }
-          })
-        );
-
-        // Add the assistant's message with tool calls
-        const updatedMessages = [
-          ...messages,
-          {
-            role: 'assistant' as const,
-            content: message.content || '',
-            tool_calls: message.tool_calls,
-          },
-          ...toolResults,
-        ];
-
-        // Get the final response after tool execution
-        const finalCompletion = await this.client.chat.completions.create({
+        const requestParams: any = {
           model,
-          messages: updatedMessages as any,
+          messages: currentMessages,
           temperature,
           max_tokens: maxTokens,
-        });
+        };
 
-        return finalCompletion.choices[0]?.message?.content || '';
-      }
+        // Include tools if available
+        if (functions && functions.length > 0 && onToolCall) {
+          requestParams.tools = functions;
+          requestParams.tool_choice = 'auto';
+        }
 
-      return message.content || '';
+        const completion = await this.client!.chat.completions.create(requestParams);
+        const message = completion.choices[0]?.message;
+
+        if (!message) {
+          return '';
+        }
+
+        // Check if the AI wants to use tools
+        if (message.tool_calls && message.tool_calls.length > 0 && onToolCall) {
+          this.logger.info(
+            `Round ${maxToolRounds - roundsRemaining + 1}: AI requested ${message.tool_calls.length} tool calls:`,
+            message.tool_calls.map((tc) => tc.function.name)
+          );
+
+          // Execute all tool calls in parallel
+          const toolResults = await Promise.all(
+            message.tool_calls.map(async (toolCall) => {
+              try {
+                const result = await onToolCall(
+                  toolCall.function.name,
+                  JSON.parse(toolCall.function.arguments)
+                );
+                return {
+                  tool_call_id: toolCall.id,
+                  role: 'tool' as const,
+                  content: JSON.stringify(result),
+                };
+              } catch (error) {
+                return {
+                  tool_call_id: toolCall.id,
+                  role: 'tool' as const,
+                  content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                };
+              }
+            })
+          );
+
+          // Update messages with the assistant's tool calls and results
+          const updatedMessages = [
+            ...currentMessages,
+            {
+              role: 'assistant' as const,
+              content: message.content || null,
+              tool_calls: message.tool_calls,
+            },
+            ...toolResults,
+          ];
+
+          // Recursively call for the next round
+          return executeWithTools(updatedMessages, roundsRemaining - 1);
+        }
+
+        // No tool calls, return the final message
+        return message.content || '';
+      };
+
+      // Start the recursive execution
+      return executeWithTools(messages, maxToolRounds);
     } catch (error) {
       this.logger.error('AI chat error:', error);
       throw new Error(
@@ -212,6 +226,7 @@ export class OpenAIService {
       tools,
       onToolCall,
       signal,
+      maxToolRounds = 5,
     } = options;
 
     try {
@@ -228,136 +243,154 @@ export class OpenAIService {
         },
       }));
 
-      const requestParams: any = {
-        model,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-        stream: true,
-      };
+      // Recursive generator function to handle multiple rounds of tool calls
+      const executeStreamWithTools = async function* (
+        this: OpenAIService,
+        currentMessages: any[],
+        roundsRemaining: number
+      ): AsyncGenerator<string, void, unknown> {
+        // Safety check to prevent infinite loops
+        if (roundsRemaining <= 0) {
+          this.logger.warn('Maximum tool calling rounds reached in stream');
+          // Make final call without tools to get a response
+          const finalStream = (await this.client!.chat.completions.create(
+            {
+              model,
+              messages: currentMessages,
+              temperature,
+              max_tokens: maxTokens,
+              stream: true,
+            },
+            signal ? { signal } : undefined
+          )) as any;
 
-      if (functions && functions.length > 0) {
-        requestParams.tools = functions;
-        requestParams.tool_choice = 'auto';
-      }
-
-      // Add abort signal if provided
-      if (signal) {
-        requestParams.signal = signal;
-      }
-
-      const stream = (await this.client.chat.completions.create(requestParams)) as any;
-
-      const toolCalls: any[] = [];
-      let accumulatedContent = '';
-
-      for await (const chunk of stream) {
-        // Check if aborted
-        if (signal?.aborted) {
-          throw new Error('Stream aborted');
-        }
-
-        const delta = chunk.choices[0]?.delta;
-
-        // Handle regular content
-        if (delta?.content) {
-          accumulatedContent += delta.content;
-          yield delta.content;
-        }
-
-        // Handle tool calls
-        if (delta?.tool_calls) {
-          for (const toolCallDelta of delta.tool_calls) {
-            const index = toolCallDelta.index;
-
-            // Initialize tool call if needed
-            if (!toolCalls[index]) {
-              toolCalls[index] = {
-                id: toolCallDelta.id || '',
-                type: 'function',
-                function: {
-                  name: toolCallDelta.function?.name || '',
-                  arguments: '',
-                },
-              };
-            }
-
-            // Update tool call data
-            if (toolCallDelta.id) {
-              toolCalls[index].id = toolCallDelta.id;
-            }
-            if (toolCallDelta.function?.name) {
-              toolCalls[index].function.name = toolCallDelta.function.name;
-            }
-            if (toolCallDelta.function?.arguments) {
-              toolCalls[index].function.arguments += toolCallDelta.function.arguments;
+          for await (const chunk of finalStream) {
+            const content = chunk.choices[0]?.delta?.content;
+            if (content) {
+              yield content;
             }
           }
+          return;
         }
 
-        // Check if we've finished receiving the initial response
-        if (
-          chunk.choices[0]?.finish_reason === 'tool_calls' &&
-          onToolCall &&
-          toolCalls.length > 0
-        ) {
-          // Execute all tool calls
-          this.logger.info(
-            `AI requested ${toolCalls.length} tool calls:`,
-            toolCalls.map((tc) => tc.function.name)
-          );
+        const requestParams: any = {
+          model,
+          messages: currentMessages,
+          temperature,
+          max_tokens: maxTokens,
+          stream: true,
+        };
 
-          const toolResults = await Promise.all(
-            toolCalls.map(async (toolCall) => {
-              try {
-                const result = await onToolCall(
-                  toolCall.function.name,
-                  JSON.parse(toolCall.function.arguments)
-                );
-                return {
-                  tool_call_id: toolCall.id,
-                  role: 'tool' as const,
-                  content: JSON.stringify(result),
-                };
-              } catch (error) {
-                return {
-                  tool_call_id: toolCall.id,
-                  role: 'tool' as const,
-                  content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        // Include tools if available
+        if (functions && functions.length > 0 && onToolCall) {
+          requestParams.tools = functions;
+          requestParams.tool_choice = 'auto';
+        }
+
+        const stream = (await this.client!.chat.completions.create(
+          requestParams,
+          signal ? { signal } : undefined
+        )) as any;
+
+        const toolCalls: any[] = [];
+        let accumulatedContent = '';
+        let hasToolCalls = false;
+
+        for await (const chunk of stream) {
+          // Check if aborted
+          if (signal?.aborted) {
+            throw new Error('Stream aborted');
+          }
+
+          const delta = chunk.choices[0]?.delta;
+
+          // Handle regular content
+          if (delta?.content) {
+            accumulatedContent += delta.content;
+            yield delta.content;
+          }
+
+          // Handle tool calls
+          if (delta?.tool_calls) {
+            hasToolCalls = true;
+            for (const toolCallDelta of delta.tool_calls) {
+              const index = toolCallDelta.index;
+
+              // Initialize tool call if needed
+              if (!toolCalls[index]) {
+                toolCalls[index] = {
+                  id: toolCallDelta.id || '',
+                  type: 'function',
+                  function: {
+                    name: toolCallDelta.function?.name || '',
+                    arguments: '',
+                  },
                 };
               }
-            })
-          );
 
-          // Add the assistant's message with tool calls
-          const updatedMessages = [
-            ...messages,
-            {
-              role: 'assistant' as const,
-              content: accumulatedContent || null,
-              tool_calls: toolCalls,
-            },
-            ...toolResults,
-          ];
-
-          // Get the final response after tool execution - also streamed
-          const finalStream = (await this.client.chat.completions.create({
-            model,
-            messages: updatedMessages as any,
-            temperature,
-            max_tokens: maxTokens,
-            stream: true,
-          })) as any;
-
-          // Stream the final response
-          for await (const finalChunk of finalStream) {
-            const finalContent = finalChunk.choices[0]?.delta?.content;
-            if (finalContent) {
-              yield finalContent;
+              // Update tool call data
+              if (toolCallDelta.id) {
+                toolCalls[index].id = toolCallDelta.id;
+              }
+              if (toolCallDelta.function?.name) {
+                toolCalls[index].function.name = toolCallDelta.function.name;
+              }
+              if (toolCallDelta.function?.arguments) {
+                toolCalls[index].function.arguments += toolCallDelta.function.arguments;
+              }
             }
+          }
+
+          // Check if we've finished receiving the response
+          const finishReason = chunk.choices[0]?.finish_reason;
+          if (finishReason && hasToolCalls && onToolCall && toolCalls.length > 0) {
+            // Execute all tool calls
+            this.logger.info(
+              `Stream round ${maxToolRounds - roundsRemaining + 1}: AI requested ${toolCalls.length} tool calls:`,
+              toolCalls.map((tc) => tc.function.name)
+            );
+
+            const toolResults = await Promise.all(
+              toolCalls.map(async (toolCall) => {
+                try {
+                  const result = await onToolCall(
+                    toolCall.function.name,
+                    JSON.parse(toolCall.function.arguments)
+                  );
+                  return {
+                    tool_call_id: toolCall.id,
+                    role: 'tool' as const,
+                    content: JSON.stringify(result),
+                  };
+                } catch (error) {
+                  return {
+                    tool_call_id: toolCall.id,
+                    role: 'tool' as const,
+                    content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                  };
+                }
+              })
+            );
+
+            // Update messages with the assistant's tool calls and results
+            const updatedMessages = [
+              ...currentMessages,
+              {
+                role: 'assistant' as const,
+                content: accumulatedContent || null,
+                tool_calls: toolCalls,
+              },
+              ...toolResults,
+            ];
+
+            // Recursively stream the next round
+            yield* executeStreamWithTools.call(this, updatedMessages, roundsRemaining - 1);
           }
         }
       }
+
+      // Start the recursive streaming execution
+      yield* executeStreamWithTools.call(this, messages, maxToolRounds);
     } catch (error) {
       this.logger.error('AI stream error:', error);
       throw new Error(

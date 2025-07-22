@@ -215,10 +215,12 @@ export class ChatController {
           lastUserMsg.role === 'user'
         ) {
           const userResponse = lastUserMsg.content.toLowerCase();
-          const isApproved = 
-            mcpAutoApprove || 
-            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) => userResponse.includes(word));
-          
+          const isApproved =
+            mcpAutoApprove ||
+            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) =>
+              userResponse.includes(word)
+            );
+
           if (isApproved) {
             // Extract tool name from permission request
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
@@ -253,10 +255,10 @@ export class ChatController {
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
       let systemPrompt = '';
-      
+
       // Check if we have any true MCP tools (not just local agent tools)
-      const trueMcpTools = mcpTools.filter(tool => tool.serverId !== 'local-tools');
-      
+      const trueMcpTools = mcpTools.filter((tool) => tool.serverId !== 'local-tools');
+
       if (trueMcpTools.length > 0) {
         const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
         this.logger.info(`Tool names for prompt: ${toolNames}`);
@@ -279,7 +281,7 @@ export class ChatController {
 
       // Add agent tools formatting prompt if local tools are available
       let agentToolsPrompt = '';
-      const hasLocalTools = mcpTools.some(tool => tool.serverId === 'local-tools');
+      const hasLocalTools = mcpTools.some((tool) => tool.serverId === 'local-tools');
       if (hasLocalTools) {
         try {
           agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
@@ -315,7 +317,8 @@ export class ChatController {
 
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt + additionalContext + agentToolsPrompt + ragSystemPrompt + multimodalContext,
+        content:
+          systemPrompt + additionalContext + agentToolsPrompt + ragSystemPrompt + multimodalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -329,6 +332,7 @@ export class ChatController {
       const response = await this.openAIService.chat(enhancedMessages, {
         ...options,
         tools: mcpTools,
+        maxToolRounds: 5, // Allow up to 5 rounds of sequential tool calls
         onToolCall: async (toolName: string, parameters: any) => {
           // Find the tool and invoke it
           const tool = mcpTools.find((t) => t.name === toolName);
@@ -426,10 +430,12 @@ export class ChatController {
           lastUserMsg.role === 'user'
         ) {
           const userResponse = lastUserMsg.content.toLowerCase();
-          const isApproved = 
-            mcpAutoApprove || 
-            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) => userResponse.includes(word));
-          
+          const isApproved =
+            mcpAutoApprove ||
+            ['approve', 'yes', 'ok', 'sure', 'go ahead'].some((word) =>
+              userResponse.includes(word)
+            );
+
           if (isApproved) {
             // Extract tool name from permission request
             const toolMatch = lastAssistantMsg.content.match(/TOOL:\s*(.+?)\s*(?:DESCRIPTION|$)/);
@@ -464,10 +470,10 @@ export class ChatController {
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
       let systemPrompt = '';
-      
+
       // Check if we have any true MCP tools (not just local agent tools)
-      const trueMcpTools = mcpTools.filter(tool => tool.serverId !== 'local-tools');
-      
+      const trueMcpTools = mcpTools.filter((tool) => tool.serverId !== 'local-tools');
+
       if (trueMcpTools.length > 0) {
         const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
         this.logger.info(`Tool names for prompt: ${toolNames}`);
@@ -490,7 +496,7 @@ export class ChatController {
 
       // Add agent tools formatting prompt if local tools are available
       let agentToolsPrompt = '';
-      const hasLocalTools = mcpTools.some(tool => tool.serverId === 'local-tools');
+      const hasLocalTools = mcpTools.some((tool) => tool.serverId === 'local-tools');
       if (hasLocalTools) {
         try {
           agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
@@ -526,7 +532,8 @@ export class ChatController {
 
       const systemMessage = {
         role: 'system' as const,
-        content: systemPrompt + additionalContext + agentToolsPrompt + ragSystemPrompt + multimodalContext,
+        content:
+          systemPrompt + additionalContext + agentToolsPrompt + ragSystemPrompt + multimodalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -540,7 +547,7 @@ export class ChatController {
       // Handle client disconnection with AbortController
       let isClientConnected = true;
       const abortController = new AbortController();
-      
+
       req.on('close', () => {
         isClientConnected = false;
         abortController.abort();
@@ -552,6 +559,7 @@ export class ChatController {
         for await (const chunk of this.openAIService.chatStream(enhancedMessages, {
           ...options,
           tools: mcpTools,
+          maxToolRounds: 5, // Allow up to 5 rounds of sequential tool calls
           signal: abortController.signal,
           onToolCall: async (toolName: string, parameters: any) => {
             // Check if client is still connected
@@ -619,7 +627,7 @@ export class ChatController {
             res.write('\n\n[STREAM_INTERRUPTED]');
             break;
           }
-          
+
           chunkCount++;
           this.logger.debug(`Sending chunk ${chunkCount}: ${chunk}`);
           res.write(chunk);
@@ -632,7 +640,7 @@ export class ChatController {
         // No longer appending a separate references section
       } catch (streamError) {
         const errorMessage = streamError instanceof Error ? streamError.message : 'Stream error';
-        
+
         // Don't try to write if client disconnected
         if (isClientConnected && errorMessage !== 'Client disconnected') {
           this.logger.error('Stream error:', errorMessage);
