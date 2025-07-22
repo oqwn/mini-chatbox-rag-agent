@@ -2,8 +2,18 @@ import { Injectable } from '@/utils/decorators';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-// Load .env from root directory
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+// Load .env files in priority order: backend-specific first, then root
+const backendEnvPath = path.resolve(__dirname, '../../.env');
+const rootEnvPath = path.resolve(__dirname, '../../../.env');
+
+// Load root .env first (as base)
+dotenv.config({ path: rootEnvPath });
+// Load backend .env second (overrides root values)
+dotenv.config({ path: backendEnvPath, override: true });
+
+console.log('Config Service: Loading environment from:');
+console.log('  Root .env:', rootEnvPath);
+console.log('  Backend .env:', backendEnvPath);
 
 @Injectable()
 export class ConfigService {
@@ -11,6 +21,20 @@ export class ConfigService {
 
   constructor() {
     this.loadEnvironmentVariables();
+    
+    // Debug: Log loaded API key configuration
+    console.log('Config Service: Loaded configuration:');
+    console.log('  OPENAI_API_KEY:', this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log('  OPENAI_BASE_URL:', this.config.OPENAI_BASE_URL || 'NOT SET');
+    console.log('  OPENAI_MODEL:', this.config.OPENAI_MODEL || 'NOT SET');
+  }
+
+  public resetToEnvironmentDefaults(): void {
+    console.log('Config Service: Resetting to environment defaults');
+    this.loadEnvironmentVariables();
+    console.log('Config Service: Reset complete');
+    console.log('  OPENAI_API_KEY:', this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log('  OPENAI_BASE_URL:', this.config.OPENAI_BASE_URL || 'NOT SET');
   }
 
   private loadEnvironmentVariables(): void {
@@ -55,11 +79,21 @@ export class ConfigService {
   }
 
   public updateOpenAIConfig(apiKey: string, baseUrl?: string, model?: string): void {
+    console.log('Config Service: Updating OpenAI configuration:');
+    console.log('  Previous API Key:', this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log('  New API Key:', apiKey ? `${apiKey.substring(0, 20)}...` : 'NOT SET');
+    console.log('  Previous Base URL:', this.config.OPENAI_BASE_URL || 'NOT SET');
+    console.log('  New Base URL:', baseUrl !== undefined ? baseUrl || 'CLEARED' : 'NO CHANGE');
+    
     if (apiKey) this.config.OPENAI_API_KEY = apiKey;
     // Allow empty string to clear the base URL
     if (baseUrl !== undefined) this.config.OPENAI_BASE_URL = baseUrl;
     // Allow empty string to clear the model
     if (model !== undefined) this.config.OPENAI_MODEL = model;
+    
+    console.log('Config Service: Updated values:');
+    console.log('  Final API Key:', this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log('  Final Base URL:', this.config.OPENAI_BASE_URL || 'NOT SET');
   }
 
   public getOpenAIConfig(): {

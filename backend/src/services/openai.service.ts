@@ -39,12 +39,21 @@ export class OpenAIService {
     logger: Logger
   ) {
     this.logger = logger;
+    
+    // Ensure we start with fresh environment values (reset any runtime overrides)
+    this.configService.resetToEnvironmentDefaults();
+    
     this.initializeClient();
   }
 
   private initializeClient(): void {
     const apiKey = this.configService.get('OPENAI_API_KEY');
     const baseURL = this.configService.get('OPENAI_BASE_URL');
+
+    // Debug: Log what API key is being used
+    this.logger.info('OpenAI Service: Initializing with configuration:');
+    this.logger.info(`  API Key: ${apiKey ? `${apiKey.substring(0, 20)}...` : 'NOT SET'}`);
+    this.logger.info(`  Base URL: ${baseURL || 'NOT SET'}`);
 
     if (!apiKey) {
       this.logger.warn('API key not configured');
@@ -62,6 +71,11 @@ export class OpenAIService {
   }
 
   public updateConfiguration(apiKey: string, baseURL?: string): void {
+    // Debug: Log configuration updates
+    this.logger.info('OpenAI Service: Updating configuration:');
+    this.logger.info(`  New API Key: ${apiKey ? `${apiKey.substring(0, 20)}...` : 'NOT SET'}`);
+    this.logger.info(`  New Base URL: ${baseURL || 'NOT SET'}`);
+    
     this.client = new OpenAI({
       apiKey,
       baseURL: baseURL || undefined,
