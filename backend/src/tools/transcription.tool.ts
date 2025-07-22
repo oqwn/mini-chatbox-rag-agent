@@ -7,9 +7,12 @@ import { OpenAI } from 'openai';
 export class AudioTranscriptionTool extends BaseTool {
   private openai: OpenAI | null = null;
 
-  constructor(private logger: Logger, private allowedPaths: string[]) {
+  constructor(
+    private logger: Logger,
+    private allowedPaths: string[]
+  ) {
     super();
-    
+
     if (process.env.OPENAI_API_KEY) {
       this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
@@ -50,9 +53,7 @@ export class AudioTranscriptionTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    return this.allowedPaths.some(allowed => 
-      absolutePath.startsWith(path.resolve(allowed))
-    );
+    return this.allowedPaths.some((allowed) => absolutePath.startsWith(path.resolve(allowed)));
   }
 
   private async getAudioDuration(audioPath: string): Promise<number> {
@@ -63,17 +64,17 @@ export class AudioTranscriptionTool extends BaseTool {
     return Math.round((stats.size * 8) / avgBitrate);
   }
 
-  async execute(parameters: { 
-    audio_path: string; 
+  async execute(parameters: {
+    audio_path: string;
     language?: string;
     format?: string;
     timestamp_granularities?: string[];
   }): Promise<any> {
-    const { 
-      audio_path, 
+    const {
+      audio_path,
       language = 'en',
       format = 'text',
-      timestamp_granularities = ['segment']
+      timestamp_granularities = ['segment'],
     } = parameters;
 
     if (!this.isPathAllowed(audio_path)) {
@@ -81,7 +82,9 @@ export class AudioTranscriptionTool extends BaseTool {
     }
 
     if (!this.openai) {
-      throw new Error('OpenAI API key not configured. Audio transcription requires OpenAI Whisper API.');
+      throw new Error(
+        'OpenAI API key not configured. Audio transcription requires OpenAI Whisper API.'
+      );
     }
 
     try {
@@ -104,8 +107,8 @@ export class AudioTranscriptionTool extends BaseTool {
       if (format === 'json' && timestamp_granularities) {
         // Use verbose_json format for detailed output
         const response = await this.openai.audio.transcriptions.create({
-          file: new File([audioFile], path.basename(audio_path), { 
-            type: this.getMimeType(audio_path) 
+          file: new File([audioFile], path.basename(audio_path), {
+            type: this.getMimeType(audio_path),
           }),
           model: 'whisper-1',
           language,
@@ -117,8 +120,8 @@ export class AudioTranscriptionTool extends BaseTool {
       } else {
         // Use specified format
         const response = await this.openai.audio.transcriptions.create({
-          file: new File([audioFile], path.basename(audio_path), { 
-            type: this.getMimeType(audio_path) 
+          file: new File([audioFile], path.basename(audio_path), {
+            type: this.getMimeType(audio_path),
           }),
           model: 'whisper-1',
           language,
@@ -129,7 +132,7 @@ export class AudioTranscriptionTool extends BaseTool {
       }
 
       const duration = await this.getAudioDuration(audio_path);
-      
+
       this.logger.info(`Transcription completed for: ${audio_path}`);
 
       return {
@@ -144,13 +147,15 @@ export class AudioTranscriptionTool extends BaseTool {
       };
     } catch (error) {
       this.logger.error(`Transcription failed for ${audio_path}:`, error);
-      
+
       // Fallback to a free alternative if OpenAI fails
       if (error instanceof Error && error.message.includes('API key')) {
         return this.fallbackTranscription(audio_path, language);
       }
-      
-      throw new Error(`Transcription failed: ${error instanceof Error ? error.message : String(error)}`);
+
+      throw new Error(
+        `Transcription failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -172,16 +177,17 @@ export class AudioTranscriptionTool extends BaseTool {
     // This is a placeholder for a fallback transcription service
     // In production, you might use Google Speech-to-Text, AWS Transcribe, etc.
     this.logger.warn('Using fallback transcription (placeholder)');
-    
+
     const stats = await fs.stat(audioPath);
-    
+
     return {
       success: false,
       audio_path: audioPath,
       language,
       file_size: stats.size,
       error: 'OpenAI API not configured. Please set OPENAI_API_KEY environment variable.',
-      suggestion: 'For audio transcription, configure OpenAI API key or use an alternative service.',
+      suggestion:
+        'For audio transcription, configure OpenAI API key or use an alternative service.',
     };
   }
 }

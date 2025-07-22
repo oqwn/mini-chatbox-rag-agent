@@ -50,8 +50,8 @@ export class WebSearchTool extends BaseTool {
     };
   }
 
-  async execute(parameters: { 
-    query: string; 
+  async execute(parameters: {
+    query: string;
     num_results?: number;
     site?: string;
     file_type?: string;
@@ -81,12 +81,13 @@ export class WebSearchTool extends BaseTool {
         },
       });
 
-      const results: SearchResult[] = response.data.items?.map((item: any) => ({
-        title: item.title,
-        url: item.link,
-        snippet: item.snippet,
-        source: new URL(item.link).hostname,
-      })) || [];
+      const results: SearchResult[] =
+        response.data.items?.map((item: any) => ({
+          title: item.title,
+          url: item.link,
+          snippet: item.snippet,
+          source: new URL(item.link).hostname,
+        })) || [];
 
       this.logger.info(`Web search completed for query: "${query}" (${results.length} results)`);
 
@@ -116,7 +117,7 @@ export class WebSearchTool extends BaseTool {
       });
 
       const results: SearchResult[] = [];
-      
+
       // Add instant answer if available
       if (response.data.AbstractText) {
         results.push({
@@ -139,7 +140,9 @@ export class WebSearchTool extends BaseTool {
         }
       });
 
-      this.logger.info(`DuckDuckGo search completed for query: "${query}" (${results.length} results)`);
+      this.logger.info(
+        `DuckDuckGo search completed for query: "${query}" (${results.length} results)`
+      );
 
       return {
         success: true,
@@ -151,7 +154,9 @@ export class WebSearchTool extends BaseTool {
       };
     } catch (error) {
       this.logger.error('DuckDuckGo search failed:', error);
-      throw new Error(`Web search failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Web search failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }

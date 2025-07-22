@@ -6,7 +6,10 @@ import Tesseract, { RecognizeResult } from 'tesseract.js';
 import sharp from 'sharp';
 
 export class OCRTool extends BaseTool {
-  constructor(private logger: Logger, private allowedPaths: string[]) {
+  constructor(
+    private logger: Logger,
+    private allowedPaths: string[]
+  ) {
     super();
   }
 
@@ -24,7 +27,8 @@ export class OCRTool extends BaseTool {
         {
           name: 'language',
           type: 'string',
-          description: 'Language code for OCR (e.g., "eng" for English, "chi_sim" for Simplified Chinese)',
+          description:
+            'Language code for OCR (e.g., "eng" for English, "chi_sim" for Simplified Chinese)',
           enum: ['eng', 'chi_sim', 'chi_tra', 'jpn', 'kor', 'fra', 'deu', 'spa'],
         },
         {
@@ -44,9 +48,7 @@ export class OCRTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    return this.allowedPaths.some(allowed => 
-      absolutePath.startsWith(path.resolve(allowed))
-    );
+    return this.allowedPaths.some((allowed) => absolutePath.startsWith(path.resolve(allowed)));
   }
 
   private async preprocessImage(imagePath: string): Promise<string> {
@@ -70,18 +72,13 @@ export class OCRTool extends BaseTool {
     }
   }
 
-  async execute(parameters: { 
-    image_path: string; 
+  async execute(parameters: {
+    image_path: string;
     language?: string;
     preprocess?: boolean;
     output_format?: string;
   }): Promise<any> {
-    const { 
-      image_path, 
-      language = 'eng', 
-      preprocess = true,
-      output_format = 'text'
-    } = parameters;
+    const { image_path, language = 'eng', preprocess = true, output_format = 'text' } = parameters;
 
     if (!this.isPathAllowed(image_path)) {
       throw new Error(`Access denied: Path ${image_path} is not in allowed directories`);
@@ -92,24 +89,18 @@ export class OCRTool extends BaseTool {
       await fs.access(image_path);
 
       // Preprocess image if requested
-      const processedPath = preprocess 
-        ? await this.preprocessImage(image_path)
-        : image_path;
+      const processedPath = preprocess ? await this.preprocessImage(image_path) : image_path;
 
       this.logger.info(`Starting OCR for: ${image_path} (language: ${language})`);
 
       // Perform OCR
-      const result = await Tesseract.recognize(
-        processedPath,
-        language,
-        {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              this.logger.debug(`OCR Progress: ${Math.round(m.progress * 100)}%`);
-            }
-          },
-        }
-      ) as RecognizeResult;
+      const result = (await Tesseract.recognize(processedPath, language, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            this.logger.debug(`OCR Progress: ${Math.round(m.progress * 100)}%`);
+          }
+        },
+      })) as RecognizeResult;
 
       // Clean up preprocessed image if created
       if (preprocess && processedPath !== image_path) {
@@ -127,16 +118,18 @@ export class OCRTool extends BaseTool {
           output = {
             text: data.text,
             confidence: data.confidence,
-            words: data.words?.map((word: any) => ({
-              text: word.text,
-              confidence: word.confidence,
-              bbox: word.bbox,
-            })) || [],
-            lines: data.lines?.map((line: any) => ({
-              text: line.text,
-              confidence: line.confidence,
-              bbox: line.bbox,
-            })) || [],
+            words:
+              data.words?.map((word: any) => ({
+                text: word.text,
+                confidence: word.confidence,
+                bbox: word.bbox,
+              })) || [],
+            lines:
+              data.lines?.map((line: any) => ({
+                text: line.text,
+                confidence: line.confidence,
+                bbox: line.bbox,
+              })) || [],
           };
           break;
         case 'tsv':

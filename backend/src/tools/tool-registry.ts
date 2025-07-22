@@ -57,7 +57,7 @@ export class ToolRegistry {
   }
 
   getToolDefinitions(): any[] {
-    return this.getAllTools().map(tool => {
+    return this.getAllTools().map((tool) => {
       const def = tool.definition;
       return {
         name: def.name,
@@ -72,9 +72,7 @@ export class ToolRegistry {
             };
             return props;
           }, {} as any),
-          required: def.parameters
-            .filter(p => p.required)
-            .map(p => p.name),
+          required: def.parameters.filter((p) => p.required).map((p) => p.name),
         },
       };
     });
@@ -93,12 +91,12 @@ export class ToolRegistry {
       return result;
     } catch (error) {
       this.logger.error(`Tool execution failed: ${name}`, error);
-      
+
       // If it's a file system tool with path restrictions, provide helpful error info
       if (error instanceof Error && error.message.includes('Access denied')) {
         this.logger.info(`File system allowed paths: ${this.allowedPaths.join(', ')}`);
       }
-      
+
       throw error;
     }
   }

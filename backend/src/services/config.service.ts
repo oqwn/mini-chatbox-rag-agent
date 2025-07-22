@@ -21,10 +21,13 @@ export class ConfigService {
 
   constructor() {
     this.loadEnvironmentVariables();
-    
+
     // Debug: Log loaded API key configuration
     console.log('Config Service: Loaded configuration:');
-    console.log('  OPENAI_API_KEY:', this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log(
+      '  OPENAI_API_KEY:',
+      this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET'
+    );
     console.log('  OPENAI_BASE_URL:', this.config.OPENAI_BASE_URL || 'NOT SET');
     console.log('  OPENAI_MODEL:', this.config.OPENAI_MODEL || 'NOT SET');
   }
@@ -33,7 +36,10 @@ export class ConfigService {
     console.log('Config Service: Resetting to environment defaults');
     this.loadEnvironmentVariables();
     console.log('Config Service: Reset complete');
-    console.log('  OPENAI_API_KEY:', this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log(
+      '  OPENAI_API_KEY:',
+      this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET'
+    );
     console.log('  OPENAI_BASE_URL:', this.config.OPENAI_BASE_URL || 'NOT SET');
   }
 
@@ -80,19 +86,25 @@ export class ConfigService {
 
   public updateOpenAIConfig(apiKey: string, baseUrl?: string, model?: string): void {
     console.log('Config Service: Updating OpenAI configuration:');
-    console.log('  Previous API Key:', this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log(
+      '  Previous API Key:',
+      this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET'
+    );
     console.log('  New API Key:', apiKey ? `${apiKey.substring(0, 20)}...` : 'NOT SET');
     console.log('  Previous Base URL:', this.config.OPENAI_BASE_URL || 'NOT SET');
     console.log('  New Base URL:', baseUrl !== undefined ? baseUrl || 'CLEARED' : 'NO CHANGE');
-    
+
     if (apiKey) this.config.OPENAI_API_KEY = apiKey;
     // Allow empty string to clear the base URL
     if (baseUrl !== undefined) this.config.OPENAI_BASE_URL = baseUrl;
     // Allow empty string to clear the model
     if (model !== undefined) this.config.OPENAI_MODEL = model;
-    
+
     console.log('Config Service: Updated values:');
-    console.log('  Final API Key:', this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log(
+      '  Final API Key:',
+      this.config.OPENAI_API_KEY ? `${this.config.OPENAI_API_KEY.substring(0, 20)}...` : 'NOT SET'
+    );
     console.log('  Final Base URL:', this.config.OPENAI_BASE_URL || 'NOT SET');
   }
 

@@ -68,7 +68,7 @@ export class MCPService extends EventEmitter {
       id: this.LOCAL_TOOLS_SERVER_ID,
       name: 'Built-in Agent Tools (Not MCP)',
       connected: true,
-      tools: this.toolRegistry.getToolDefinitions().map(def => ({
+      tools: this.toolRegistry.getToolDefinitions().map((def) => ({
         name: def.name,
         description: `[AGENT TOOL] ${def.description}`,
         inputSchema: def.parameters,

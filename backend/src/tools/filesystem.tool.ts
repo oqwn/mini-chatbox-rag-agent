@@ -4,7 +4,10 @@ import * as path from 'path';
 import { Logger } from 'winston';
 
 export class ReadFileTool extends BaseTool {
-  constructor(private logger: Logger, private allowedPaths: string[]) {
+  constructor(
+    private logger: Logger,
+    private allowedPaths: string[]
+  ) {
     super();
   }
 
@@ -31,14 +34,16 @@ export class ReadFileTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    const result = this.allowedPaths.some(allowed => 
+    const result = this.allowedPaths.some((allowed) =>
       absolutePath.startsWith(path.resolve(allowed))
     );
-    
+
     if (!result) {
-      this.logger.warn(`Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map(p => path.resolve(p)).join(', ')}`);
+      this.logger.warn(
+        `Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map((p) => path.resolve(p)).join(', ')}`
+      );
     }
-    
+
     return result;
   }
 
@@ -46,7 +51,9 @@ export class ReadFileTool extends BaseTool {
     const { file_path, encoding = 'utf8' } = parameters;
 
     if (!this.isPathAllowed(file_path)) {
-      throw new Error(`Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`);
+      throw new Error(
+        `Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`
+      );
     }
 
     try {
@@ -60,13 +67,18 @@ export class ReadFileTool extends BaseTool {
       };
     } catch (error) {
       this.logger.error(`Failed to read file ${file_path}:`, error);
-      throw new Error(`Failed to read file: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to read file: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }
 
 export class WriteFileTool extends BaseTool {
-  constructor(private logger: Logger, private allowedPaths: string[]) {
+  constructor(
+    private logger: Logger,
+    private allowedPaths: string[]
+  ) {
     super();
   }
 
@@ -96,7 +108,7 @@ export class WriteFileTool extends BaseTool {
         {
           name: 'create_directories',
           type: 'boolean',
-          description: 'Whether to create parent directories if they don\'t exist',
+          description: "Whether to create parent directories if they don't exist",
         },
       ],
     };
@@ -104,27 +116,31 @@ export class WriteFileTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    const result = this.allowedPaths.some(allowed => 
+    const result = this.allowedPaths.some((allowed) =>
       absolutePath.startsWith(path.resolve(allowed))
     );
-    
+
     if (!result) {
-      this.logger.warn(`Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map(p => path.resolve(p)).join(', ')}`);
+      this.logger.warn(
+        `Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map((p) => path.resolve(p)).join(', ')}`
+      );
     }
-    
+
     return result;
   }
 
-  async execute(parameters: { 
-    file_path: string; 
-    content: string; 
+  async execute(parameters: {
+    file_path: string;
+    content: string;
     encoding?: string;
     create_directories?: boolean;
   }): Promise<any> {
     const { file_path, content, encoding = 'utf8', create_directories = false } = parameters;
 
     if (!this.isPathAllowed(file_path)) {
-      throw new Error(`Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`);
+      throw new Error(
+        `Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`
+      );
     }
 
     try {
@@ -134,7 +150,7 @@ export class WriteFileTool extends BaseTool {
 
       await fs.writeFile(file_path, content, encoding as BufferEncoding);
       this.logger.info(`Successfully wrote file: ${file_path}`);
-      
+
       return {
         success: true,
         path: file_path,
@@ -142,13 +158,18 @@ export class WriteFileTool extends BaseTool {
       };
     } catch (error) {
       this.logger.error(`Failed to write file ${file_path}:`, error);
-      throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to write file: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }
 
 export class UpdateFileTool extends BaseTool {
-  constructor(private logger: Logger, private allowedPaths: string[]) {
+  constructor(
+    private logger: Logger,
+    private allowedPaths: string[]
+  ) {
     super();
   }
 
@@ -191,34 +212,38 @@ export class UpdateFileTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    const result = this.allowedPaths.some(allowed => 
+    const result = this.allowedPaths.some((allowed) =>
       absolutePath.startsWith(path.resolve(allowed))
     );
-    
+
     if (!result) {
-      this.logger.warn(`Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map(p => path.resolve(p)).join(', ')}`);
+      this.logger.warn(
+        `Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map((p) => path.resolve(p)).join(', ')}`
+      );
     }
-    
+
     return result;
   }
 
-  async execute(parameters: { 
-    file_path: string; 
-    search_pattern: string; 
+  async execute(parameters: {
+    file_path: string;
+    search_pattern: string;
     replacement: string;
     use_regex?: boolean;
     replace_all?: boolean;
   }): Promise<any> {
-    const { 
-      file_path, 
-      search_pattern, 
-      replacement, 
+    const {
+      file_path,
+      search_pattern,
+      replacement,
       use_regex = false,
-      replace_all = true 
+      replace_all = true,
     } = parameters;
 
     if (!this.isPathAllowed(file_path)) {
-      throw new Error(`Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`);
+      throw new Error(
+        `Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`
+      );
     }
 
     try {
@@ -248,7 +273,7 @@ export class UpdateFileTool extends BaseTool {
 
       await fs.writeFile(file_path, updatedContent, 'utf8');
       this.logger.info(`Successfully updated file: ${file_path} (${matchCount} replacements)`);
-      
+
       return {
         success: true,
         path: file_path,
@@ -258,13 +283,18 @@ export class UpdateFileTool extends BaseTool {
       };
     } catch (error) {
       this.logger.error(`Failed to update file ${file_path}:`, error);
-      throw new Error(`Failed to update file: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to update file: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }
 
 export class DeleteFileTool extends BaseTool {
-  constructor(private logger: Logger, private allowedPaths: string[]) {
+  constructor(
+    private logger: Logger,
+    private allowedPaths: string[]
+  ) {
     super();
   }
 
@@ -291,14 +321,16 @@ export class DeleteFileTool extends BaseTool {
 
   private isPathAllowed(filePath: string): boolean {
     const absolutePath = path.resolve(filePath);
-    const result = this.allowedPaths.some(allowed => 
+    const result = this.allowedPaths.some((allowed) =>
       absolutePath.startsWith(path.resolve(allowed))
     );
-    
+
     if (!result) {
-      this.logger.warn(`Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map(p => path.resolve(p)).join(', ')}`);
+      this.logger.warn(
+        `Path not allowed: ${absolutePath}. Allowed paths: ${this.allowedPaths.map((p) => path.resolve(p)).join(', ')}`
+      );
     }
-    
+
     return result;
   }
 
@@ -310,14 +342,16 @@ export class DeleteFileTool extends BaseTool {
     }
 
     if (!this.isPathAllowed(file_path)) {
-      throw new Error(`Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`);
+      throw new Error(
+        `Access denied: Path ${file_path} is not in allowed directories. Allowed directories: ${this.allowedPaths.join(', ')}`
+      );
     }
 
     try {
       const stats = await fs.stat(file_path);
       await fs.unlink(file_path);
       this.logger.info(`Successfully deleted file: ${file_path}`);
-      
+
       return {
         success: true,
         path: file_path,
@@ -326,7 +360,9 @@ export class DeleteFileTool extends BaseTool {
       };
     } catch (error) {
       this.logger.error(`Failed to delete file ${file_path}:`, error);
-      throw new Error(`Failed to delete file: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to delete file: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }
