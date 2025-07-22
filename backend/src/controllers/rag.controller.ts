@@ -309,7 +309,7 @@ export class RagController {
       // Get absolute path to ensure consistency
       const filePath = path.resolve(req.file.path);
       const originalFileName = fixFilenameEncoding(req.file.originalname);
-      
+
       // Debug logging
       this.logger.info('Processing chat file upload:', {
         originalName: originalFileName,
@@ -318,7 +318,7 @@ export class RagController {
         filename: req.file.filename,
         destination: req.file.destination,
         size: req.file.size,
-        mimetype: req.file.mimetype
+        mimetype: req.file.mimetype,
       });
 
       try {
@@ -330,7 +330,7 @@ export class RagController {
           this.logger.error(`File not found at path: ${filePath}`, accessError);
           throw new Error(`File not found at path: ${filePath}`);
         }
-        
+
         // Check if this is a multimodal file (image, video, audio)
         const mediaType = this.multimodalService.getMediaType(originalFileName);
         const isMultimodal = ['image', 'video', 'audio'].includes(mediaType);
@@ -394,12 +394,17 @@ export class RagController {
               this.logger.error(`File stat failed for ${filePath}:`, statError);
               throw new Error(`File not found: ${filePath}`);
             }
-            
+
             const parsedFile = await fileParserService.parseFile(filePath, originalFileName);
             text = parsedFile.content || '';
-            this.logger.info(`Successfully extracted ${text.length} characters from ${originalFileName}`);
+            this.logger.info(
+              `Successfully extracted ${text.length} characters from ${originalFileName}`
+            );
           } catch (parseError) {
-            this.logger.error(`Failed to parse file ${originalFileName} at ${filePath}:`, parseError);
+            this.logger.error(
+              `Failed to parse file ${originalFileName} at ${filePath}:`,
+              parseError
+            );
             // Return a more informative error
             const errorMsg = parseError instanceof Error ? parseError.message : 'Unknown error';
             throw new Error(`Failed to parse ${originalFileName}: ${errorMsg}`);
@@ -441,10 +446,10 @@ export class RagController {
     } catch (error) {
       this.logger.error('Failed to process chat file:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to process file';
-      res.status(500).json({ 
+      res.status(500).json({
         error: errorMessage,
         details: error instanceof Error ? error.stack : undefined,
-        filename: req.file?.originalname
+        filename: req.file?.originalname,
       });
     }
   }

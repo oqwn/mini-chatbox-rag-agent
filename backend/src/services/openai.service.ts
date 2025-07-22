@@ -17,6 +17,7 @@ export interface ChatCompletionOptions {
   onToolCall?: (toolName: string, parameters: any) => Promise<any>;
   signal?: AbortSignal;
   maxToolRounds?: number; // Maximum number of tool calling rounds (default: 5)
+  canvasMode?: boolean; // Enable Canvas mode for HTML document formatting
 }
 
 interface ModelResponse {
@@ -40,10 +41,10 @@ export class OpenAIService {
     logger: Logger
   ) {
     this.logger = logger;
-    
+
     // Ensure we start with fresh environment values (reset any runtime overrides)
     this.configService.resetToEnvironmentDefaults();
-    
+
     this.initializeClient();
   }
 
@@ -76,7 +77,7 @@ export class OpenAIService {
     this.logger.info('OpenAI Service: Updating configuration:');
     this.logger.info(`  New API Key: ${apiKey ? `${apiKey.substring(0, 20)}...` : 'NOT SET'}`);
     this.logger.info(`  New Base URL: ${baseURL || 'NOT SET'}`);
-    
+
     this.client = new OpenAI({
       apiKey,
       baseURL: baseURL || undefined,
@@ -387,7 +388,7 @@ export class OpenAIService {
             yield* executeStreamWithTools.call(this, updatedMessages, roundsRemaining - 1);
           }
         }
-      }
+      };
 
       // Start the recursive streaming execution
       yield* executeStreamWithTools.call(this, messages, maxToolRounds);
