@@ -17,7 +17,9 @@ interface ConversationSidebarProps {
   onSelectConversation: (sessionId: string) => void;
   onNewConversation: () => void;
   onCurrentConversationDeleted?: () => void;
-  onAddOptimisticConversation?: (callback: (sessionId: string) => void) => void;
+  onAddOptimisticConversation?: (
+    callback: (sessionId: string, userMessage?: string) => void
+  ) => void;
 }
 
 interface ConversationWithDropdown extends Conversation {
@@ -95,11 +97,28 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   };
 
-  const addOptimisticConversation = (sessionId: string) => {
+  const addOptimisticConversation = (sessionId: string, userMessage?: string) => {
+    // Extract a meaningful title from the user message
+    const extractTitle = (message?: string): string => {
+      if (!message?.trim()) return 'New Conversation';
+
+      // Clean up the message for title extraction
+      const cleanMessage = message.trim().replace(/\s+/g, ' ');
+
+      // Take first sentence or first 50 characters, whichever is shorter
+      const firstSentence = cleanMessage.split(/[.!?]/)[0];
+      const title =
+        firstSentence.length > 50
+          ? cleanMessage.substring(0, 50).trim() + '...'
+          : firstSentence.trim();
+
+      return title || 'New Conversation';
+    };
+
     const optimisticConversation: ConversationWithDropdown = {
       id: undefined, // Will be set when saved to backend
       sessionId,
-      title: 'New Conversation',
+      title: extractTitle(userMessage),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isStarred: false,
@@ -216,26 +235,50 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
   const handleDeleteConversation = async (e: React.MouseEvent, conversation: Conversation) => {
     e.stopPropagation();
-    setConfirmDialog({
-      isOpen: true,
-      title: 'Archive Conversation',
-      message: 'Are you sure you want to archive this conversation?',
-      type: 'warning',
-      onConfirm: async () => {
-        try {
-          await conversationApiService.updateConversation(conversation.id!, { isArchived: true });
-          loadConversations();
+
+    // Handle unstarted (optimistic) conversations differently
+    if (conversation.id === undefined) {
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Remove Conversation',
+        message: "This conversation hasn't been saved yet. Remove it from the list?",
+        type: 'info',
+        onConfirm: () => {
+          // Simply remove from local state since it's not persisted
+          setConversations((prev) =>
+            prev.filter((conv) => conv.sessionId !== conversation.sessionId)
+          );
 
           // If we deleted the current conversation, notify the parent to clear the chat
           if (currentSessionId === conversation.sessionId && onCurrentConversationDeleted) {
             onCurrentConversationDeleted();
           }
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to archive conversation');
-        }
-        setConfirmDialog({ ...confirmDialog, isOpen: false });
-      },
-    });
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+        },
+      });
+    } else {
+      // Handle persisted conversations normally
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Archive Conversation',
+        message: 'Are you sure you want to archive this conversation?',
+        type: 'warning',
+        onConfirm: async () => {
+          try {
+            await conversationApiService.updateConversation(conversation.id!, { isArchived: true });
+            loadConversations();
+
+            // If we deleted the current conversation, notify the parent to clear the chat
+            if (currentSessionId === conversation.sessionId && onCurrentConversationDeleted) {
+              onCurrentConversationDeleted();
+            }
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to archive conversation');
+          }
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+        },
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -481,6 +524,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {conversation.isStarred && <span className="text-yellow-500">⭐</span>}
+                        {conversation.id === undefined && (
+                          <span className="text-xs text-blue-500 font-medium">●</span>
+                        )}
                         <div className="font-medium text-gray-900 truncate flex-1">
                           {conversation.title || 'Untitled Conversation'}
                         </div>

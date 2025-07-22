@@ -38,7 +38,9 @@ export const Chat: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingContentRef = useRef<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const addOptimisticConversationRef = useRef<((sessionId: string) => void) | null>(null);
+  const addOptimisticConversationRef = useRef<
+    ((sessionId: string, userMessage?: string) => void) | null
+  >(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -327,7 +329,7 @@ export const Chat: React.FC = () => {
 
     // Trigger optimistic update in sidebar for first message in conversation
     if (isFirstMessage && addOptimisticConversationRef.current) {
-      addOptimisticConversationRef.current(currentSessionId);
+      addOptimisticConversationRef.current(currentSessionId, userMessage.content);
     }
     // Only set processingFiles to true if we have files to process
     if (pendingAttachments.length > 0) {
@@ -569,7 +571,7 @@ export const Chat: React.FC = () => {
 
     // Trigger optimistic update in sidebar if requested
     if (addToSidebar && addOptimisticConversationRef.current) {
-      addOptimisticConversationRef.current(newSessionId);
+      addOptimisticConversationRef.current(newSessionId); // No message for manual creation
     }
   };
 
