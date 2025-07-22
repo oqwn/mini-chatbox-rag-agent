@@ -198,6 +198,18 @@ class ApiService {
           }
         }
 
+        // Check for stream interrupted marker
+        if (chunk.includes('[STREAM_INTERRUPTED]')) {
+          // Remove the marker from the chunk
+          const cleanChunk = chunk.replace(/\n*\[STREAM_INTERRUPTED\]\n*/, '');
+          if (cleanChunk) {
+            onMessage(cleanChunk);
+          }
+          // Call onDone to indicate stream was interrupted
+          onDone();
+          return;
+        }
+
         // Send the chunk directly to the message handler
         if (chunk && !signal?.aborted) {
           onMessage(chunk);

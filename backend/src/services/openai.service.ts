@@ -15,6 +15,7 @@ export interface ChatCompletionOptions {
   stream?: boolean;
   tools?: any[];
   onToolCall?: (toolName: string, parameters: any) => Promise<any>;
+  signal?: AbortSignal;
 }
 
 interface ModelResponse {
@@ -196,6 +197,7 @@ export class OpenAIService {
       maxTokens = 1000,
       tools,
       onToolCall,
+      signal,
     } = options;
 
     try {
@@ -225,12 +227,22 @@ export class OpenAIService {
         requestParams.tool_choice = 'auto';
       }
 
+      // Add abort signal if provided
+      if (signal) {
+        requestParams.signal = signal;
+      }
+
       const stream = (await this.client.chat.completions.create(requestParams)) as any;
 
       const toolCalls: any[] = [];
       let accumulatedContent = '';
 
       for await (const chunk of stream) {
+        // Check if aborted
+        if (signal?.aborted) {
+          throw new Error('Stream aborted');
+        }
+
         const delta = chunk.choices[0]?.delta;
 
         // Handle regular content

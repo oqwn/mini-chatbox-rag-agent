@@ -17,6 +17,7 @@ interface ConversationSidebarProps {
   onSelectConversation: (sessionId: string) => void;
   onNewConversation: () => void;
   onCurrentConversationDeleted?: () => void;
+  onAddOptimisticConversation?: (callback: (sessionId: string) => void) => void;
 }
 
 interface ConversationWithDropdown extends Conversation {
@@ -30,6 +31,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onSelectConversation,
   onNewConversation,
   onCurrentConversationDeleted,
+  onAddOptimisticConversation,
 }) => {
   const [conversations, setConversations] = useState<ConversationWithDropdown[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -56,6 +58,13 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       loadProjects();
     }
   }, [isOpen]);
+
+  // Connect the optimistic conversation callback
+  useEffect(() => {
+    if (onAddOptimisticConversation) {
+      onAddOptimisticConversation(addOptimisticConversation);
+    }
+  }, [onAddOptimisticConversation]);
 
   // Close project menu when clicking outside
   useEffect(() => {
@@ -84,6 +93,21 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const addOptimisticConversation = (sessionId: string) => {
+    const optimisticConversation: ConversationWithDropdown = {
+      id: undefined, // Will be set when saved to backend
+      sessionId,
+      title: 'New Conversation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isStarred: false,
+      projectId: selectedProjectId || undefined,
+      messageCount: 0,
+    };
+
+    setConversations((prev) => [optimisticConversation, ...prev]);
   };
 
   const loadProjects = async () => {
@@ -201,7 +225,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         try {
           await conversationApiService.updateConversation(conversation.id!, { isArchived: true });
           loadConversations();
-          
+
           // If we deleted the current conversation, notify the parent to clear the chat
           if (currentSessionId === conversation.sessionId && onCurrentConversationDeleted) {
             onCurrentConversationDeleted();

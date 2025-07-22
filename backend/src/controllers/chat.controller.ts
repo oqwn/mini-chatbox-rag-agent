@@ -537,12 +537,27 @@ export class ChatController {
         enhancedMessages[0].content += '\n\n' + systemMessage.content;
       }
 
+      // Handle client disconnection with AbortController
+      let isClientConnected = true;
+      const abortController = new AbortController();
+      
+      req.on('close', () => {
+        isClientConnected = false;
+        abortController.abort();
+        this.logger.info('Client disconnected during streaming');
+      });
+
       try {
         let chunkCount = 0;
         for await (const chunk of this.openAIService.chatStream(enhancedMessages, {
           ...options,
           tools: mcpTools,
+          signal: abortController.signal,
           onToolCall: async (toolName: string, parameters: any) => {
+            // Check if client is still connected
+            if (!isClientConnected) {
+              throw new Error('Client disconnected');
+            }
             // Handle permission request tool
             if (toolName === 'request_mcp_permission') {
               const { tool_name, tool_description, purpose } = parameters;
@@ -597,6 +612,14 @@ export class ChatController {
             throw new Error(`Tool ${toolName} not found`);
           },
         })) {
+          // Check if client is still connected before writing
+          if (!isClientConnected) {
+            this.logger.info('Client disconnected, stopping stream');
+            // Send a special marker to indicate stream was interrupted
+            res.write('\n\n[STREAM_INTERRUPTED]');
+            break;
+          }
+          
           chunkCount++;
           this.logger.debug(`Sending chunk ${chunkCount}: ${chunk}`);
           res.write(chunk);
@@ -609,11 +632,17 @@ export class ChatController {
         // No longer appending a separate references section
       } catch (streamError) {
         const errorMessage = streamError instanceof Error ? streamError.message : 'Stream error';
-        this.logger.error('Stream error:', errorMessage);
-        res.write(`\n\n[ERROR]: ${errorMessage}`);
+        
+        // Don't try to write if client disconnected
+        if (isClientConnected && errorMessage !== 'Client disconnected') {
+          this.logger.error('Stream error:', errorMessage);
+          res.write(`\n\n[ERROR]: ${errorMessage}`);
+        }
       }
 
-      res.end();
+      if (isClientConnected) {
+        res.end();
+      }
     } catch (error) {
       this.logger.error('Chat stream error:', error);
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });

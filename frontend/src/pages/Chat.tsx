@@ -38,6 +38,7 @@ export const Chat: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingContentRef = useRef<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addOptimisticConversationRef = useRef<((sessionId: string) => void) | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     if (mcpAutoApprove && !isStreaming && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
-      
+
       // Check if the last message contains a permission request
       if (
         lastMessage.role === 'assistant' &&
@@ -148,7 +149,7 @@ export const Chat: React.FC = () => {
           const event = new CustomEvent('mcp-permission', { detail: 'approve' });
           window.dispatchEvent(event);
         }, 500); // 500ms delay to show the card briefly
-        
+
         return () => clearTimeout(timer);
       }
     }
@@ -173,6 +174,8 @@ export const Chat: React.FC = () => {
         localStorage.setItem('currentSessionId', sessionId);
       }
       setCurrentSessionId(sessionId);
+
+      // Note: Optimistic update will be triggered when user sends first message
     };
 
     // Load current model from settings
@@ -315,12 +318,21 @@ export const Chat: React.FC = () => {
       })),
     };
     const messagesToSend = [...messages, userMessage];
+    const isFirstMessage = messages.length === 0;
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setError(null);
     setIsStreaming(true);
-    setProcessingFiles(true);
+
+    // Trigger optimistic update in sidebar for first message in conversation
+    if (isFirstMessage && addOptimisticConversationRef.current) {
+      addOptimisticConversationRef.current(currentSessionId);
+    }
+    // Only set processingFiles to true if we have files to process
+    if (pendingAttachments.length > 0) {
+      setProcessingFiles(true);
+    }
 
     // Persist user message
     await persistMessage(userMessage);
@@ -547,13 +559,18 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const handleNewConversation = () => {
+  const handleNewConversation = (addToSidebar?: boolean) => {
     // Create new session
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setCurrentSessionId(newSessionId);
     localStorage.setItem('currentSessionId', newSessionId);
     setMessages([]);
     setError(null);
+
+    // Trigger optimistic update in sidebar if requested
+    if (addToSidebar && addOptimisticConversationRef.current) {
+      addOptimisticConversationRef.current(newSessionId);
+    }
   };
 
   const handleCurrentConversationDeleted = () => {
@@ -564,6 +581,8 @@ export const Chat: React.FC = () => {
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setCurrentSessionId(newSessionId);
     localStorage.setItem('currentSessionId', newSessionId);
+
+    // Note: Optimistic update will be triggered when user sends first message
   };
 
   const handleInterrupt = () => {
@@ -626,8 +645,11 @@ export const Chat: React.FC = () => {
           onToggle={() => setShowConversationSidebar(!showConversationSidebar)}
           currentSessionId={currentSessionId}
           onSelectConversation={handleSelectConversation}
-          onNewConversation={handleNewConversation}
+          onNewConversation={() => handleNewConversation(true)}
           onCurrentConversationDeleted={handleCurrentConversationDeleted}
+          onAddOptimisticConversation={(callback) => {
+            addOptimisticConversationRef.current = callback;
+          }}
         />
 
         {/* Main Chat Area */}
@@ -1029,21 +1051,16 @@ export const Chat: React.FC = () => {
               </div>
               <button
                 onClick={isStreaming ? handleInterrupt : handleSend}
-                disabled={
-                  (!isStreaming && !input.trim() && pendingAttachments.length === 0) ||
-                  processingFiles
-                }
+                disabled={!isStreaming && !input.trim() && pendingAttachments.length === 0}
                 className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
                   isStreaming
                     ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
-                    : (!input.trim() && pendingAttachments.length === 0) || processingFiles
+                    : !input.trim() && pendingAttachments.length === 0
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                {processingFiles ? (
-                  'Processing...'
-                ) : isStreaming ? (
+                {isStreaming ? (
                   <div className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
