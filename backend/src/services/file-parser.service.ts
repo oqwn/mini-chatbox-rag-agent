@@ -96,6 +96,18 @@ export class FileParserService {
 
   private async parsePDF(filePath: string, originalFileName: string): Promise<ParsedFile> {
     try {
+      console.log('FileParserService.parsePDF - Input:', { filePath, originalFileName });
+      console.log('FileParserService.parsePDF - Absolute path:', path.resolve(filePath));
+      
+      // Check if file exists before trying to read
+      try {
+        await fs.access(filePath);
+        console.log('FileParserService.parsePDF - File exists');
+      } catch (accessErr) {
+        console.error('FileParserService.parsePDF - File not accessible:', accessErr);
+        throw new Error(`Cannot access PDF file at: ${filePath}`);
+      }
+      
       const buffer = await fs.readFile(filePath);
       const data = await pdfParse(buffer);
 
