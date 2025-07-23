@@ -227,13 +227,15 @@ export const RagManagement: React.FC = () => {
 
   const handleDeleteKnowledgeSource = async (id: number, name: string) => {
     // First check if there are documents in this knowledge source
-    const docsInSource = documents.filter(doc => doc.knowledgeSourceId === id);
-    
+    const docsInSource = documents.filter((doc) => doc.knowledgeSourceId === id);
+
     if (docsInSource.length > 0) {
-      setError(`Cannot delete "${name}" because it contains ${docsInSource.length} document(s). Please delete or move all documents first.`);
+      setError(
+        `Cannot delete "${name}" because it contains ${docsInSource.length} document(s). Please delete or move all documents first.`
+      );
       return;
     }
-    
+
     setConfirmDialog({
       isOpen: true,
       title: 'Delete Knowledge Source',

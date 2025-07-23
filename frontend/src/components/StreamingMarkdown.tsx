@@ -70,7 +70,10 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
         text = text.replace(/^```html[\s\S]*?(?:```|$)/m, '_AI is responding, please wait..._');
       } else {
         // Replace any ```html blocks that appear later in the content
-        text = text.replace(/```html\n([\s\S]*?)(?:\n```|$)/g, '_AI is responding, please wait..._');
+        text = text.replace(
+          /```html\n([\s\S]*?)(?:\n```|$)/g,
+          '_AI is responding, please wait..._'
+        );
       }
 
       // Convert literal \n to actual newlines
@@ -91,7 +94,7 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
     // Look for --- References --- or --- Reference --- anywhere in the content
     const referencesIndex = content.search(/--- References? ---/i);
     let referencesMatch = null;
-    
+
     if (referencesIndex !== -1) {
       // Extract everything after the references marker
       const afterReferences = content.substring(referencesIndex);
