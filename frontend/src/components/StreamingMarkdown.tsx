@@ -25,14 +25,81 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
       setTimeout(() => setCopiedIndex(null), 2000);
     };
 
+    // Pre-process content to fix formatting issues
+    const preprocessContent = (text: string): string => {
+      // Fix multi-line span tags for citations
+      text = text.replace(
+        /<span\s+class="citation-inline"[^>]*>[\s\S]*?\[(\d+)\][\s\S]*?<\/span\s*>/g,
+        (match) => {
+          // Extract the citation number and attributes
+          const numberMatch = match.match(/\[(\d+)\]/);
+          const titleMatch = match.match(/title="([^"]*?)"/);
+          const dataSourceMatch = match.match(/data-source="([^"]*?)"/);
+
+          if (numberMatch) {
+            const number = numberMatch[1];
+            const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+            const dataSource = dataSourceMatch ? dataSourceMatch[1] : number;
+
+            // Return a properly formatted single-line span
+            return `<span class="citation-inline" title="${title}" data-source="${dataSource}">[${number}]</span>`;
+          }
+
+          return match;
+        }
+      );
+
+      // Fix search details that have multiple list items on one line
+      // Look for patterns like ":** - Query: ... - Results: ... - Quality:"
+      text = text.replace(
+        /(\*\*[^:]+:\*\*)\s*-\s*([^-]+(?:-(?![A-Z][a-z]+:)[^-]+)*)/g,
+        (match, prefix, content) => {
+          // Split by " - " where the dash is followed by a capitalized word and colon
+          const items = content.split(/\s+-\s+(?=[A-Z])/);
+          if (items.length > 1) {
+            // Convert to proper markdown list
+            return prefix + '\n' + items.map((item: string) => '- ' + item.trim()).join('\n');
+          }
+          return match;
+        }
+      );
+
+      // Handle ```html blocks - if content starts with ```html, replace the entire block
+      if (text.trim().startsWith('```html')) {
+        // Replace the entire ```html block with waiting message
+        text = text.replace(/^```html[\s\S]*?(?:```|$)/m, '_AI is responding, please wait..._');
+      } else {
+        // Replace any ```html blocks that appear later in the content
+        text = text.replace(/```html\n([\s\S]*?)(?:\n```|$)/g, '_AI is responding, please wait..._');
+      }
+
+      // Convert literal \n to actual newlines
+      text = text.replace(/\\n/g, '\n');
+
+      return text;
+    };
+
+    // Apply preprocessing to content (this will replace ```html blocks with waiting message)
+    content = preprocessContent(content);
+
     // Check if content contains permission request
     const permissionRegex =
       /\[MCP_PERMISSION_REQUEST\]\s*TOOL:\s*(.+?)\s*DESCRIPTION:\s*(.+?)\s*PURPOSE:\s*(.+?)\s*\[\/MCP_PERMISSION_REQUEST\]/s;
     const permissionMatch = content.match(permissionRegex);
 
     // Check if content contains RAG references
-    const referencesRegex = /\n\n--- References ---\n(.+?)$/s;
-    const referencesMatch = content.match(referencesRegex);
+    // Look for --- References --- or --- Reference --- anywhere in the content
+    const referencesIndex = content.search(/--- References? ---/i);
+    let referencesMatch = null;
+    
+    if (referencesIndex !== -1) {
+      // Extract everything after the references marker
+      const afterReferences = content.substring(referencesIndex);
+      const match = afterReferences.match(/--- References? ---(.*)$/is);
+      if (match) {
+        referencesMatch = [match[0], match[1]];
+      }
+    }
 
     // Check if content contains canvas mode blocks
     const canvasRegex = /\[canvas mode\]([\s\S]*?)\[\/canvas mode\]/g;
@@ -90,8 +157,8 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = React.memo(
 
     // Handle content with or without references
     if (referencesMatch) {
-      const [fullMatch, referencesText] = referencesMatch;
-      const mainContent = content.substring(0, content.indexOf(fullMatch));
+      const [, referencesText] = referencesMatch;
+      const mainContent = content.substring(0, referencesIndex);
       // Parse references to extract citation, title, page, and preview
       const references = referencesText
         .trim()
