@@ -167,6 +167,12 @@ class RagApiService {
     return this.request('/knowledge-sources');
   }
 
+  async deleteKnowledgeSource(id: number): Promise<{ message: string }> {
+    return this.request(`/knowledge-sources/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Document Ingestion
   async ingestText(
     content: string,

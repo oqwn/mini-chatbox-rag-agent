@@ -133,6 +133,47 @@ export class RagController {
     }
   }
 
+  public async deleteKnowledgeSource(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      
+      if (!id || isNaN(Number(id))) {
+        res.status(400).json({ error: 'Valid knowledge source ID is required' });
+        return;
+      }
+
+      const knowledgeSourceId = Number(id);
+      
+      // Check if knowledge source exists
+      const sources = await this.vectorDbService.getKnowledgeSources();
+      const source = sources.find(s => s.id === knowledgeSourceId);
+      
+      if (!source) {
+        res.status(404).json({ error: 'Knowledge source not found' });
+        return;
+      }
+      
+      // Check if there are documents associated with this knowledge source
+      const documents = await this.vectorDbService.getDocuments(knowledgeSourceId);
+      
+      if (documents.length > 0) {
+        res.status(400).json({ 
+          error: 'Cannot delete knowledge source with associated documents. Please delete or move all documents first.',
+          documentCount: documents.length
+        });
+        return;
+      }
+      
+      // Delete the knowledge source
+      await this.vectorDbService.deleteKnowledgeSource(knowledgeSourceId);
+      
+      res.json({ message: 'Knowledge source deleted successfully' });
+    } catch (error) {
+      this.logger.error('Failed to delete knowledge source:', error);
+      res.status(500).json({ error: 'Failed to delete knowledge source' });
+    }
+  }
+
   // Document Ingestion
   public async ingestText(req: Request, res: Response): Promise<void> {
     try {

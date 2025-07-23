@@ -225,6 +225,33 @@ export const RagManagement: React.FC = () => {
     });
   };
 
+  const handleDeleteKnowledgeSource = async (id: number, name: string) => {
+    // First check if there are documents in this knowledge source
+    const docsInSource = documents.filter(doc => doc.knowledgeSourceId === id);
+    
+    if (docsInSource.length > 0) {
+      setError(`Cannot delete "${name}" because it contains ${docsInSource.length} document(s). Please delete or move all documents first.`);
+      return;
+    }
+    
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Knowledge Source',
+      message: `Are you sure you want to delete the knowledge source "${name}"? This action cannot be undone.`,
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await ragApiService.deleteKnowledgeSource(id);
+          setSuccess('Knowledge source deleted successfully');
+          loadData();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to delete knowledge source');
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
+      },
+    });
+  };
+
   const handleMoveDocument = async (documentId: number, newKnowledgeSourceId: number | null) => {
     try {
       await ragApiService.moveDocument(documentId, newKnowledgeSourceId);
@@ -668,7 +695,7 @@ export const RagManagement: React.FC = () => {
                 {knowledgeSources.map((source) => (
                   <li key={source.id} className="px-4 py-4 sm:px-6">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <h4 className="text-sm font-medium text-gray-900">{source.name}</h4>
                         {source.description && (
                           <p className="text-sm text-gray-600 mt-1">{source.description}</p>
@@ -682,6 +709,15 @@ export const RagManagement: React.FC = () => {
                             documents
                           </span>
                         </div>
+                      </div>
+                      <div className="ml-4">
+                        <button
+                          onClick={() => handleDeleteKnowledgeSource(source.id!, source.name)}
+                          className="text-red-600 hover:text-red-900 text-sm font-medium"
+                          title="Delete knowledge source"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </li>

@@ -182,6 +182,10 @@ export class ChatController {
       const mcpTools = await this.mcpService.getAllTools();
       this.logger.info(`Found ${mcpTools.length} MCP tools available`);
 
+      if (ragEnabled) {
+        this.logger.info('RAG is enabled, MCP tools will be disabled for this request');
+      }
+
       // Perform RAG retrieval for the latest user message
       let ragContext: {
         contextText: string;
@@ -255,59 +259,64 @@ export class ChatController {
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
       let systemPrompt = '';
+      let agentToolsPrompt = '';
 
-      // Add Canvas mode prompt if enabled
-      if (canvasMode) {
-        try {
-          const canvasPrompt = this.promptService.getPrompt('canvas-system.md');
-          systemPrompt += canvasPrompt + '\n\n';
-          this.logger.info('Added Canvas mode prompt');
-        } catch (error) {
-          this.logger.warn('Failed to load canvas prompt:', error);
+      // Only load non-RAG prompts if RAG is not enabled
+      if (!ragContext) {
+        // Add Canvas mode prompt if enabled
+        if (canvasMode) {
+          try {
+            const canvasPrompt = this.promptService.getPrompt('canvas-system.md');
+            systemPrompt += canvasPrompt + '\n\n';
+            this.logger.info('Added Canvas mode prompt');
+          } catch (error) {
+            this.logger.warn('Failed to load canvas prompt:', error);
+          }
         }
-      }
 
-      // Check if we have any true MCP tools (not just local agent tools)
-      const trueMcpTools = mcpTools.filter((tool) => tool.serverId !== 'local-tools');
+        // Check if we have any true MCP tools (not just local agent tools)
+        const trueMcpTools = mcpTools.filter((tool) => tool.serverId !== 'local-tools');
 
-      if (trueMcpTools.length > 0 && !canvasMode) {
-        const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
-        this.logger.info(`Tool names for prompt: ${toolNames}`);
+        if (trueMcpTools.length > 0 && !canvasMode) {
+          const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
+          this.logger.info(`Tool names for prompt: ${toolNames}`);
 
-        try {
-          // Load MCP system prompt since we have MCP tools
-          systemPrompt += this.promptService.getPrompt('mcp-system.md', {
-            TOOL_NAMES: toolNames,
-          });
-          this.logger.info('Successfully loaded MCP system prompt from file');
-        } catch (error) {
-          this.logger.error('Failed to load MCP prompt from file, using fallback:', error);
-          systemPrompt += `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
+          try {
+            // Load MCP system prompt since we have MCP tools
+            systemPrompt += this.promptService.getPrompt('mcp-system.md', {
+              TOOL_NAMES: toolNames,
+            });
+            this.logger.info('Successfully loaded MCP system prompt from file');
+          } catch (error) {
+            this.logger.error('Failed to load MCP prompt from file, using fallback:', error);
+            systemPrompt += `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
+          }
+        } else {
+          if (canvasMode && trueMcpTools.length > 0) {
+            this.logger.info('Canvas mode enabled, skipping MCP system prompt');
+          } else {
+            this.logger.info('No MCP tools available, skipping MCP system prompt');
+          }
+          // Don't load MCP-related prompts when skipped
+        }
+
+        // Add agent tools formatting prompt if local tools are available
+        const hasLocalTools = mcpTools.some((tool) => tool.serverId === 'local-tools');
+        if (hasLocalTools && !canvasMode) {
+          try {
+            agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
+            // Also add the distinction prompt to clarify agent tools vs MCP tools
+            const distinctionPrompt = this.promptService.getPrompt('tools-distinction.md');
+            agentToolsPrompt = agentToolsPrompt + '\n\n' + distinctionPrompt;
+            this.logger.info('Added agent tools formatting and distinction prompts');
+          } catch (error) {
+            this.logger.warn('Failed to load agent tools prompt:', error);
+          }
+        } else if (hasLocalTools && canvasMode) {
+          this.logger.info('Canvas mode enabled, skipping agent tools prompt');
         }
       } else {
-        if (canvasMode && trueMcpTools.length > 0) {
-          this.logger.info('Canvas mode enabled, skipping MCP system prompt');
-        } else {
-          this.logger.info('No MCP tools available, skipping MCP system prompt');
-        }
-        // Don't load MCP-related prompts when skipped
-      }
-
-      // Add agent tools formatting prompt if local tools are available
-      let agentToolsPrompt = '';
-      const hasLocalTools = mcpTools.some((tool) => tool.serverId === 'local-tools');
-      if (hasLocalTools && !canvasMode) {
-        try {
-          agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
-          // Also add the distinction prompt to clarify agent tools vs MCP tools
-          const distinctionPrompt = this.promptService.getPrompt('tools-distinction.md');
-          agentToolsPrompt = agentToolsPrompt + '\n\n' + distinctionPrompt;
-          this.logger.info('Added agent tools formatting and distinction prompts');
-        } catch (error) {
-          this.logger.warn('Failed to load agent tools prompt:', error);
-        }
-      } else if (hasLocalTools && canvasMode) {
-        this.logger.info('Canvas mode enabled, skipping agent tools prompt');
+        this.logger.info('RAG is enabled, skipping non-RAG prompts');
       }
 
       // Add RAG context to system prompt if available
@@ -333,8 +342,13 @@ export class ChatController {
 
       const systemMessage = {
         role: 'system' as const,
-        content:
-          systemPrompt + additionalContext + agentToolsPrompt + ragSystemPrompt + multimodalContext,
+        content: ragContext
+          ? ragSystemPrompt + multimodalContext // Only RAG prompt when RAG is enabled
+          : systemPrompt +
+            additionalContext +
+            agentToolsPrompt +
+            ragSystemPrompt +
+            multimodalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -347,7 +361,7 @@ export class ChatController {
 
       const response = await this.openAIService.chat(enhancedMessages, {
         ...options,
-        tools: canvasMode ? [] : mcpTools,
+        tools: canvasMode || ragEnabled ? [] : mcpTools,
         maxToolRounds: 5, // Allow up to 5 rounds of sequential tool calls
         onToolCall: async (toolName: string, parameters: any) => {
           // Find the tool and invoke it
@@ -410,6 +424,10 @@ export class ChatController {
       // Get available MCP tools
       const mcpTools = await this.mcpService.getAllTools();
       this.logger.info(`Found ${mcpTools.length} MCP tools available`);
+
+      if (ragEnabled) {
+        this.logger.info('RAG is enabled, MCP tools will be disabled for this request');
+      }
 
       // Perform RAG retrieval for the latest user message
       let ragContext: {
@@ -486,59 +504,64 @@ export class ChatController {
       // Add system message - always load prompt for testing
       let enhancedMessages = [...messages];
       let systemPrompt = '';
+      let agentToolsPrompt = '';
 
-      // Add Canvas mode prompt if enabled
-      if (canvasMode) {
-        try {
-          const canvasPrompt = this.promptService.getPrompt('canvas-system.md');
-          systemPrompt += canvasPrompt + '\n\n';
-          this.logger.info('Added Canvas mode prompt');
-        } catch (error) {
-          this.logger.warn('Failed to load canvas prompt:', error);
+      // Only load non-RAG prompts if RAG is not enabled
+      if (!ragContext) {
+        // Add Canvas mode prompt if enabled
+        if (canvasMode) {
+          try {
+            const canvasPrompt = this.promptService.getPrompt('canvas-system.md');
+            systemPrompt += canvasPrompt + '\n\n';
+            this.logger.info('Added Canvas mode prompt');
+          } catch (error) {
+            this.logger.warn('Failed to load canvas prompt:', error);
+          }
         }
-      }
 
-      // Check if we have any true MCP tools (not just local agent tools)
-      const trueMcpTools = mcpTools.filter((tool) => tool.serverId !== 'local-tools');
+        // Check if we have any true MCP tools (not just local agent tools)
+        const trueMcpTools = mcpTools.filter((tool) => tool.serverId !== 'local-tools');
 
-      if (trueMcpTools.length > 0 && !canvasMode) {
-        const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
-        this.logger.info(`Tool names for prompt: ${toolNames}`);
+        if (trueMcpTools.length > 0 && !canvasMode) {
+          const toolNames = mcpTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
+          this.logger.info(`Tool names for prompt: ${toolNames}`);
 
-        try {
-          // Load MCP system prompt since we have MCP tools
-          systemPrompt += this.promptService.getPrompt('mcp-system.md', {
-            TOOL_NAMES: toolNames,
-          });
-          this.logger.info('Successfully loaded MCP system prompt from file');
-        } catch (error) {
-          this.logger.error('Failed to load MCP prompt from file, using fallback:', error);
-          systemPrompt += `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
+          try {
+            // Load MCP system prompt since we have MCP tools
+            systemPrompt += this.promptService.getPrompt('mcp-system.md', {
+              TOOL_NAMES: toolNames,
+            });
+            this.logger.info('Successfully loaded MCP system prompt from file');
+          } catch (error) {
+            this.logger.error('Failed to load MCP prompt from file, using fallback:', error);
+            systemPrompt += `You have access to the following MCP (Model Context Protocol) tools that you can call directly:\n\n${toolNames}\n\nWhen the user asks you to use a tool, call it directly using function calling. These are not GUI tools - they are functions you can invoke to perform actions.`;
+          }
+        } else {
+          if (canvasMode && trueMcpTools.length > 0) {
+            this.logger.info('Canvas mode enabled, skipping MCP system prompt');
+          } else {
+            this.logger.info('No MCP tools available, skipping MCP system prompt');
+          }
+          // Don't load MCP-related prompts when skipped
+        }
+
+        // Add agent tools formatting prompt if local tools are available
+        const hasLocalTools = mcpTools.some((tool) => tool.serverId === 'local-tools');
+        if (hasLocalTools && !canvasMode) {
+          try {
+            agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
+            // Also add the distinction prompt to clarify agent tools vs MCP tools
+            const distinctionPrompt = this.promptService.getPrompt('tools-distinction.md');
+            agentToolsPrompt = agentToolsPrompt + '\n\n' + distinctionPrompt;
+            this.logger.info('Added agent tools formatting and distinction prompts');
+          } catch (error) {
+            this.logger.warn('Failed to load agent tools prompt:', error);
+          }
+        } else if (hasLocalTools && canvasMode) {
+          this.logger.info('Canvas mode enabled, skipping agent tools prompt');
         }
       } else {
-        if (canvasMode && trueMcpTools.length > 0) {
-          this.logger.info('Canvas mode enabled, skipping MCP system prompt');
-        } else {
-          this.logger.info('No MCP tools available, skipping MCP system prompt');
-        }
-        // Don't load MCP-related prompts when skipped
-      }
-
-      // Add agent tools formatting prompt if local tools are available
-      let agentToolsPrompt = '';
-      const hasLocalTools = mcpTools.some((tool) => tool.serverId === 'local-tools');
-      if (hasLocalTools && !canvasMode) {
-        try {
-          agentToolsPrompt = '\n\n' + this.promptService.getPrompt('agent-tools-system.md');
-          // Also add the distinction prompt to clarify agent tools vs MCP tools
-          const distinctionPrompt = this.promptService.getPrompt('tools-distinction.md');
-          agentToolsPrompt = agentToolsPrompt + '\n\n' + distinctionPrompt;
-          this.logger.info('Added agent tools formatting and distinction prompts');
-        } catch (error) {
-          this.logger.warn('Failed to load agent tools prompt:', error);
-        }
-      } else if (hasLocalTools && canvasMode) {
-        this.logger.info('Canvas mode enabled, skipping agent tools prompt');
+        this.logger.info('RAG is enabled, skipping non-RAG prompts');
       }
 
       // Add RAG context to system prompt if available
@@ -564,8 +587,13 @@ export class ChatController {
 
       const systemMessage = {
         role: 'system' as const,
-        content:
-          systemPrompt + additionalContext + agentToolsPrompt + ragSystemPrompt + multimodalContext,
+        content: ragContext
+          ? ragSystemPrompt + multimodalContext // Only RAG prompt when RAG is enabled
+          : systemPrompt +
+            additionalContext +
+            agentToolsPrompt +
+            ragSystemPrompt +
+            multimodalContext,
       };
 
       // Add system message at the beginning if not already present
@@ -590,7 +618,7 @@ export class ChatController {
         let chunkCount = 0;
         for await (const chunk of this.openAIService.chatStream(enhancedMessages, {
           ...options,
-          tools: canvasMode ? [] : mcpTools,
+          tools: canvasMode || ragEnabled ? [] : mcpTools,
           maxToolRounds: 5, // Allow up to 5 rounds of sequential tool calls
           signal: abortController.signal,
           onToolCall: async (toolName: string, parameters: any) => {

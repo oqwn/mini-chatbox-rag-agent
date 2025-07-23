@@ -835,7 +835,7 @@ export const Chat: React.FC = () => {
                     </svg>
                   </button>
                   <h1 className="text-xl font-semibold">
-                    <span className="text-blue-600">Multimodal</span> Chatbox
+                    <span className="text-blue-600">Mini</span> Chatbox
                   </h1>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -917,7 +917,7 @@ export const Chat: React.FC = () => {
             <div className="flex-1 overflow-y-auto py-4">
               {messages.length === 0 && (
                 <div className="text-center text-gray-500 mt-20">
-                  <p className="text-lg mb-2">Welcome to Multimodal Chat!</p>
+                  <p className="text-lg mb-2">Welcome to Mini Chat!</p>
                   <p>Start a conversation by typing a message or uploading files below.</p>
                   <p className="text-sm mt-2 text-gray-400">
                     Supports images, videos, audio, and documents with OCR and analysis.

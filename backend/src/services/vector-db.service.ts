@@ -112,6 +112,14 @@ export class VectorDbService {
     }));
   }
 
+  async deleteKnowledgeSource(id: number): Promise<void> {
+    const query = `
+      DELETE FROM knowledge_sources
+      WHERE id = $1
+    `;
+    await this.pool.query(query, [id]);
+  }
+
   // Documents
   async createDocument(document: Document): Promise<number> {
     const query = `

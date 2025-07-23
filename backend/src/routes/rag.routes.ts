@@ -15,6 +15,7 @@ export function createRagRoutes(ragController: RagController): Router {
   // Knowledge sources
   router.post('/knowledge-sources', ragController.createKnowledgeSource.bind(ragController));
   router.get('/knowledge-sources', ragController.getKnowledgeSources.bind(ragController));
+  router.delete('/knowledge-sources/:id', ragController.deleteKnowledgeSource.bind(ragController));
 
   // Document ingestion
   router.post('/ingest/text', ragController.ingestText.bind(ragController));
