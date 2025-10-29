@@ -817,12 +817,12 @@ export const Chat: React.FC = () => {
             } min-w-0`}
           >
             {/* Header */}
-            <div className="bg-white border-b px-6 py-4">
+            <div className="bg-white border-b border-gray-200 shadow-sm px-6 py-4">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => setShowConversationSidebar(!showConversationSidebar)}
-                    className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+                    className="btn-icon"
                     title="Toggle conversation sidebar"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -834,32 +834,32 @@ export const Chat: React.FC = () => {
                       />
                     </svg>
                   </button>
-                  <h1 className="text-xl font-semibold">
-                    <span className="text-blue-600">Mini</span> Chatbox
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
+                    Mini Chatbox
                   </h1>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowMCPTools(true)}
-                    className="text-gray-600 hover:text-gray-900"
+                    className="btn-ghost text-sm"
                   >
                     Tools
                   </button>
                   <button
                     onClick={() => navigate('/rag')}
-                    className="text-gray-600 hover:text-gray-900"
+                    className="btn-ghost text-sm"
                   >
                     RAG
                   </button>
                   <button
                     onClick={() => navigate('/mcp')}
-                    className="text-gray-600 hover:text-gray-900"
+                    className="btn-ghost text-sm"
                   >
                     MCP
                   </button>
                   <button
                     onClick={() => navigate('/settings')}
-                    className="text-gray-600 hover:text-gray-900"
+                    className="btn-secondary text-sm"
                   >
                     Settings
                   </button>
@@ -867,26 +867,44 @@ export const Chat: React.FC = () => {
               </div>
 
               {/* RAG Controls */}
-              <div className="mt-3 flex items-center space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={ragEnabled}
-                    onChange={(e) => setRagEnabled(e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Enable RAG</span>
-                </label>
+              <div className="mt-4 flex items-center gap-3 flex-wrap">
+                {/* RAG Toggle */}
+                <button
+                  onClick={() => setRagEnabled(!ragEnabled)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    ragEnabled
+                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md hover:shadow-lg hover:from-emerald-600 hover:to-emerald-700'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {ragEnabled ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    )}
+                  </svg>
+                  <span>RAG</span>
+                </button>
 
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={canvasMode}
-                    onChange={(e) => setCanvasMode(e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Canvas Mode</span>
-                </label>
+                {/* Canvas Mode Toggle */}
+                <button
+                  onClick={() => setCanvasMode(!canvasMode)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    canvasMode
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md hover:shadow-lg hover:from-purple-600 hover:to-purple-700'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {canvasMode ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                    )}
+                  </svg>
+                  <span>Canvas</span>
+                </button>
 
                 {ragEnabled && knowledgeSources.length > 0 && (
                   <select
@@ -894,7 +912,7 @@ export const Chat: React.FC = () => {
                     onChange={(e) =>
                       setSelectedKnowledgeSource(e.target.value ? Number(e.target.value) : null)
                     }
-                    className="text-sm border border-gray-300 rounded px-2 py-1"
+                    className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                   >
                     <option value="">All sources</option>
                     {knowledgeSources.map((source) => (
@@ -904,23 +922,98 @@ export const Chat: React.FC = () => {
                     ))}
                   </select>
                 )}
-
-                {ragEnabled && (
-                  <span className="text-xs text-green-600">
-                    ✓ RAG enabled - using knowledge base for context
-                  </span>
-                )}
               </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto py-4">
+            <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
               {messages.length === 0 && (
-                <div className="text-center text-gray-500 mt-20">
-                  <p className="text-lg mb-2">Welcome to Mini Chat!</p>
-                  <p>Start a conversation by typing a message or uploading files below.</p>
-                  <p className="text-sm mt-2 text-gray-400">
-                    Supports images, videos, audio, and documents with OCR and analysis.
+                <div className="flex flex-col items-center justify-center h-full py-12 px-4 animate-fadeIn">
+                  <div className="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg animate-scaleIn">
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Start a conversation</h2>
+                  <p className="text-gray-600 text-center mb-8 max-w-md">
+                    Ask me anything or try one of these examples
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+                    <button
+                      onClick={() => setInput("Explain how RAG works in simple terms")}
+                      className="text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-500 hover:shadow-md transition-all duration-200 group"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-primary-100 transition-colors">
+                          <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                        </div>
+                        <div className="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+                          Explain RAG
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Learn about Retrieval-Augmented Generation
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setInput("Write a creative story about AI")}
+                      className="text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-500 hover:shadow-md transition-all duration-200 group"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                          <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </div>
+                        <div className="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+                          Creative Writing
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Generate creative content
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setInput("Help me debug this code")}
+                      className="text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-500 hover:shadow-md transition-all duration-200 group"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                        </div>
+                        <div className="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+                          Code Help
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Get programming assistance
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { setInput("Create a simple HTML page"); setCanvasMode(true); }}
+                      className="text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-500 hover:shadow-md transition-all duration-200 group"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+                          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                          </svg>
+                        </div>
+                        <div className="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+                          Build UI
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Create interactive web pages
+                      </div>
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-8">
+                    Supports images, videos, audio, and documents with OCR and analysis
                   </p>
                 </div>
               )}
@@ -933,21 +1026,15 @@ export const Chat: React.FC = () => {
                 return (
                   <div
                     key={index}
-                    className={`mb-4 ${message.role === 'user' ? 'text-right px-6' : message.role === 'system' ? 'px-6' : ''}`}
+                    className={`mb-4 animate-slideUp ${message.role === 'user' ? 'text-right px-6' : message.role === 'system' ? 'px-6' : ''}`}
                   >
                     <div
                       className={`${
                         message.role === 'user'
-                          ? 'inline-block px-4 py-2 rounded-lg max-w-2xl'
+                          ? 'message-user inline-block max-w-2xl'
                           : message.role === 'assistant'
-                            ? 'px-4 py-3 rounded-lg'
-                            : 'inline-block px-4 py-2 rounded-lg max-w-2xl'
-                      } ${
-                        message.role === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : message.role === 'system'
-                            ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                            : 'bg-gray-100 text-black'
+                            ? 'message-assistant'
+                            : 'message-system inline-block max-w-2xl'
                       }`}
                     >
                       {/* Attachments for user messages */}
@@ -1071,17 +1158,22 @@ export const Chat: React.FC = () => {
               })}
 
               {error && (
-                <div className="mb-4 px-6">
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                    {error}
-                    {error.includes('not configured') && (
-                      <button
-                        onClick={() => navigate('/settings')}
-                        className="ml-2 underline hover:no-underline"
-                      >
-                        Go to Settings
-                      </button>
-                    )}
+                <div className="mb-4 px-6 animate-slideDown">
+                  <div className="bg-error-light border border-error text-error-dark px-4 py-3 rounded-xl shadow-sm flex items-start gap-3">
+                    <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <div className="flex-1">
+                      <div>{error}</div>
+                      {error.includes('not configured') && (
+                        <button
+                          onClick={() => navigate('/settings')}
+                          className="mt-2 text-sm font-medium underline hover:no-underline"
+                        >
+                          Go to Settings →
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1110,20 +1202,20 @@ export const Chat: React.FC = () => {
             )}
 
             {/* Input */}
-            <div className="border-t px-6 py-4 bg-white">
+            <div className="border-t border-gray-200 bg-gradient-to-t from-gray-50 to-white px-6 py-4">
               {/* Status indicator during streaming */}
               {isStreaming && (
-                <div className="mb-3 text-xs text-gray-500 flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <div className="mb-3 text-xs font-medium text-gray-600 flex items-center gap-2 animate-fadeIn">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
                     <span>AI is responding...</span>
                   </div>
-                  <span className="text-gray-400">•</span>
-                  <span>Press Enter or click Stop to interrupt</span>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-gray-500">Press Enter or click Stop to interrupt</span>
                 </div>
               )}
-              <div className="flex space-x-4">
-                <div className="flex-1 relative">
+              <div className="flex gap-3">
+                <div className="flex-1 relative bg-white rounded-2xl shadow-lg border border-gray-200 focus-within:border-primary-500 focus-within:shadow-xl transition-all duration-200">
                   <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -1137,8 +1229,8 @@ export const Chat: React.FC = () => {
                     }
                     disabled={isStreaming || processingFiles}
                     rows={1}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    style={{ minHeight: '44px', maxHeight: '120px' }}
+                    className="w-full px-4 py-3 bg-transparent rounded-2xl resize-none focus:outline-none disabled:bg-gray-50 disabled:text-gray-500"
+                    style={{ minHeight: '52px', maxHeight: '120px' }}
                     onInput={(e) => {
                       const target = e.target as HTMLTextAreaElement;
                       target.style.height = 'auto';
@@ -1147,15 +1239,15 @@ export const Chat: React.FC = () => {
                   />
 
                   {/* Feature icons */}
-                  <div className="absolute right-2 top-2 flex items-center gap-1">
+                  <div className="absolute right-3 top-3 flex items-center gap-1">
                     {/* Auto Approve MCP icon */}
                     <button
                       onClick={() => setMcpAutoApprove(!mcpAutoApprove)}
                       disabled={isStreaming || processingFiles}
-                      className={`p-2 rounded-md transition-colors disabled:text-gray-300 ${
+                      className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-30 ${
                         mcpAutoApprove
-                          ? 'text-green-600 hover:text-green-700 bg-green-50'
-                          : 'text-gray-400 hover:text-gray-600'
+                          ? 'text-success bg-success-light hover:bg-success-light shadow-sm'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                       }`}
                       title={`MCP Auto Approve: ${mcpAutoApprove ? 'Enabled' : 'Disabled'}`}
                     >
@@ -1178,13 +1270,13 @@ export const Chat: React.FC = () => {
                     <button
                       onClick={() => {
                         setCanvasMode(!canvasMode);
-                        setCanvasManuallyHidden(false); // Reset when toggling Canvas mode
+                        setCanvasManuallyHidden(false);
                       }}
                       disabled={isStreaming || processingFiles}
-                      className={`p-2 rounded-md transition-colors disabled:text-gray-300 ${
+                      className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-30 ${
                         canvasMode
-                          ? 'text-purple-600 hover:text-purple-700 bg-purple-50'
-                          : 'text-gray-400 hover:text-gray-600'
+                          ? 'text-purple-600 bg-purple-50 hover:bg-purple-100 shadow-sm'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                       }`}
                       title={`Canvas Mode: ${canvasMode ? 'Enabled - AI will respond with HTML' : 'Disabled - Click to enable HTML responses'}`}
                     >
@@ -1195,10 +1287,10 @@ export const Chat: React.FC = () => {
                     <button
                       onClick={() => setAgentModeEnabled(!agentModeEnabled)}
                       disabled={isStreaming || processingFiles}
-                      className={`p-2 rounded-md transition-colors disabled:text-gray-300 ${
+                      className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-30 ${
                         agentModeEnabled
-                          ? 'text-blue-600 hover:text-blue-700 bg-blue-50'
-                          : 'text-gray-400 hover:text-gray-600'
+                          ? 'text-primary-600 bg-primary-50 hover:bg-primary-100 shadow-sm'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                       }`}
                       title={`Agent Mode: ${agentModeEnabled ? 'Enabled' : 'Disabled'}`}
                     >
@@ -1221,7 +1313,7 @@ export const Chat: React.FC = () => {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isStreaming || processingFiles}
-                      className="p-2 text-gray-400 hover:text-gray-600 disabled:text-gray-300"
+                      className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-all duration-200"
                       title="Attach files"
                     >
                       <svg
@@ -1256,39 +1348,27 @@ export const Chat: React.FC = () => {
                 <button
                   onClick={isStreaming ? handleInterrupt : handleSend}
                   disabled={!isStreaming && !input.trim() && pendingAttachments.length === 0}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  className={`min-w-[100px] px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform active:scale-95 ${
                     isStreaming
-                      ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
+                      ? 'bg-gradient-to-r from-error to-error-dark text-white hover:from-error-dark hover:to-error animate-pulse'
                       : !input.trim() && pendingAttachments.length === 0
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                        : 'btn-primary'
                   }`}
                 >
                   {isStreaming ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 justify-center">
                       <svg
                         className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
+                        fill="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 10h6v4H9z"
-                        />
+                        <rect x="6" y="6" width="12" height="12" rx="1" />
                       </svg>
                       Stop
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 justify-center">
                       <svg
                         className="w-4 h-4"
                         fill="none"
