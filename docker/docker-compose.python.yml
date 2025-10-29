@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # Python Django Backend
+  backend-py:
+    build:
+      context: ../src/backend-py
+      dockerfile: Dockerfile
+    ports:
+      - "20002:20002"
+    environment:
+      - DJANGO_SECRET_KEY=your-secret-key-change-in-production
+      - DJANGO_DEBUG=True
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - POSTGRES_DB=chatbox
+      - POSTGRES_USER=chatbox
+      - POSTGRES_PASSWORD=chatbox
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_URL=http://qdrant:6333
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - ../src/backend-py/.env
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    networks:
+      - chatbox-network
+    volumes:
+      - ../src/backend-py:/app
+      - py-uploads:/app/uploads
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             daphne -b 0.0.0.0 -p 20002 backend.asgi:application"
+
+  # Celery Worker for Python backend
+  celery-worker:
+    build:
+      context: ../src/backend-py
+      dockerfile: Dockerfile
+    environment:
+      - DJANGO_SECRET_KEY=your-secret-key-change-in-production
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - POSTGRES_DB=chatbox
+      - POSTGRES_USER=chatbox
+      - POSTGRES_PASSWORD=chatbox
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - ../src/backend-py/.env
+    depends_on:
+      - postgres
+      - redis
+      - backend-py
+    networks:
+      - chatbox-network
+    volumes:
+      - ../src/backend-py:/app
+      - py-uploads:/app/uploads
+    restart: unless-stopped
+    command: celery -A backend worker -l info
+
+  # Node.js Backend (existing)
+  backend-node:
+    build:
+      context: ../src/backend-node
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://chatbox:chatbox@postgres:5432/chatbox
+      - REDIS_URL=redis://redis:6379
+      - VECTOR_DB_URL=http://qdrant:6333
+    env_file:
+      - ../src/backend-node/.env
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    networks:
+      - chatbox-network
+    volumes:
+      - node-uploads:/app/uploads
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ../src/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - VITE_API_URL_NODE=http://localhost:3000
+      - VITE_API_URL_PYTHON=http://localhost:8000
+    networks:
+      - chatbox-network
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=chatbox
+      - POSTGRES_PASSWORD=chatbox
+      - POSTGRES_DB=chatbox
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - chatbox-network
+    restart: unless-stopped
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - chatbox-network
+    restart: unless-stopped
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - chatbox-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  qdrant-data:
+  node-uploads:
+  py-uploads:
+
+networks:
+  chatbox-network:
+    driver: bridge
