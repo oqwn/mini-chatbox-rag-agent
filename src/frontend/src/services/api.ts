@@ -105,6 +105,67 @@ export interface MCPTool {
 }
 
 class ApiService {
+  // WebSocket for streaming
+  private ws: WebSocket | null = null;
+
+  streamMessageWebSocket(
+    messages: ChatMessage[],
+    options: ChatOptions | undefined,
+    onMessage: (content: string) => void,
+    onError: (error: string) => void,
+    onDone: () => void
+  ): () => void {
+    // Create WebSocket connection
+    // Remove /api suffix if present, then convert to WebSocket URL
+    const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+    const wsUrl = baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+    this.ws = new WebSocket(`${wsUrl}/ws/chat/`);
+
+    this.ws.onopen = () => {
+      // Send chat request
+      this.ws?.send(JSON.stringify({
+        messages,
+        options,
+        user_id: 'default_user'
+      }));
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'content') {
+          onMessage(data.delta);
+        } else if (data.type === 'error') {
+          onError(data.message);
+          this.ws?.close();
+        } else if (data.type === 'done') {
+          onDone();
+          this.ws?.close();
+        }
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error);
+      }
+    };
+
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      onError('WebSocket connection error');
+    };
+
+    this.ws.onclose = () => {
+      this.ws = null;
+    };
+
+    // Return cleanup function
+    return () => {
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
+    };
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -124,16 +185,23 @@ class ApiService {
   }
 
   async getSettings(): Promise<SettingsResponse> {
-    return this.request('/settings');
+    return this.request('/settings/');
   }
 
   async updateSettings(settings: {
     openai?: OpenAISettings;
     rag?: RagSettings;
   }): Promise<{ success: boolean; message: string }> {
-    return this.request('/settings', {
+    return this.request('/settings/', {
       method: 'PUT',
       body: JSON.stringify(settings),
+    });
+  }
+
+  async resetSettings(): Promise<{ success: boolean; message: string }> {
+    return this.request('/settings/reset/', {
+      method: 'POST',
+      body: JSON.stringify({}),
     });
   }
 
@@ -155,7 +223,7 @@ class ApiService {
     mcpAutoApprove?: boolean,
     canvasMode?: boolean
   ): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+    const response = await fetch(`${API_BASE_URL}/chat/stream/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -179,12 +247,12 @@ class ApiService {
     try {
       // eslint-disable-next-line no-constant-condition
       while (true) {
-        // Check if the request was aborted
         if (signal?.aborted) {
           throw new Error('Request aborted');
         }
 
         const { done, value } = await reader.read();
+
         if (done) break;
 
         // Decode the chunk as plain text
@@ -201,12 +269,10 @@ class ApiService {
 
         // Check for stream interrupted marker
         if (chunk.includes('[STREAM_INTERRUPTED]')) {
-          // Remove the marker from the chunk
           const cleanChunk = chunk.replace(/\n*\[STREAM_INTERRUPTED\]\n*/, '');
           if (cleanChunk) {
             onMessage(cleanChunk);
           }
-          // Call onDone to indicate stream was interrupted
           onDone();
           return;
         }
@@ -217,13 +283,11 @@ class ApiService {
         }
       }
 
-      // Stream completed successfully
       if (!signal?.aborted) {
         onDone();
       }
     } catch (error) {
       if (signal?.aborted) {
-        // Request was aborted, don't call error handler
         return;
       }
       throw error;
@@ -234,7 +298,9 @@ class ApiService {
 
   // MCP API methods
   async getMCPTools(): Promise<MCPTool[]> {
-    return this.request('/mcp/tools');
+    const response = await this.request('/mcp/tools');
+    // Handle paginated response
+    return response.results || response;
   }
 
   async invokeMCPTool(
@@ -249,7 +315,9 @@ class ApiService {
   }
 
   async getMCPServers(): Promise<any[]> {
-    return this.request('/mcp/servers');
+    const response = await this.request('/mcp/servers');
+    // Handle paginated response
+    return response.results || response;
   }
 
   async createMCPServer(serverId: string, config: any): Promise<any> {
@@ -260,15 +328,18 @@ class ApiService {
   }
 
   async getMCPServerTools(serverId: string): Promise<any[]> {
-    return this.request(`/mcp/servers/${serverId}/tools`);
+    const response = await this.request(`/mcp/servers/${serverId}/tools`);
+    return response.results || response;
   }
 
   async getMCPServerResources(serverId: string): Promise<any[]> {
-    return this.request(`/mcp/servers/${serverId}/resources`);
+    const response = await this.request(`/mcp/servers/${serverId}/resources`);
+    return response.results || response;
   }
 
   async getMCPServerPrompts(serverId: string): Promise<any[]> {
-    return this.request(`/mcp/servers/${serverId}/prompts`);
+    const response = await this.request(`/mcp/servers/${serverId}/prompts`);
+    return response.results || response;
   }
 
   async disconnectMCPServer(serverId: string): Promise<any> {
@@ -299,7 +370,7 @@ class ApiService {
     formData.append('multimodal', 'true');
 
     // Use the new endpoint that doesn't store in knowledge base
-    const response = await fetch(`${API_BASE_URL}/rag/process/chat-file`, {
+    const response = await fetch(`${API_BASE_URL}/rag/process/chat-file/`, {
       method: 'POST',
       body: formData,
     });
@@ -340,7 +411,7 @@ class ApiService {
         try {
           const result = await this.processMediaFile(file);
           processedAttachments.push({
-            id: Math.random().toString(36).substr(2, 9),
+            id: Math.random().toString(36).substring(2, 11),
             name: file.name,
             type: result.mediaType,
             size: file.size,
@@ -352,7 +423,7 @@ class ApiService {
         } catch (error) {
           console.error(`Failed to process ${file.name}:`, error);
           processedAttachments.push({
-            id: Math.random().toString(36).substr(2, 9),
+            id: Math.random().toString(36).substring(2, 11),
             name: file.name,
             type: 'unknown',
             size: file.size,

@@ -20,6 +20,7 @@ interface ConversationSidebarProps {
   onAddOptimisticConversation?: (
     callback: (sessionId: string, userMessage?: string) => void
   ) => void;
+  onRefreshRequested?: (callback: () => void) => void;
 }
 
 interface ConversationWithDropdown extends Conversation {
@@ -34,6 +35,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onNewConversation,
   onCurrentConversationDeleted,
   onAddOptimisticConversation,
+  onRefreshRequested,
 }) => {
   const [conversations, setConversations] = useState<ConversationWithDropdown[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -68,6 +70,12 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   }, [onAddOptimisticConversation]);
 
+  useEffect(() => {
+    if (onRefreshRequested) {
+      onRefreshRequested(loadConversations);
+    }
+  }, [onRefreshRequested]);
+
   // Close project menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -89,36 +97,20 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
     try {
       const response = await conversationApiService.getConversations(100, 0);
-      setConversations(response.conversations);
+      setConversations(response.conversations || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
+      setConversations([]); // Ensure conversations is always an array
     } finally {
       setLoading(false);
     }
   };
 
   const addOptimisticConversation = (sessionId: string, userMessage?: string) => {
-    // Extract a meaningful title from the user message
-    const extractTitle = (message?: string): string => {
-      if (!message?.trim()) return 'New Conversation';
-
-      // Clean up the message for title extraction
-      const cleanMessage = message.trim().replace(/\s+/g, ' ');
-
-      // Take first sentence or first 50 characters, whichever is shorter
-      const firstSentence = cleanMessage.split(/[.!?]/)[0];
-      const title =
-        firstSentence.length > 50
-          ? cleanMessage.substring(0, 50).trim() + '...'
-          : firstSentence.trim();
-
-      return title || 'New Conversation';
-    };
-
     const optimisticConversation: ConversationWithDropdown = {
       id: undefined, // Will be set when saved to backend
       sessionId,
-      title: extractTitle(userMessage),
+      title: 'New Conversation', // Temporary title, will be updated by backend
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isStarred: false,
@@ -126,7 +118,15 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       messageCount: 0,
     };
 
-    setConversations((prev) => [optimisticConversation, ...prev]);
+    setConversations((prev) => {
+      // Check if conversation with this sessionId already exists
+      const exists = prev.some((conv) => conv.sessionId === sessionId);
+      if (exists) {
+        // Don't update if already exists - let backend handle title updates
+        return prev;
+      }
+      return [optimisticConversation, ...prev];
+    });
   };
 
   const loadProjects = async () => {
@@ -141,7 +141,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   const handleStarConversation = async (e: React.MouseEvent, conversation: Conversation) => {
     e.stopPropagation();
     try {
-      await conversationApiService.updateConversation(conversation.id!, {
+      await conversationApiService.updateConversation(conversation.sessionId, {
         isStarred: !conversation.isStarred,
       });
       await loadConversations();
@@ -150,9 +150,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   };
 
-  const handleMoveToProject = async (conversationId: number, projectId: number | null) => {
+  const handleMoveToProject = async (conversationSessionId: string, projectId: number | null) => {
     try {
-      await conversationApiService.updateConversation(conversationId, {
+      await conversationApiService.updateConversation(conversationSessionId, {
         projectId: projectId ?? undefined,
       });
       await loadConversations();
@@ -265,7 +265,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         type: 'warning',
         onConfirm: async () => {
           try {
-            await conversationApiService.updateConversation(conversation.id!, { isArchived: true });
+            await conversationApiService.updateConversation(conversation.sessionId, { isArchived: true });
             loadConversations();
 
             // If we deleted the current conversation, notify the parent to clear the chat
@@ -290,7 +290,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     });
   };
 
-  const filteredConversations = conversations
+  const filteredConversations = (conversations || [])
     .filter((conv) => {
       if (selectedFilter === 'starred') return conv.isStarred && !conv.isArchived;
       if (selectedFilter === 'recent') return !conv.isArchived;
@@ -646,7 +646,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleMoveToProject(conversation.id!, null);
+                                  handleMoveToProject(conversation.sessionId, null);
                                   toggleProjectDropdown(conversation.id!);
                                 }}
                                 className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 transition-colors ${
@@ -664,7 +664,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                                   key={project.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleMoveToProject(conversation.id!, project.id);
+                                    handleMoveToProject(conversation.sessionId, project.id);
                                     toggleProjectDropdown(conversation.id!);
                                   }}
                                   className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${

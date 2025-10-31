@@ -3,6 +3,7 @@ import { apiService, SettingsResponse } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { StorageService } from '../services/storage';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Select, useModelOptions } from '../components/ui/Select';
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -108,8 +109,14 @@ export const Settings: React.FC = () => {
 
       setLoading(false);
 
-      // Auto-check capabilities for available models
-      await checkAvailableModelsCapabilities(response.openai.availableModels);
+      // Only check capability for the currently selected model, not all models
+      // This reduces unnecessary API calls on page load
+      if (model) {
+        const capability = StorageService.getModelCapability(model);
+        if (capability) {
+          setModelSupportsTools(capability.supportsFunctionCalling);
+        }
+      }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to load settings' });
       setLoading(false);
@@ -229,6 +236,17 @@ export const Settings: React.FC = () => {
       setShowStoredKey(false); // Hide the key after saving
       setShowStoredRerankKey(false); // Hide the rerank key after saving
       await loadSettings(); // Reload settings to get new model list
+
+      // Test model capability after saving if model is set
+      if (model) {
+        const capability = StorageService.getModelCapability(model);
+        if (capability) {
+          setModelSupportsTools(capability.supportsFunctionCalling);
+        } else {
+          // Test capability for the newly saved model
+          await testModelCapability(model);
+        }
+      }
     } catch (error) {
       setMessage({
         type: 'error',
@@ -248,127 +266,127 @@ export const Settings: React.FC = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <div className="space-x-2">
-          <button
-            onClick={() => navigate('/mcp')}
-            className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            MCP
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            ← Back to Chat
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="max-w-5xl mx-auto p-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
+            <p className="text-gray-600">Configure your AI and RAG settings</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigate('/mcp')}
+              className="px-4 py-2 text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg shadow-sm transition-all hover:shadow-md font-medium"
+            >
+              MCP
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg shadow-sm transition-all hover:shadow-md font-medium flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Chat
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">AI Configuration</h2>
-
-        {(settings?.openai.isConfigured || hasStoredApiKey) && (
-          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-            ✓ AI service is configured and ready to use
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-1">
-              API Key <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <input
-                type={showStoredKey ? 'text' : 'password'}
-                id="apiKey"
-                value={showStoredKey && hasStoredApiKey && !apiKey ? storedApiKey : apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={
-                  settings?.openai.isConfigured || hasStoredApiKey
-                    ? '••••••••• (configured)'
-                    : 'sk-...'
-                }
-                className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {hasStoredApiKey && (
-                <button
-                  type="button"
-                  onClick={() => setShowStoredKey(!showStoredKey)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
-                >
-                  {showStoredKey ? 'Hide' : 'Show'}
-                </button>
-              )}
+        {/* AI Configuration Card */}
+        <div className="bg-white rounded-xl shadow-lg p-8 mb-6 border border-gray-200">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
             </div>
-            <p className="mt-1 text-sm text-gray-500">
-              Your API key for OpenAI-compatible services (OpenAI, OpenRouter, etc.)
-              {hasStoredApiKey && ' Leave empty to keep existing key.'}
-              <br />
-              <span className="text-xs">
-                API keys are encrypted and stored locally in your browser.
-              </span>
-            </p>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">AI Configuration</h2>
+              <p className="text-sm text-gray-600">Configure your AI model and API settings</p>
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-700 mb-1">
-              Base URL (optional)
-            </label>
-            <input
-              type="url"
-              id="baseUrl"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="https://api.openai.com/v1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              API endpoint URL (e.g., https://api.openai.com/v1, https://openrouter.ai/api/v1)
-            </p>
-          </div>
+          {(settings?.openai?.isConfigured || hasStoredApiKey) && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl flex items-center gap-3">
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-green-900">AI service is configured</p>
+                <p className="text-sm text-green-700">Your API is ready to use</p>
+              </div>
+            </div>
+          )}
 
-          <div>
-            <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-1">
-              Model
-            </label>
-            {settings?.openai.availableModels.length ? (
-              <select
-                id="model"
-                value={model}
-                onChange={(e) => {
-                  const newModel = e.target.value;
-                  setModel(newModel);
-                  // Check if we have cached capability for this model
-                  const capability = StorageService.getModelCapability(newModel);
-                  if (capability) {
-                    setModelSupportsTools(capability.supportsFunctionCalling);
-                  } else {
-                    setModelSupportsTools(null);
-                    // Auto-test the model if we have API configuration
-                    if (hasStoredApiKey || apiKey) {
-                      testModelCapability(newModel);
-                    }
+          <div className="space-y-6">
+            <div>
+              <label htmlFor="apiKey" className="block text-sm font-semibold text-gray-800 mb-2">
+                API Key <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showStoredKey ? 'text' : 'password'}
+                  id="apiKey"
+                  value={showStoredKey && hasStoredApiKey && !apiKey ? storedApiKey : apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={
+                    settings?.openai?.isConfigured || hasStoredApiKey
+                      ? '••••••••• (configured)'
+                      : 'sk-...'
                   }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {settings.openai.availableModels.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            ) : (
+                  className="w-full px-4 py-3 pr-24 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm hover:border-gray-400"
+                />
+                {hasStoredApiKey && (
+                  <button
+                    type="button"
+                    onClick={() => setShowStoredKey(!showStoredKey)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-md transition-all"
+                  >
+                    {showStoredKey ? 'Hide' : 'Show'}
+                  </button>
+                )}
+              </div>
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <span className="font-medium">Your API key for OpenAI-compatible services</span> (OpenAI, OpenRouter, etc.)
+                  {hasStoredApiKey && <span className="block mt-1 text-xs text-blue-600">Leave empty to keep existing key.</span>}
+                </p>
+                <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Encrypted and stored locally in your browser
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="baseUrl" className="block text-sm font-semibold text-gray-800 mb-2">
+                Base URL <span className="text-gray-400 text-xs font-normal">(optional)</span>
+              </label>
               <input
-                type="text"
+                type="url"
+                id="baseUrl"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                placeholder="https://api.openai.com/v1"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm hover:border-gray-400"
+              />
+              <p className="mt-2 text-sm text-gray-600">
+                API endpoint URL (e.g., https://api.openai.com/v1, https://openrouter.ai/api/v1)
+              </p>
+            </div>
+
+          <div>
+            {settings?.openai?.availableModels?.length ? (
+              <Select
                 id="model"
+                label="Model"
                 value={model}
-                onChange={(e) => {
-                  const newModel = e.target.value;
+                onChange={(newModel) => {
                   setModel(newModel);
                   // Check if we have cached capability for this model
                   const capability = StorageService.getModelCapability(newModel);
@@ -376,17 +394,42 @@ export const Settings: React.FC = () => {
                     setModelSupportsTools(capability.supportsFunctionCalling);
                   } else {
                     setModelSupportsTools(null);
-                    // Auto-test the model if we have API configuration
-                    if (hasStoredApiKey || apiKey) {
-                      testModelCapability(newModel);
-                    }
+                    // Don't auto-test on selection change - only test after saving
                   }
                 }}
-                placeholder="Enter model name (e.g., gpt-4, claude-3-opus)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                options={useModelOptions(settings.openai.availableModels, true)}
+                helperText="Select from available models fetched from your API provider"
+                showCount={true}
               />
+            ) : (
+              <div>
+                <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-1">
+                  Model
+                </label>
+                <input
+                  type="text"
+                  id="model"
+                  value={model}
+                  onChange={(e) => {
+                    const newModel = e.target.value;
+                    setModel(newModel);
+                    // Check if we have cached capability for this model
+                    const capability = StorageService.getModelCapability(newModel);
+                    if (capability) {
+                      setModelSupportsTools(capability.supportsFunctionCalling);
+                    } else {
+                      setModelSupportsTools(null);
+                      // Don't auto-test on input change - only test after saving
+                    }
+                  }}
+                  placeholder="Enter model name (e.g., gpt-4, claude-3-opus)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  Enter the model name manually (API key required for model list)
+                </p>
+              </div>
             )}
-            <p className="mt-1 text-sm text-gray-500">Select the AI model to use for chat</p>
 
             {/* Model capability indicator */}
             {model && modelSupportsTools !== null && (
@@ -436,84 +479,154 @@ export const Settings: React.FC = () => {
           </div>
         </div>
 
-        {message && (
-          <div
-            className={`mt-4 p-3 rounded ${
-              message.type === 'success'
-                ? 'bg-green-100 border border-green-400 text-green-700'
-                : 'bg-red-100 border border-red-400 text-red-700'
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
+          {message && (
+            <div
+              className={`mt-6 p-4 rounded-xl flex items-start gap-3 ${
+                message.type === 'success'
+                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'
+                  : 'bg-gradient-to-r from-red-50 to-rose-50 border border-red-200'
+              }`}
+            >
+              {message.type === 'success' ? (
+                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              )}
+              <p className={`text-sm font-medium ${message.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                {message.text}
+              </p>
+            </div>
+          )}
 
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className={`px-4 py-2 rounded-md font-medium ${
-              saving
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            {saving ? 'Saving...' : 'Save Settings'}
-          </button>
+          <div className="mt-8 flex gap-3">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all shadow-md ${
+                saving
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg transform hover:-translate-y-0.5'
+              }`}
+            >
+              {saving ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </span>
+              ) : (
+                'Save Settings'
+              )}
+            </button>
 
           <button
             onClick={() => {
               setConfirmDialog({
                 isOpen: true,
                 title: 'Clear All Settings',
-                message: 'Are you sure you want to clear all stored settings?',
+                message: 'Are you sure you want to clear all stored settings? This will remove settings from both local storage and the server.',
                 type: 'danger',
-                onConfirm: () => {
-                  StorageService.clearAll();
-                  setApiKey('');
-                  setBaseUrl('');
-                  setModel('');
-                  setHasStoredApiKey(false);
-                  setStoredApiKey('');
-                  setShowStoredKey(false);
-                  setModelSupportsTools(null);
-                  // Clear RAG settings
-                  setRagEmbeddingModel('');
-                  setRagEmbeddingEndpoint('');
-                  setRagRerankEndpoint('');
-                  setRagRerankApiKey('');
-                  setRagRerankForceLocal('');
-                  setHasStoredRerankKey(false);
-                  setStoredRerankApiKey('');
-                  setShowStoredRerankKey(false);
-                  setMessage({ type: 'success', text: 'Settings cleared from local storage' });
+                onConfirm: async () => {
+                  try {
+                    // Clear server-side settings
+                    await apiService.resetSettings();
+
+                    // Clear local storage
+                    StorageService.clearAll();
+
+                    // Clear component state
+                    setApiKey('');
+                    setBaseUrl('');
+                    setModel('');
+                    setHasStoredApiKey(false);
+                    setStoredApiKey('');
+                    setShowStoredKey(false);
+                    setModelSupportsTools(null);
+                    setRagEmbeddingModel('');
+                    setRagEmbeddingEndpoint('');
+                    setRagRerankEndpoint('');
+                    setRagRerankApiKey('');
+                    setRagRerankForceLocal('');
+                    setHasStoredRerankKey(false);
+                    setStoredRerankApiKey('');
+                    setShowStoredRerankKey(false);
+
+                    setMessage({ type: 'success', text: 'All settings cleared successfully' });
+
+                    // Reload settings to get fresh defaults
+                    await loadSettings();
+                  } catch (error) {
+                    setMessage({
+                      type: 'error',
+                      text: 'Failed to clear settings: ' + (error instanceof Error ? error.message : 'Unknown error')
+                    });
+                  }
                   setConfirmDialog({ ...confirmDialog, isOpen: false });
                 },
               });
             }}
-            className="px-4 py-2 text-red-600 hover:text-red-800 border border-red-300 rounded-md hover:bg-red-50"
+            className="px-6 py-3 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border-2 border-red-300 hover:border-red-400 rounded-lg font-semibold transition-all shadow-sm hover:shadow-md"
           >
-            Clear Stored Settings
+            Clear All Settings
           </button>
         </div>
       </div>
 
       {/* RAG Configuration Section */}
-      <div className="bg-white rounded-lg shadow p-6 mt-6">
-        <h2 className="text-xl font-semibold mb-4">RAG Configuration</h2>
+      <div className="bg-white rounded-xl shadow-lg p-8 mt-6 border border-gray-200">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">RAG Configuration</h2>
+            <p className="text-sm text-gray-600">Configure retrieval and reranking settings</p>
+          </div>
+        </div>
 
         {settings?.rag && (
-          <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded">
-            📊 Embedding:{' '}
-            {settings.rag.embedding.isConfigured ? '✓ Configured' : '⚠ Not configured'} | 🔄
-            Reranking: {settings.rag.reranking.isConfigured ? '✓ Configured' : '⚠ Not configured'}
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">Embedding:</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  settings.rag.embedding?.isConfigured
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {settings.rag.embedding?.isConfigured ? '✓ Configured' : 'Not configured'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">Reranking:</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  settings.rag.reranking?.isConfigured
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {settings.rag.reranking?.isConfigured ? '✓ Configured' : 'Not configured'}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Embedding Configuration */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">🔍 Embedding Configuration</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Embedding Configuration</h3>
 
             <div>
               <label
@@ -558,7 +671,7 @@ export const Settings: React.FC = () => {
 
           {/* Reranking Configuration */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">🔄 Reranking Configuration</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Reranking Configuration</h3>
 
             <div>
               <label
@@ -642,15 +755,39 @@ export const Settings: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="text-sm font-medium text-blue-800 mb-2">📝 RAG Configuration Notes</h4>
-          <ul className="text-xs text-blue-700 space-y-1">
-            <li>• Embedding models are used for document indexing and similarity search</li>
-            <li>• Reranking improves search relevance by reordering results</li>
-            <li>• Local services work offline but may have lower performance</li>
-            <li>• Remote services require network connectivity but offer better accuracy</li>
-            <li>• All settings are stored securely and persistently in your browser</li>
-          </ul>
+        <div className="mt-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-bold text-blue-900 mb-3">RAG Configuration Notes</h4>
+              <ul className="text-sm text-blue-800 space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>Embedding models are used for document indexing and similarity search</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>Reranking improves search relevance by reordering results</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>Local services work offline but may have lower performance</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>Remote services require network connectivity but offer better accuracy</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>All settings are stored securely and persistently in your browser</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         {/* Confirm Dialog */}
@@ -662,6 +799,7 @@ export const Settings: React.FC = () => {
           onConfirm={confirmDialog.onConfirm}
           onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
         />
+      </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:20001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:20001/api';
 
 export interface KnowledgeSource {
   id?: number;
@@ -135,7 +135,7 @@ export interface ConfigurationUpdateRequest {
 
 class RagApiService {
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
-    const url = `${API_BASE_URL}/api/rag${endpoint}`;
+    const url = `${API_BASE_URL}/rag${endpoint}`;
 
     const response = await fetch(url, {
       headers: {
@@ -207,7 +207,7 @@ class RagApiService {
       formData.append('metadata', JSON.stringify(metadata));
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/rag/ingest/file`, {
+    const response = await fetch(`${API_BASE_URL}/rag/ingest/file/`, {
       method: 'POST',
       body: formData,
     });

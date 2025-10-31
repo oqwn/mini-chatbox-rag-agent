@@ -72,7 +72,7 @@ export interface ConversationsResponse {
 export class ConversationApiService {
   // Get all conversations
   async getConversations(limit: number = 50, offset: number = 0): Promise<ConversationsResponse> {
-    const response = await fetch(`${API_BASE_URL}/conversations?limit=${limit}&offset=${offset}`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/?limit=${limit}&offset=${offset}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ export class ConversationApiService {
 
   // Get specific conversation
   async getConversation(sessionId: string): Promise<{ conversation: Conversation }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ export class ConversationApiService {
     title?: string,
     contextWindowSize?: number
   ): Promise<{ conversation: Conversation }> {
-    const response = await fetch(`${API_BASE_URL}/conversations`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -135,10 +135,10 @@ export class ConversationApiService {
 
   // Update conversation
   async updateConversation(
-    conversationId: number,
+    sessionId: string,
     updates: Partial<Conversation>
   ): Promise<{ conversation: Conversation }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -172,7 +172,7 @@ export class ConversationApiService {
     }
 
     const response = await fetch(
-      `${API_BASE_URL}/conversations/${sessionId}/messages?${params.toString()}`,
+      `${API_BASE_URL}/conversations/${sessionId}/messages/?${params.toString()}`,
       {
         method: 'GET',
         headers: {
@@ -199,12 +199,15 @@ export class ConversationApiService {
       importanceScore?: number;
     }
   ): Promise<{ messageId: number }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/messages`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/messages/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(message),
+      body: JSON.stringify({
+        ...message,
+        user_id: 'default_user' // Add user_id for backend to generate title
+      }),
     });
 
     if (!response.ok) {
@@ -216,7 +219,7 @@ export class ConversationApiService {
 
   // Get conversation summaries
   async getSummaries(sessionId: string): Promise<{ summaries: ConversationSummary[] }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/summaries`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/summaries/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -241,7 +244,7 @@ export class ConversationApiService {
       compressionRatio?: number;
     }
   ): Promise<{ summaryId: number }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/summaries`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/summaries/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -261,7 +264,7 @@ export class ConversationApiService {
     sessionId: string,
     keepRecentCount: number = 50
   ): Promise<{ pruningLog: any }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/prune`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/prune/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -278,7 +281,7 @@ export class ConversationApiService {
 
   // Get memory cache
   async getCache(key: string): Promise<{ data: any }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/cache/${key}`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/cache/${key}/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -297,7 +300,7 @@ export class ConversationApiService {
 
   // Set memory cache
   async setCache(key: string, data: any, ttlMinutes?: number): Promise<{ success: boolean }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/cache/${key}`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/cache/${key}/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -314,7 +317,7 @@ export class ConversationApiService {
 
   // Get memory statistics
   async getStats(): Promise<{ stats: MemoryStats }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/stats`, {
+    const response = await fetch(`${API_BASE_URL}/conversations/stats/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -330,7 +333,7 @@ export class ConversationApiService {
 
   // Get all projects
   async getProjects(): Promise<Project[]> {
-    const response = await fetch(`${API_BASE_URL}/projects`, {
+    const response = await fetch(`${API_BASE_URL}/projects/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -352,7 +355,7 @@ export class ConversationApiService {
     color?: string;
     icon?: string;
   }): Promise<Project> {
-    const response = await fetch(`${API_BASE_URL}/projects`, {
+    const response = await fetch(`${API_BASE_URL}/projects/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -370,7 +373,7 @@ export class ConversationApiService {
 
   // Update project
   async updateProject(projectId: number, updates: Partial<Project>): Promise<Project> {
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}/`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -388,7 +391,7 @@ export class ConversationApiService {
 
   // Delete project
   async deleteProject(projectId: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}/`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

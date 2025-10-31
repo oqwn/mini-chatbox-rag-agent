@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'apps.rag',
     'apps.mcp',
     'apps.projects',
+    'apps.settings',
 ]
 
 MIDDLEWARE = [
@@ -233,3 +234,7 @@ LOGGING = {
         },
     },
 }
+
+# CSRF exemption for streaming endpoints
+CSRF_TRUSTED_ORIGINS = ['http://localhost:20001', 'http://127.0.0.1:20001', 'http://0.0.0.0:20001']
+

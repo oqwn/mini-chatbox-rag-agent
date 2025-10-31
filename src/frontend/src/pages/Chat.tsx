@@ -50,6 +50,7 @@ export const Chat: React.FC = () => {
   const addOptimisticConversationRef = useRef<
     ((sessionId: string, userMessage?: string) => void) | null
   >(null);
+  const refreshConversationListRef = useRef<(() => void) | null>(null);
   const navigate = useNavigate();
 
   // Function to extract HTML from message content
@@ -427,7 +428,7 @@ export const Chat: React.FC = () => {
     });
   };
 
-  const persistMessage = async (message: ChatMessage) => {
+  const persistMessage = async (message: ChatMessage, isFirstUserMessage: boolean = false) => {
     if (!currentSessionId) return;
 
     try {
@@ -436,6 +437,14 @@ export const Chat: React.FC = () => {
         content: message.content,
         tokenCount: Math.floor(message.content.length / 4), // Rough token estimate
       });
+
+      // If this is the first user message, refresh the conversation list to get the AI-generated title
+      if (isFirstUserMessage && refreshConversationListRef.current) {
+        // Add a small delay to ensure backend has finished generating the title
+        setTimeout(() => {
+          refreshConversationListRef.current?.();
+        }, 500);
+      }
     } catch (err) {
       console.error('Failed to persist message:', err);
     }
@@ -489,7 +498,7 @@ export const Chat: React.FC = () => {
     }
 
     // Persist user message
-    await persistMessage(userMessage);
+    await persistMessage(userMessage, isFirstMessage);
 
     const assistantMessage: ChatMessage = { role: 'assistant', content: '', tokenCount: 0 };
     setMessages((prev) => [...prev, assistantMessage]);
@@ -578,8 +587,8 @@ export const Chat: React.FC = () => {
           canvasMode
         );
       } else {
-        // Use regular text streaming
-        await apiService.streamMessage(
+        // Use WebSocket streaming for better real-time performance
+        const cleanup = apiService.streamMessageWebSocket(
           messagesToSend,
           currentModel ? { model: currentModel } : undefined,
           (content) => {
@@ -805,6 +814,9 @@ export const Chat: React.FC = () => {
           onCurrentConversationDeleted={handleCurrentConversationDeleted}
           onAddOptimisticConversation={(callback) => {
             addOptimisticConversationRef.current = callback;
+          }}
+          onRefreshRequested={(callback) => {
+            refreshConversationListRef.current = callback;
           }}
         />
 

@@ -194,5 +194,7 @@ echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 
-# Start the server
-python manage.py runserver 0.0.0.0:20001
+# Start the server using Uvicorn (ASGI) for streaming support
+# Note: Using Uvicorn instead of runserver to support ASGI
+echo -e "${BLUE}Starting Uvicorn ASGI server...${NC}"
+uvicorn backend.asgi:application --host 0.0.0.0 --port 20001 --log-level info

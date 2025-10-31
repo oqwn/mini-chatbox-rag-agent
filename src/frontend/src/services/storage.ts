@@ -165,17 +165,29 @@ export class StorageService {
   }
 
   static clearAll(): void {
+    // Clear all chatbox-related keys from localStorage
+    // Use a prefix match to ensure we get everything
+    const keysToRemove: string[] = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('chatbox_')) {
+        keysToRemove.push(key);
+      }
+    }
+
+    // Remove all found keys
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+
+    // Explicitly clear known keys to be sure
     localStorage.removeItem(STORAGE_KEYS.API_KEY);
     localStorage.removeItem(STORAGE_KEYS.BASE_URL);
     localStorage.removeItem(STORAGE_KEYS.MODEL);
     localStorage.removeItem(STORAGE_KEYS.MODEL_CAPABILITIES);
-    // RAG settings
     localStorage.removeItem(STORAGE_KEYS.RAG_EMBEDDING_MODEL);
     localStorage.removeItem(STORAGE_KEYS.RAG_EMBEDDING_ENDPOINT);
     localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_ENDPOINT);
     localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_API_KEY);
     localStorage.removeItem(STORAGE_KEYS.RAG_RERANK_FORCE_LOCAL);
-    // Note: We keep the encryption key so that if the user re-enters
-    // their API key, it will be encrypted with the same key
   }
 }

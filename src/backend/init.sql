@@ -180,6 +180,26 @@ CREATE TABLE IF NOT EXISTS knowledge_sources (
 );
 CREATE INDEX IF NOT EXISTS knowledge_sources_created_at_idx ON knowledge_sources(created_at);
 
+-- User Settings
+CREATE TABLE IF NOT EXISTS user_settings (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL UNIQUE DEFAULT 'default_user',
+    api_key VARCHAR(500),
+    base_url VARCHAR(500),
+    model VARCHAR(100) DEFAULT 'gpt-4',
+    temperature FLOAT DEFAULT 0.7,
+    max_tokens INTEGER DEFAULT 2048,
+    top_p FLOAT DEFAULT 1.0,
+    rag_enabled BOOLEAN DEFAULT FALSE,
+    rag_config JSONB DEFAULT '{}',
+    theme VARCHAR(50) DEFAULT 'light',
+    language VARCHAR(10) DEFAULT 'en',
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS user_settings_user_id_idx ON user_settings(user_id);
+
 -- MCP Servers
 CREATE TABLE IF NOT EXISTS mcp_servers (
     id SERIAL PRIMARY KEY,
